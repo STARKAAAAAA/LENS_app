@@ -411,8 +411,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       slides[cur].classList.add('active');
     }, 6000);
 
-    // fadeUp 结束 (0.3+1.8=2.1s) 后立刻渐隐 LENS → 角落 logo 淡入
-    setTimeout(moveTitleToCorner, 2200);
+    // titleEntrance 结束 (0.25+2=2.25s) 后渐隐 LENS → 角落 logo
+    setTimeout(moveTitleToCorner, 2350);
   }
 
   function moveTitleToCorner() {
@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.body.appendChild(lensGlow);
 
-    // 创建角落 logo（独立元素，避免渐变文字冲突）
+    // 创建角落 logo
     const logo = document.createElement('div');
     logo.id = 'corner-logo';
     logo.textContent = 'LENS';
@@ -464,21 +464,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       color: 'rgba(255,255,255,0.85)',
       cursor: 'pointer',
       opacity: '0',
-      transition: 'opacity 0.6s ease',
+      scale: '0.8',
+      transition: 'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1)',
       userSelect: 'none',
       WebkitUserSelect: 'none',
       lineHeight: '1',
-      padding: '4px 0'
+      padding: '4px 0',
+      willChange: 'opacity, scale'
     });
     logo.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     document.body.appendChild(logo);
 
-    // 触发淡入
+    // 触发淡入 + 弹性缩放
     requestAnimationFrame(() => {
       lensGlow.style.opacity = '1';
       logo.style.opacity = '1';
+      logo.style.scale = '1';
     });
 
     // 清除背景模糊

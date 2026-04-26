@@ -223,7 +223,7 @@
 
   /* ========== 角落 Logo ========== */
   #corner-logo {
-    transition: opacity 0.6s ease, color 0.3s ease;
+    will-change: transform, opacity;
     &:hover { color: #fff; }
   }
 
@@ -237,10 +237,10 @@
 
     & .hero__slides {
       position: absolute; inset: -30px;
-      filter: blur(0px);
-      animation: heroBlurIn 2.5s var(--ease-out) forwards;
+      filter: blur(60px);
+      animation: heroBlurIn 2.8s cubic-bezier(0.22, 0.1, 0.1, 1) forwards;
+      will-change: filter;
 
-      /* 切换文件夹时快速淡出 */
       &.hero__slides--out .hero__slide {
         opacity: 0 !important;
         transition: opacity 0.35s var(--ease-out) !important;
@@ -249,17 +249,18 @@
       &.hero__slides--clear {
         filter: blur(0px);
         animation: none;
+        will-change: auto;
       }
     }
 
     & .hero__slide {
       position: absolute; inset: 0;
       background-size: cover; background-position: center;
-      opacity: 0; scale: 1;
-      transition: opacity 2.5s var(--ease-smooth), scale 12s linear;
-      will-change: opacity, scale;
+      opacity: 0; scale: 1.02;
+      transition: opacity 3s cubic-bezier(0.22,0.1,0.1,1), scale 3s cubic-bezier(0.22,0.1,0.1,1);
+      will-change: opacity, scale, transform;
 
-      &.active { opacity: 1; scale: 1.08; }
+      &.active { opacity: 1; scale: 1; }
     }
 
     & .hero__overlay {
@@ -288,9 +289,10 @@
         rgba(255,255,255,0.9) 30%,
         rgba(255,255,255,0.28) 100%);
       -webkit-background-clip: text; background-clip: text;
-      opacity: 0; translate: 0 60px;
-      animation: fadeUp 1.8s var(--ease-out) 0.3s forwards;
+      opacity: 0; translate: 0 60px; scale: 1.08;
+      animation: titleEntrance 2s cubic-bezier(0.16, 1, 0.2, 1) 0.25s forwards;
       filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
+      will-change: transform, opacity;
       transition: none;
 
       &::after {
@@ -299,7 +301,7 @@
         width: 0; height: 1px;
         margin: 1.6rem auto 0;
         background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), rgba(255,255,255,0.35), transparent);
-        animation: lineGrow 1.6s var(--ease-out) 1.4s forwards;
+        animation: lineGrow 1.6s cubic-bezier(0.16,1,0.2,1) 1.5s forwards;
         transition: opacity 0.5s var(--ease-out);
       }
 
@@ -317,11 +319,12 @@
       font-size: clamp(0.8rem, 1.4vw, 1rem);
       font-weight: 300;
       letter-spacing: 0.6em; text-indent: 0.6em;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255,255,255,0.5);
       text-transform: uppercase;
       margin-top: 2em;
-      opacity: 0; translate: 0 20px;
-      animation: fadeUp 1.4s var(--ease-out) 1s forwards;
+      opacity: 0; translate: 0 24px;
+      animation: fadeUp 1.6s cubic-bezier(0.16,1,0.2,1) 0.8s forwards;
+      will-change: transform, opacity;
     }
 
     /* 毛玻璃滚动胶囊 */
@@ -329,7 +332,7 @@
       position: absolute; bottom: 2.5rem; left: 50%; z-index: 2;
       translate: -50% 0;
       opacity: 0;
-      animation: fadeUp 1s var(--ease-out) 2s forwards;
+      animation: fadeUp 1s cubic-bezier(0.16,1,0.2,1) 2.6s forwards;
       width: 30px; height: 52px;
       border-radius: 15px;
       background: rgba(255,255,255,0.06);
@@ -360,10 +363,18 @@
   @keyframes fadeUp {
     to { opacity: 1; translate: 0 0; }
   }
+  @keyframes titleEntrance {
+    0%   { opacity: 0; translate: 0 80px; scale: 1.1; }
+    60%  { opacity: 1; translate: 0 -6px; scale: 0.99; }
+    80%  { opacity: 1; translate: 0 2px; scale: 1.005; }
+    100% { opacity: 1; translate: 0 0; scale: 1; }
+  }
   @keyframes heroBlurIn {
-    0%   { filter: blur(40px); }
-    40%  { filter: blur(20px); }
-    80%  { filter: blur(4px); }
+    0%   { filter: blur(60px); }
+    25%  { filter: blur(38px); }
+    50%  { filter: blur(16px); }
+    75%  { filter: blur(4px); }
+    90%  { filter: blur(1px); }
     100% { filter: blur(0px); }
   }
   @keyframes lineGrow { to { width: 100px; } }
