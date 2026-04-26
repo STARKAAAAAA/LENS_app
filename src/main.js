@@ -110,14 +110,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   let sidebarHideTimer = null;
   let heroTimer = null;
 
-  // ========== 侧边栏自动隐藏/滑出 ==========
+  // ========== 侧边栏：靠近探出 / 点击展开 / 远离收起 ==========
   let logoTracking = null;
+  let sidebarClicked = false;
 
   function trackLogo() {
     const logo = document.getElementById('corner-logo');
     const glow = document.getElementById('lens-glow');
     const sidebarRect = sidebar.getBoundingClientRect();
-    const open = sidebar.classList.contains('sidebar--open') || sidebarRect.right > 20;
+    const open = sidebar.classList.contains('sidebar--open') && sidebarRect.right > 20;
 
     if (!logo) { logoTracking = null; return; }
 
@@ -129,35 +130,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const targetLeft = sidebarRect.right + 10;
-    const delta = targetLeft - 28; // 相对于默认位置的偏移
+    const delta = targetLeft - 28;
     logo.style.left = (28 + delta) + 'px';
     if (glow) glow.style.left = (6 + delta) + 'px';
 
     logoTracking = requestAnimationFrame(trackLogo);
   }
 
+  function peekSidebar() {
+    clearTimeout(sidebarHideTimer);
+    if (!sidebarClicked) {
+      sidebar.classList.add('sidebar--peek');
+    }
+  }
+
   function openSidebar() {
     clearTimeout(sidebarHideTimer);
+    sidebarClicked = true;
     sidebar.classList.add('sidebar--open');
-    // 开始跟踪侧边栏位置
+    sidebar.classList.remove('sidebar--peek');
     if (!logoTracking) {
       logoTracking = requestAnimationFrame(trackLogo);
     }
   }
 
-  function closeSidebar() {
+  function hideSidebar() {
     sidebarHideTimer = setTimeout(() => {
-      sidebar.classList.remove('sidebar--open');
-      // 继续跟踪直到侧边栏完全缩回
-      if (!logoTracking) {
-        logoTracking = requestAnimationFrame(trackLogo);
+      if (!sidebar.matches(':hover')) {
+        sidebarClicked = false;
+        sidebar.classList.remove('sidebar--open', 'sidebar--peek');
+        // 继续跟踪直到完全缩回
+        if (!logoTracking) {
+          logoTracking = requestAnimationFrame(trackLogo);
+        }
       }
-    }, 400);
+    }, 500);
   }
 
-  sidebarTrigger.addEventListener('mouseenter', openSidebar);
-  sidebar.addEventListener('mouseenter', openSidebar);
-  sidebar.addEventListener('mouseleave', closeSidebar);
+  // 触发区 hover → 探出
+  sidebarTrigger.addEventListener('mouseenter', peekSidebar);
+  // 点击侧边栏任意位置 → 展开
+  sidebar.addEventListener('click', openSidebar);
+  // 鼠标离开侧边栏 → 收起
+  sidebar.addEventListener('mouseleave', hideSidebar);
+  // 鼠标离开触发区 → 如果没点开过，立刻收起探出
+  sidebarTrigger.addEventListener('mouseleave', () => {
+    if (!sidebarClicked) {
+      sidebarHideTimer = setTimeout(() => {
+        if (!sidebar.matches(':hover')) {
+          sidebar.classList.remove('sidebar--peek');
+        }
+      }, 200);
+    }
+  });
 
   // ========== 侧边栏渲染 ==========
   function renderSidebar(activeDir) {
