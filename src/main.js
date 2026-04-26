@@ -5,6 +5,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 
 const BATCH_SIZE = 30;
 const CONFIG_KEY = 'lens-photo-dir';
+const SAVED_KEY = 'lens-saved-folders';
 
 // ========== 配置管理 ==========
 function loadDir() {
@@ -12,6 +13,15 @@ function loadDir() {
 }
 function saveDir(dir) {
   localStorage.setItem(CONFIG_KEY, dir);
+}
+
+function getSavedFolders() {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_KEY)) || [];
+  } catch { return []; }
+}
+function saveFolders(dirs) {
+  localStorage.setItem(SAVED_KEY, JSON.stringify(dirs));
 }
 
 // ========== 选择文件夹 ==========
@@ -87,19 +97,124 @@ document.addEventListener('DOMContentLoaded', async () => {
   const galleryMore = document.getElementById('gallery-more');
   const loadMoreBtn = document.getElementById('load-more');
   const sectionTitle = document.getElementById('section-title');
+  const sidebarList = document.getElementById('sidebar-list');
+
+  const sidebar = document.getElementById('sidebar');
+  const sidebarTrigger = document.getElementById('sidebar-trigger');
 
   let data = { categories: [], photos: [], byCategory: {} };
   let photoDir = loadDir();
   let currentCategory = null;
   let currentPhotos = [];
   let loadedCount = 0;
+  let sidebarHideTimer = null;
+  let heroTimer = null;
+
+  // ========== 侧边栏自动隐藏/滑出 ==========
+  function openSidebar() {
+    clearTimeout(sidebarHideTimer);
+    sidebar.classList.add('sidebar--open');
+  }
+  function closeSidebar() {
+    sidebarHideTimer = setTimeout(() => {
+      sidebar.classList.remove('sidebar--open');
+    }, 400);
+  }
+
+  sidebarTrigger.addEventListener('mouseenter', openSidebar);
+  sidebar.addEventListener('mouseenter', openSidebar);
+  sidebar.addEventListener('mouseleave', closeSidebar);
+
+  // ========== 侧边栏渲染 ==========
+  function renderSidebar(activeDir) {
+    const dirs = getSavedFolders();
+    sidebarList.innerHTML = '';
+
+    if (dirs.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'sidebar__empty';
+      empty.textContent = '暂无文件夹\n点击下方按钮添加';
+      sidebarList.appendChild(empty);
+      return;
+    }
+
+    dirs.forEach(dir => {
+      const name = dir.split(/[\\/]/).filter(Boolean).pop() || dir;
+      const isActive = dir === (activeDir || loadDir());
+
+      const item = document.createElement('div');
+      item.className = 'sidebar__item' + (isActive ? ' sidebar__item--active' : '');
+      item.title = dir;
+      item.innerHTML = `
+        <svg class="sidebar__item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span class="sidebar__item-name">${name}</span>
+        <span class="sidebar__item-remove">×</span>
+      `;
+
+      // 点击切换文件夹
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('sidebar__item-remove')) return;
+        if (dir === loadDir()) return;
+        loadFromDir(dir);
+      });
+
+      // 悬停删除
+      item.querySelector('.sidebar__item-remove').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeSavedFolder(dir);
+      });
+
+      sidebarList.appendChild(item);
+    });
+  }
+
+  function addSavedFolder(dir) {
+    const dirs = getSavedFolders();
+    const normalized = dir.replace(/\\/g, '/');
+    // 检查是否已存在（路径规范化比较）
+    const exists = dirs.some(d => d.replace(/\\/g, '/') === normalized);
+    if (!exists) {
+      dirs.unshift(dir);
+      saveFolders(dirs);
+    }
+    renderSidebar(dir);
+  }
+
+  function removeSavedFolder(dir) {
+    const dirs = getSavedFolders();
+    const idx = dirs.findIndex(d => d.replace(/\\/g, '/') === dir.replace(/\\/g, '/'));
+    if (idx !== -1) dirs.splice(idx, 1);
+    saveFolders(dirs);
+    const current = loadDir();
+    if (current.replace(/\\/g, '/') === dir.replace(/\\/g, '/')) {
+      localStorage.removeItem(CONFIG_KEY);
+      photoDir = '';
+      if (dirs.length > 0) {
+        loadFromDir(dirs[0]);
+      } else {
+        // 清空 UI
+        heroSlidesEl.innerHTML = '';
+        categoriesEl.innerHTML = '';
+        galleryEl.style.display = 'none';
+        categoriesEl.style.display = 'grid';
+        sectionTitle.textContent = 'Selected Works';
+        updateDirLabel('');
+        renderSidebar();
+      }
+    } else {
+      renderSidebar();
+    }
+  }
 
   // ========== 加载照片 ==========
   async function loadFromDir(dir) {
-    // 清空 UI
-    heroSlidesEl.innerHTML = '';
+    // 清空画廊和分类 UI
     categoriesEl.innerHTML = '';
-    galleryEl.style.display = 'none';
+    if (galleryEl.style.display !== 'none') {
+      galleryEl.style.display = 'none';
+    }
     categoriesEl.style.display = 'grid';
     sectionTitle.textContent = 'Selected Works';
 
@@ -109,13 +224,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       data = await scanPhotos(dir);
       saveDir(dir);
+      photoDir = dir;
       updateDirLabel(dir);
+      addSavedFolder(dir);
       console.log(`扫描完成: ${data.photos.length} 张, ${data.categories.length} 个分类`);
       if (data.photos.length === 0) {
         showEmpty('该文件夹中没有找到 .jpg 照片');
         return;
       }
-      initHero();
+      await rebuildHero(data.photos);
       buildCategoryCards();
     } catch (e) {
       console.error('扫描失败:', e);
@@ -169,26 +286,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     label.textContent = dir;
   }
 
-  // ========== 启动：加载已有路径或弹窗选择 ==========
-  if (photoDir) {
-    updateDirLabel(photoDir);
-    await loadFromDir(photoDir);
-  } else {
+  // ========== 侧边栏添加按钮 ==========
+  document.getElementById('sidebar-add').addEventListener('click', async () => {
     const selected = await selectFolder();
     if (selected) {
-      photoDir = selected;
-      await loadFromDir(photoDir);
+      await loadFromDir(selected);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
+  // ========== 启动：加载已有路径或弹窗选择 ==========
+  const savedDirs = getSavedFolders();
+  if (photoDir) {
+    // 确保当前路径在保存列表中
+    if (!savedDirs.some(d => d.replace(/\\/g, '/') === photoDir.replace(/\\/g, '/'))) {
+      addSavedFolder(photoDir);
+    } else {
+      renderSidebar(photoDir);
+    }
+    updateDirLabel(photoDir);
+    await loadFromDir(photoDir);
+  } else if (savedDirs.length > 0) {
+    // 加载最近使用的文件夹
+    await loadFromDir(savedDirs[0]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    // 首次启动，渲染空侧边栏
+    renderSidebar();
+    const selected = await selectFolder();
+    if (selected) {
+      await loadFromDir(selected);
     } else {
       showEmpty('请选择照片文件夹');
     }
   }
 
-  // ========== 工具栏：更换文件夹 ==========
+  // ========== 工具栏：添加文件夹 ==========
   document.getElementById('tb-folder').addEventListener('click', async () => {
     const selected = await selectFolder();
     if (selected) {
-      photoDir = selected;
-      await loadFromDir(photoDir);
+      await loadFromDir(selected);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   });
@@ -199,29 +336,51 @@ document.addEventListener('DOMContentLoaded', async () => {
   initScrollReveal();
 
   // ========== Hero ==========
-  function initHero() {
+  async function rebuildHero(photos) {
+    // 清理旧定时器 + 淡出
+    clearInterval(heroTimer);
+    heroTimer = null;
+
+    if (heroSlidesEl.children.length > 0) {
+      heroSlidesEl.classList.add('hero__slides--out');
+      await new Promise(r => setTimeout(r, 350));
+      heroSlidesEl.classList.remove('hero__slides--out');
+    }
+    heroSlidesEl.innerHTML = '';
+
+    if (!photos || photos.length === 0) return;
+
+    // 选最多 6 张，去重
     const seen = new Set();
-    const heroPhotos = [];
-    for (const p of data.photos) {
-      if (!seen.has(p.category) && heroPhotos.length < 6) {
-        seen.add(p.category);
-        heroPhotos.push(p);
+    const selected = [];
+    for (const p of photos) {
+      const key = p.category || p.src;
+      if (!seen.has(key) && selected.length < 6) {
+        seen.add(key);
+        selected.push(p);
       }
     }
-    heroPhotos.forEach((p, i) => {
+
+    selected.forEach((p, i) => {
       const div = document.createElement('div');
       div.className = 'hero__slide' + (i === 0 ? ' active' : '');
       div.style.backgroundImage = `url('${p.src}')`;
       heroSlidesEl.appendChild(div);
     });
+
     const slides = heroSlidesEl.querySelectorAll('.hero__slide');
     if (slides.length < 2) return;
     let cur = 0;
-    setInterval(() => {
+    heroTimer = setInterval(() => {
       slides[cur].classList.remove('active');
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
+  }
+
+  // 从全部照片中选（每个分类一张）
+  function initHero() {
+    rebuildHero(data.photos);
   }
 
   // ========== Category Cards ==========
@@ -252,24 +411,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ========== Gallery ==========
-  function openCategory(cat) {
+  let categoryTransitioning = false;
+
+  async function openCategory(cat) {
+    if (categoryTransitioning) return;
+    categoryTransitioning = true;
+
+    // 淡出分类卡片
+    categoriesEl.classList.add('categories--out');
+    await new Promise(r => setTimeout(r, 350));
+
     currentCategory = cat;
     currentPhotos = data.byCategory[cat] || [];
     loadedCount = 0;
     sectionTitle.textContent = cat;
     categoriesEl.style.display = 'none';
-    galleryEl.style.display = 'block';
+    categoriesEl.classList.remove('categories--out');
+
+    // Hero 切换为该分类的照片
+    rebuildHero(currentPhotos);
+
     galleryGrid.innerHTML = '';
     galleryInfo.textContent = `${currentPhotos.length} 张照片`;
+    galleryEl.classList.remove('gallery--out');
+    galleryEl.style.display = 'block';
     loadPhotos();
+
+    categoryTransitioning = false;
     window.scrollTo({ top: galleryEl.offsetTop - 40, behavior: 'smooth' });
   }
 
-  galleryBack.addEventListener('click', () => {
+  galleryBack.addEventListener('click', async () => {
+    if (categoryTransitioning) return;
+    categoryTransitioning = true;
+
+    // 淡出画廊
+    galleryEl.classList.add('gallery--out');
+    await new Promise(r => setTimeout(r, 350));
+
     currentCategory = null;
     galleryEl.style.display = 'none';
+    galleryEl.classList.remove('gallery--out');
+
+    // Hero 恢复为各分类代表照片
+    rebuildHero(data.photos);
+
     categoriesEl.style.display = 'grid';
     sectionTitle.textContent = 'Selected Works';
+
+    categoryTransitioning = false;
     window.scrollTo({ top: document.getElementById('portfolio').offsetTop - 40, behavior: 'smooth' });
   });
 

@@ -22,10 +22,10 @@
     --text: #e8e8e8;
     --text-2: #8a8a8a;
     --text-3: #4a4a4a;
-    --glass-bg: rgba(255,255,255,0.05);
-    --glass-bg-hover: rgba(255,255,255,0.09);
-    --glass-border: rgba(255,255,255,0.10);
-    --glass-border-bright: rgba(255,255,255,0.20);
+    --glass-bg: rgba(255,255,255,0.08);
+    --glass-bg-hover: rgba(255,255,255,0.14);
+    --glass-border: rgba(255,255,255,0.12);
+    --glass-border-bright: rgba(255,255,255,0.22);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
     --radius: 20px;
@@ -45,8 +45,183 @@
   }
 }
 
-/* ========== Hero ========== */
+/* ========== 主内容区 ========== */
 @layer components {
+  .main-area {
+    min-height: 100vh;
+    transition: margin-left 0.5s var(--ease-out);
+  }
+
+  /* ========== 侧边栏触发区 ========== */
+  .sidebar-trigger {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 18px;
+    z-index: 210;
+    pointer-events: auto;
+  }
+
+  /* ========== 毛玻璃侧边栏 ========== */
+  .sidebar {
+    position: fixed;
+    left: 8px; top: 12px; bottom: 12px;
+    width: 240px;
+    z-index: 200;
+    display: flex; flex-direction: column;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: auto;
+
+    transform: translateX(calc(-100% + 14px));
+    transition: transform 0.5s var(--ease-out);
+
+    &.sidebar--open {
+      transform: translateX(0);
+    }
+
+    & .sidebar__header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 20px 18px 14px;
+      font-size: 0.75rem; font-weight: 500;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--text-2);
+      position: relative; z-index: 2;
+      flex-shrink: 0;
+
+      & .sidebar__header-icon { opacity: 0.5; }
+    }
+
+    & .sidebar__list {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0 10px;
+      position: relative; z-index: 2;
+
+      &::-webkit-scrollbar { width: 3px; }
+      &::-webkit-scrollbar-track { background: transparent; }
+      &::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.08);
+        border-radius: 10px;
+      }
+      &::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.15);
+      }
+    }
+
+    & .sidebar__item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      margin-bottom: 2px;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      border: 0.5px solid transparent;
+      transition:
+        background 0.3s ease,
+        border-color 0.3s ease;
+
+      &:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.12);
+        & .sidebar__item-remove { opacity: 0.6; }
+      }
+
+      &.sidebar__item--active {
+        background: rgba(255,255,255,0.12);
+        border-color: rgba(255,255,255,0.22);
+      }
+
+      & .sidebar__item-icon {
+        flex-shrink: 0;
+        width: 14px; height: 14px;
+        color: var(--text-3);
+        transition: color 0.3s ease;
+      }
+
+      &:hover .sidebar__item-icon,
+      &.sidebar__item--active .sidebar__item-icon {
+        color: var(--text-2);
+      }
+
+      & .sidebar__item-name {
+        flex: 1;
+        font-size: 0.8rem; font-weight: 400;
+        letter-spacing: 0.03em;
+        color: var(--text-2);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        transition: color 0.3s ease;
+        position: relative; z-index: 1;
+      }
+
+      &:hover .sidebar__item-name,
+      &.sidebar__item--active .sidebar__item-name {
+        color: var(--text);
+      }
+
+      & .sidebar__item-remove {
+        flex-shrink: 0;
+        width: 18px; height: 18px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.75rem;
+        color: var(--text);
+        opacity: 0;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.10);
+        transition: opacity 0.25s ease, background 0.25s ease;
+        position: relative; z-index: 2;
+        cursor: pointer;
+
+        &:hover {
+          opacity: 1 !important;
+          background: rgba(255,255,255,0.22);
+        }
+      }
+    }
+
+    & .sidebar__empty {
+      padding: 24px 16px;
+      text-align: center;
+      font-size: 0.72rem; color: var(--text-3);
+      letter-spacing: 0.05em;
+      line-height: 1.6;
+    }
+
+    & .sidebar__add {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin: 10px 12px 16px;
+      padding: 10px 0;
+      font-size: 0.78rem; font-weight: 500;
+      letter-spacing: 0.06em;
+      color: var(--text-2);
+      border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 0.5px solid rgba(255,255,255,0.12);
+      cursor: pointer;
+      transition: all 0.4s var(--ease-out);
+      position: relative; z-index: 2;
+      flex-shrink: 0;
+
+      &:hover {
+        color: var(--text);
+        border-color: rgba(255,255,255,0.22);
+        background: rgba(255,255,255,0.14);
+        translate: 0 -1px;
+      }
+
+      & svg { flex-shrink: 0; }
+    }
+  }
+
+  /* ========== Hero ========== */
   .hero {
     position: relative;
     width: 100%; height: 100vh;
@@ -56,6 +231,12 @@
 
     & .hero__slides {
       position: absolute; inset: -30px;
+
+      /* 切换文件夹时快速淡出 */
+      &.hero__slides--out .hero__slide {
+        opacity: 0 !important;
+        transition: opacity 0.35s var(--ease-out) !important;
+      }
     }
 
     & .hero__slide {
@@ -114,7 +295,7 @@
       animation: fadeUp 1.4s var(--ease-out) 1s forwards;
     }
 
-    /* 滚动胶囊 */
+    /* 毛玻璃滚动胶囊 */
     & .hero__scroll {
       position: absolute; bottom: 2.5rem; left: 50%; z-index: 2;
       translate: -50% 0;
@@ -122,22 +303,13 @@
       animation: fadeUp 1s var(--ease-out) 2s forwards;
       width: 28px; height: 48px;
       border-radius: 14px;
-      background: rgba(255,255,255,0.06);
-      backdrop-filter: blur(20px) saturate(1.5);
-      -webkit-backdrop-filter: blur(20px) saturate(1.5);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 0.5px solid rgba(255,255,255,0.15);
       display: flex; align-items: flex-end; justify-content: center;
       padding-bottom: 8px;
-      overflow: hidden;
       transition: background 0.4s ease, border-color 0.4s ease;
-
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
-        border-radius: 14px 14px 0 0;
-        pointer-events: none;
-      }
 
       & .hero__scroll-line {
         display: block; width: 1.5px; height: 16px;
@@ -148,8 +320,8 @@
       }
 
       &:hover {
-        background: rgba(255,255,255,0.10);
-        border-color: rgba(255,255,255,0.22);
+        background: rgba(255,255,255,0.14);
+        border-color: rgba(255,255,255,0.25);
       }
     }
   }
@@ -163,32 +335,21 @@
     50% { scale: 1 0.35; opacity: 1; }
   }
 
-  /* ========== 大面积液态玻璃 Portfolio ========== */
+  /* ========== Portfolio 毛玻璃面板 ========== */
   .portfolio {
     padding: 8rem 3rem 6rem;
     max-width: 1500px; margin: 0 auto;
     position: relative; z-index: 1;
 
-    /* 大面积玻璃面板 */
     &::before {
       content: '';
       position: absolute;
       top: 6rem; left: -2rem; right: -2rem; bottom: -2rem;
-      background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(60px) saturate(1.6);
-      -webkit-backdrop-filter: blur(60px) saturate(1.6);
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
       border: 0.5px solid rgba(255,255,255,0.08);
       border-radius: var(--radius);
-      pointer-events: none;
-    }
-
-    /* 高光 */
-    &::after {
-      content: '';
-      position: absolute;
-      top: 6rem; left: -2rem; right: -2rem; height: 40%;
-      background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent);
-      border-radius: var(--radius) var(--radius) 0 0;
       pointer-events: none;
     }
 
@@ -221,12 +382,16 @@
     }
   }
 
-  /* ========== 大面积液态玻璃分类卡片 ========== */
+  /* ========== 分类卡片 ========== */
   .categories {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 12px;
     position: relative; z-index: 2;
+    opacity: 1;
+    transition: opacity 0.35s var(--ease-out);
+
+    &.categories--out { opacity: 0; }
   }
 
   .category-card {
@@ -244,9 +409,7 @@
     &:hover {
       translate: 0 -6px;
       border-color: rgba(255,255,255,0.14);
-      box-shadow:
-        0 20px 60px rgba(0,0,0,0.5),
-        inset 0 0 0 0.5px rgba(255,255,255,0.06);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     }
 
     & .category-card__img {
@@ -260,49 +423,24 @@
       filter: brightness(0.3) saturate(0.5);
     }
 
-    /* 大面积液态玻璃信息面板 */
+    /* 毛玻璃信息面板 */
     & .category-card__info {
       position: absolute; inset: 12px;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 2rem;
       border-radius: calc(var(--radius) - 4px);
-      background: rgba(255,255,255,0.06);
-      backdrop-filter: blur(0px) saturate(1);
-      -webkit-backdrop-filter: blur(0px) saturate(1);
-      border: 0.5px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 0.5px solid rgba(255,255,255,0.10);
       opacity: 0;
       transition: opacity 0.6s var(--ease-out);
       z-index: 2;
-      overflow: hidden;
-
-      /* 高光层 */
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.10), transparent);
-        border-radius: calc(var(--radius) - 4px) calc(var(--radius) - 4px) 0 0;
-        pointer-events: none;
-      }
-
-      /* 边缘折射 */
-      &::after {
-        content: '';
-        position: absolute; inset: 0;
-        background: linear-gradient(135deg, rgba(255,255,255,0.10), transparent 40%, transparent 60%, rgba(255,255,255,0.04));
-        border-radius: inherit;
-        pointer-events: none;
-      }
     }
 
     &:hover .category-card__info {
       opacity: 1;
-      backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-      -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-      transition:
-        opacity 0.6s var(--ease-out),
-        backdrop-filter 0.8s ease 0.2s,
-        -webkit-backdrop-filter 0.8s ease 0.2s;
     }
 
     & .category-card__name {
@@ -319,7 +457,7 @@
 
     &:hover .category-card__name { translate: 0 0; }
 
-    /* 液态玻璃计数徽章 */
+    /* 计数徽章 */
     & .category-card__count {
       font-family: var(--font-body);
       font-size: 0.7rem; font-weight: 500;
@@ -327,26 +465,17 @@
       color: var(--text);
       padding: 0.4rem 1.2rem;
       border-radius: var(--radius-pill);
-      background: rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.12);
       border: 0.5px solid rgba(255,255,255,0.15);
       translate: 0 12px;
-      transition: translate 0.6s var(--ease-out) 0.15s, color 0.4s ease, border-color 0.4s ease, background 0.4s ease;
+      transition: translate 0.6s var(--ease-out) 0.15s, border-color 0.4s ease, background 0.4s ease;
       position: relative; z-index: 2;
-      overflow: hidden;
-
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
-        border-radius: var(--radius-pill) var(--radius-pill) 0 0;
-        pointer-events: none;
-      }
     }
 
     &:hover .category-card__count {
       translate: 0 0;
-      border-color: rgba(255,255,255,0.22);
-      background: rgba(255,255,255,0.14);
+      border-color: rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.16);
     }
 
     & .category-card__label {
@@ -372,33 +501,30 @@
     }
   }
 
-  /* ========== 大面积液态玻璃画廊 ========== */
+  /* ========== 画廊容器 ========== */
+  .gallery {
+    opacity: 1;
+    transition: opacity 0.35s var(--ease-out);
+
+    &.gallery--out { opacity: 0; }
+  }
+
+  /* ========== 画廊导航毛玻璃条 ========== */
   .gallery__nav {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 2rem;
     padding: 1rem 1.5rem;
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-    -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
     border: 0.5px solid rgba(255,255,255,0.10);
     border-radius: var(--radius);
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 50%;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
-      border-radius: var(--radius) var(--radius) 0 0;
-      pointer-events: none;
-    }
   }
 
   .gallery__back {
     display: flex; align-items: center; gap: 0.5rem;
     font-size: 0.85rem; letter-spacing: 0.08em;
     color: var(--text-3);
-    position: relative; z-index: 2;
     transition: color 0.4s ease;
 
     &:hover { color: var(--text); }
@@ -407,7 +533,6 @@
   .gallery__info {
     font-size: 0.75rem; letter-spacing: 0.15em;
     color: var(--text-3);
-    position: relative; z-index: 2;
   }
 
   .gallery__grid {
@@ -462,39 +587,29 @@
     text-align: center; padding: 3rem 0 1rem;
   }
 
-  /* 液态玻璃加载按钮 */
+  /* 毛玻璃加载按钮 */
   .load-more-btn {
     font-size: 0.8rem; font-weight: 500;
     letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--text-2);
     padding: 0.7rem 2.5rem;
     border-radius: var(--radius-pill);
-    background: rgba(255,255,255,0.06);
-    backdrop-filter: blur(30px) saturate(1.6);
-    -webkit-backdrop-filter: blur(30px) saturate(1.6);
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 0.5px solid rgba(255,255,255,0.12);
     transition: all 0.5s var(--ease-out);
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 50%;
-      background: linear-gradient(180deg, rgba(255,255,255,0.10), transparent);
-      border-radius: var(--radius-pill) var(--radius-pill) 0 0;
-      pointer-events: none;
-    }
 
     &:hover {
       color: var(--text);
       border-color: rgba(255,255,255,0.22);
-      background: rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.14);
       translate: 0 -2px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
   }
 
-  /* ========== 液态玻璃灯箱 ========== */
+  /* ========== 灯箱 ========== */
   .lightbox {
     position: fixed; inset: 0; z-index: 1000;
     background: rgba(0,0,0,0);
@@ -504,8 +619,8 @@
 
     &.active {
       background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(80px) saturate(1.5) brightness(0.8);
-      -webkit-backdrop-filter: blur(80px) saturate(1.5) brightness(0.8);
+      backdrop-filter: blur(60px);
+      -webkit-backdrop-filter: blur(60px);
       visibility: visible;
       transition: background 0.6s var(--ease-out), visibility 0s 0s;
     }
@@ -517,9 +632,9 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 1.1rem;
       border-radius: 50%;
-      background: rgba(255,255,255,0.10);
-      backdrop-filter: blur(24px) saturate(1.8);
-      -webkit-backdrop-filter: blur(24px) saturate(1.8);
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 0.5px solid rgba(255,255,255,0.20);
       opacity: 0; rotate: -90deg; scale: 0.8;
       transition:
@@ -528,22 +643,13 @@
         scale 0.5s var(--ease-out) 0.2s,
         background 0.3s ease,
         border-color 0.3s ease;
-      overflow: hidden;
-
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.20), transparent);
-        border-radius: 50% 50% 0 0;
-        pointer-events: none;
-      }
     }
 
     &.active .lightbox__close { opacity: 1; rotate: 0deg; scale: 1; }
 
     & .lightbox__close:hover {
       rotate: 90deg;
-      background: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.18);
       border-color: rgba(255,255,255,0.30);
     }
 
@@ -554,9 +660,9 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 1.6rem;
       border-radius: 50%;
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(24px) saturate(1.6);
-      -webkit-backdrop-filter: blur(24px) saturate(1.6);
+      background: rgba(255,255,255,0.10);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 0.5px solid rgba(255,255,255,0.18);
       opacity: 0;
       transition:
@@ -564,21 +670,12 @@
         translate 0.3s var(--ease-out),
         background 0.3s ease,
         border-color 0.3s ease;
-      overflow: hidden;
-
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
-        border-radius: 50% 50% 0 0;
-        pointer-events: none;
-      }
     }
 
     &.active .lightbox__prev, &.active .lightbox__next { opacity: 1; }
 
     & .lightbox__prev:hover, & .lightbox__next:hover {
-      background: rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.16);
       border-color: rgba(255,255,255,0.28);
     }
     & .lightbox__prev { left: 1.5rem; &:hover { translate: -4px -50%; } }
@@ -616,7 +713,7 @@
     }
   }
 
-  /* ========== 液态玻璃幻灯片 ========== */
+  /* ========== 幻灯片 ========== */
   .slideshow {
     position: fixed; inset: 0; z-index: 2000;
     background: var(--bg); display: none; flex-direction: column;
@@ -640,20 +737,12 @@
     & .slideshow__controls {
       display: flex; align-items: center; gap: 6px;
       padding: 10px 20px;
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-      -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
       border-top: 0.5px solid rgba(255,255,255,0.10);
       opacity: 0; transition: opacity 0.4s ease;
       flex-wrap: wrap; justify-content: center;
-      position: relative;
-
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 20%; right: 20%; height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
-        pointer-events: none;
-      }
     }
 
     &:hover .slideshow__controls,
@@ -672,50 +761,31 @@
       letter-spacing: 0.06em; color: var(--text-2);
       padding: 5px 14px;
       border-radius: var(--radius-pill);
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.08);
       border: 0.5px solid rgba(255,255,255,0.10);
       transition: all 0.3s ease;
       white-space: nowrap;
-      position: relative;
-      overflow: hidden;
-
-      &::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent);
-        border-radius: var(--radius-pill) var(--radius-pill) 0 0;
-        pointer-events: none;
-      }
     }
 
     & .slideshow__btn:hover {
       color: var(--text);
-      border-color: rgba(255,255,255,0.20);
-      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.14);
     }
 
     & #sl-exit { margin-left: auto; }
   }
 
-  /* ========== 液态玻璃工具栏 ========== */
+  /* ========== 毛玻璃工具栏 ========== */
   .toolbar {
     position: fixed; top: 16px; right: 16px; z-index: 100;
     display: flex; gap: 0;
     padding: 4px;
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-    -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.05);
-    border: 0.5px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 0.5px solid rgba(255,255,255,0.12);
     border-radius: var(--radius-pill);
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 50%;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
-      border-radius: var(--radius-pill);
-      pointer-events: none;
-    }
   }
 
   .toolbar__btn {
@@ -730,7 +800,7 @@
 
     &:hover {
       color: var(--text);
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.10);
     }
   }
 
@@ -739,24 +809,14 @@
     position: fixed; bottom: 12px; left: 12px; z-index: 100;
     font-size: 0.65rem; color: var(--text-3);
     letter-spacing: 0.05em;
-    max-width: 50vw;
+    max-width: 40vw;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding: 5px 14px;
     border-radius: var(--radius-pill);
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(24px) saturate(1.5);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 0.5px solid rgba(255,255,255,0.08);
-    position: fixed;
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 50%;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
-      border-radius: var(--radius-pill) var(--radius-pill) 0 0;
-      pointer-events: none;
-    }
   }
 }
 
@@ -768,7 +828,16 @@
     .portfolio { padding: 7rem 2rem 5rem; }
   }
 
+  @media (max-width: 768px) {
+    .sidebar { width: 200px; left: 6px; top: 10px; bottom: 10px; }
+    #dir-label { max-width: 35vw; }
+    .portfolio { padding: 5rem 1.5rem 3rem; }
+  }
+
   @media (max-width: 640px) {
+    .sidebar { width: 180px; left: 4px; top: 6px; bottom: 6px; border-radius: 16px; }
+    .sidebar.sidebar--open { transform: translateX(0); }
+    #dir-label { max-width: 30vw; font-size: 0.6rem; }
     .portfolio { padding: 5rem 1rem 3rem; }
     .categories { grid-template-columns: 1fr 1fr; gap: 8px; }
     .category-card { aspect-ratio: 1 / 1.2; border-radius: 16px; }
@@ -777,5 +846,6 @@
     .hero__subtitle { letter-spacing: 0.35em; text-indent: 0.35em; }
     .lightbox__prev { left: 0.5rem; }
     .lightbox__next { right: 0.5rem; }
+    .toolbar { top: 4px; right: 4px; }
   }
 }
