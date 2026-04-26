@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (scroll) scroll.style.opacity = '0';
     if (content) content.classList.add('hero__content--corner');
 
-    // 创建 LENS 底部毛玻璃光斑
+    // 创建 LENS 底部暖金光斑
     const lensGlow = document.createElement('div');
     lensGlow.id = 'lens-glow';
     Object.assign(lensGlow.style, {
@@ -436,10 +436,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       width: '110px',
       height: '44px',
       borderRadius: '16px',
-      background: 'rgba(255,255,255,0.05)',
+      background: 'rgba(200,180,160,0.04)',
       backdropFilter: 'blur(40px)',
       WebkitBackdropFilter: 'blur(40px)',
-      border: '0.5px solid rgba(255,255,255,0.06)',
+      border: '0.5px solid rgba(200,180,160,0.06)',
       opacity: '0',
       transition: 'opacity 0.8s ease',
       pointerEvents: 'none',
@@ -461,11 +461,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       fontSize: '1.2rem',
       fontWeight: '300',
       letterSpacing: '0.18em',
-      color: 'rgba(255,255,255,0.85)',
+      color: 'rgba(220,200,175,0.85)',
       cursor: 'pointer',
       opacity: '0',
       scale: '0.8',
-      transition: 'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1)',
+      transition: 'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1), color 0.3s ease',
       userSelect: 'none',
       WebkitUserSelect: 'none',
       lineHeight: '1',
