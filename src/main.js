@@ -115,20 +115,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function trackLogo() {
     const logo = document.getElementById('corner-logo');
+    const glow = document.getElementById('lens-glow');
     const sidebarRect = sidebar.getBoundingClientRect();
     if (!logo || !sidebar.classList.contains('sidebar--open') && sidebarRect.right < 20) {
-      // 侧边栏已收回，logo 回原位
       if (logo) logo.style.left = '28px';
+      if (glow) glow.style.left = '14px';
       logoTracking = null;
       return;
     }
-    // logo 跟随侧边栏右边缘 + 8px 间距
     const targetLeft = sidebarRect.right + 10;
-    logo.style.left = targetLeft + 'px';
+    if (logo) logo.style.left = targetLeft + 'px';
+    if (glow) glow.style.left = (targetLeft - 14) + 'px';
     if (sidebar.classList.contains('sidebar--open') || sidebarRect.right > 14) {
       logoTracking = requestAnimationFrame(trackLogo);
     } else {
-      logo.style.left = '28px';
+      if (logo) logo.style.left = '28px';
+      if (glow) glow.style.left = '14px';
       logoTracking = null;
     }
   }
@@ -422,23 +424,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (scroll) scroll.style.opacity = '0';
     if (content) content.classList.add('hero__content--corner');
 
-    // 创建顶部毛玻璃条
-    const topBar = document.createElement('div');
-    topBar.id = 'top-bar';
-    Object.assign(topBar.style, {
+    // 创建 LENS 底部毛玻璃光斑
+    const lensGlow = document.createElement('div');
+    lensGlow.id = 'lens-glow';
+    Object.assign(lensGlow.style, {
       position: 'fixed',
-      zIndex: '499',
-      left: '0', top: '0', right: '0',
-      height: '48px',
-      background: 'rgba(3,3,3,0.35)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
-      borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+      zIndex: '498',
+      left: '14px',
+      top: '2px',
+      width: '100px',
+      height: '44px',
+      borderRadius: '14px',
+      background: 'rgba(255,255,255,0.06)',
+      backdropFilter: 'blur(30px)',
+      WebkitBackdropFilter: 'blur(30px)',
+      border: '0.5px solid rgba(255,255,255,0.08)',
       opacity: '0',
-      transition: 'opacity 0.8s ease',
+      transition: 'opacity 0.8s ease, left 0.5s var(--ease-out)',
       pointerEvents: 'none'
     });
-    document.body.appendChild(topBar);
+    document.body.appendChild(lensGlow);
 
     // 创建角落 logo（独立元素，避免渐变文字冲突）
     const logo = document.createElement('div');
@@ -469,7 +474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 触发淡入
     requestAnimationFrame(() => {
-      topBar.style.opacity = '1';
+      lensGlow.style.opacity = '1';
       logo.style.opacity = '1';
     });
 
