@@ -223,8 +223,14 @@
 
   /* ========== 角落 Logo ========== */
   #corner-logo {
-    transition: opacity 0.6s ease, color 0.3s ease;
+    transition: opacity 0.6s ease, color 0.3s ease, left 0.5s var(--ease-out);
     &:hover { color: #fff; }
+
+    /* 侧边栏滑出时跟随右移 */
+    .sidebar--open ~ &,
+    .sidebar--open ~ .main-area & {
+      left: 256px !important;
+    }
   }
 
   /* ========== Hero ========== */
