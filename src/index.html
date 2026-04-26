@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LENS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Cormorant:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ====== Hero ====== -->
+  <section class="hero" id="hero">
+    <div class="hero__slides" id="hero-slides"></div>
+    <div class="hero__overlay"></div>
+    <div class="hero__content">
+      <h1 class="hero__title">LENS</h1>
+      <p class="hero__subtitle">Photography Portfolio</p>
+    </div>
+    <a href="#portfolio" class="hero__scroll">
+      <span class="hero__scroll-line"></span>
+    </a>
+  </section>
+
+  <!-- ====== Portfolio ====== -->
+  <section class="portfolio" id="portfolio">
+    <div class="portfolio__header">
+      <h2 class="portfolio__title" id="section-title">Selected Works</h2>
+    </div>
+
+    <!-- 分类卡片 -->
+    <div class="categories" id="categories"></div>
+
+    <!-- 画廊 -->
+    <div class="gallery" id="gallery" style="display:none;">
+      <div class="gallery__nav">
+        <button class="gallery__back" id="gallery-back">← 返回</button>
+        <span class="gallery__info" id="gallery-info"></span>
+      </div>
+      <div class="gallery__grid" id="gallery-grid"></div>
+      <div class="gallery__more" id="gallery-more" style="display:none;">
+        <button class="load-more-btn" id="load-more">加载更多</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== 灯箱 ====== -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox__close">✕</button>
+    <button class="lightbox__prev">‹</button>
+    <button class="lightbox__next">›</button>
+    <div class="lightbox__content">
+      <img class="lightbox__img" src="" alt="">
+      <div class="lightbox__title"></div>
+      <div class="lightbox__counter"></div>
+    </div>
+  </div>
+
+  <!-- ====== 幻灯片 ====== -->
+  <div class="slideshow" id="slideshow">
+    <div class="slideshow__img-wrap">
+      <img class="slideshow__img" id="slideshow-img" src="" alt="">
+    </div>
+    <div class="slideshow__controls" id="slideshow-controls">
+      <span class="slideshow__counter" id="slideshow-counter"></span>
+      <div class="slideshow__btns">
+        <button class="slideshow__btn" id="sl-prev">← 上一张</button>
+        <button class="slideshow__btn" id="sl-pause">暂停</button>
+        <button class="slideshow__btn" id="sl-next">下一张 →</button>
+      </div>
+      <div class="slideshow__zoom">
+        <button class="slideshow__btn" id="sl-zoom-out">−</button>
+        <button class="slideshow__btn" id="sl-fit">适配</button>
+        <button class="slideshow__btn" id="sl-zoom-in">+</button>
+        <button class="slideshow__btn" id="sl-orig">1:1</button>
+      </div>
+      <button class="slideshow__btn" id="sl-exit">退出</button>
+    </div>
+  </div>
+
+  <!-- ====== 工具栏 ====== -->
+  <div class="toolbar" id="toolbar">
+    <button class="toolbar__btn" id="tb-folder">文件夹</button>
+    <button class="toolbar__btn" id="tb-slideshow">幻灯片</button>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

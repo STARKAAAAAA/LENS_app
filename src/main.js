@@ -1,0 +1,611 @@
+import { readDir } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+
+const BATCH_SIZE = 30;
+const CONFIG_KEY = 'lens-photo-dir';
+
+// ========== 配置管理 ==========
+function loadDir() {
+  return localStorage.getItem(CONFIG_KEY) || '';
+}
+function saveDir(dir) {
+  localStorage.setItem(CONFIG_KEY, dir);
+}
+
+// ========== 选择文件夹 ==========
+async function selectFolder() {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择照片文件夹',
+  });
+  return selected || null;
+}
+
+// ========== 扫描照片 ==========
+async function scanPhotos(baseDir) {
+  const photos = [];
+
+  async function walk(dir) {
+    let entries;
+    try {
+      entries = await readDir(dir);
+    } catch (e) {
+      console.error(`读取失败: ${dir}`, e);
+      throw e;
+    }
+
+    for (const entry of entries) {
+      const fullPath = await join(dir, entry.name);
+      if (entry.isDirectory) {
+        await walk(fullPath);
+      } else if (entry.name.toLowerCase().endsWith('.jpg')) {
+        const rel = fullPath.replace(baseDir + '\\', '').replace(baseDir + '/', '');
+        const parts = rel.split(/[\\/]/);
+        const topFolder = parts[0];
+        const category = cleanCategory(topFolder);
+        const title = cleanTitle(entry.name);
+        photos.push({ src: convertFileSrc(fullPath), path: fullPath, category, title, folder: topFolder });
+      }
+    }
+  }
+
+  await walk(baseDir);
+  photos.sort((a, b) => a.folder.localeCompare(b.folder, undefined, { numeric: true }));
+  const categories = [...new Set(photos.map(p => p.category))];
+  const byCategory = {};
+  photos.forEach(p => {
+    if (!byCategory[p.category]) byCategory[p.category] = [];
+    byCategory[p.category].push(p);
+  });
+
+  return { categories, photos, byCategory };
+}
+
+function cleanCategory(dirname) {
+  const m = dirname.match(/^\d{4}\s+\d{1,2}\s+\d{1,2}\s*(.*)/);
+  return (m && m[1]) ? m[1].trim() : dirname.trim();
+}
+
+function cleanTitle(filename) {
+  let name = filename.replace(/\.[^.]+$/, '');
+  name = name.replace(/-DxO_DeepPRIME\s*XD2?s?/g, '');
+  name = name.replace(/-CR3_DxO_DeepPRIMEXD/g, '');
+  return name.trim();
+}
+
+// ========== App ==========
+document.addEventListener('DOMContentLoaded', async () => {
+  const heroSlidesEl = document.getElementById('hero-slides');
+  const categoriesEl = document.getElementById('categories');
+  const galleryEl = document.getElementById('gallery');
+  const galleryGrid = document.getElementById('gallery-grid');
+  const galleryInfo = document.getElementById('gallery-info');
+  const galleryBack = document.getElementById('gallery-back');
+  const galleryMore = document.getElementById('gallery-more');
+  const loadMoreBtn = document.getElementById('load-more');
+  const sectionTitle = document.getElementById('section-title');
+
+  let data = { categories: [], photos: [], byCategory: {} };
+  let photoDir = loadDir();
+  let currentCategory = null;
+  let currentPhotos = [];
+  let loadedCount = 0;
+
+  // ========== 加载照片 ==========
+  async function loadFromDir(dir) {
+    // 清空 UI
+    heroSlidesEl.innerHTML = '';
+    categoriesEl.innerHTML = '';
+    galleryEl.style.display = 'none';
+    categoriesEl.style.display = 'grid';
+    sectionTitle.textContent = 'Selected Works';
+
+    // 移除旧的错误/空状态提示
+    document.querySelectorAll('.dir-prompt, .scan-error').forEach(el => el.remove());
+
+    try {
+      data = await scanPhotos(dir);
+      saveDir(dir);
+      updateDirLabel(dir);
+      console.log(`扫描完成: ${data.photos.length} 张, ${data.categories.length} 个分类`);
+      if (data.photos.length === 0) {
+        showEmpty('该文件夹中没有找到 .jpg 照片');
+        return;
+      }
+      initHero();
+      buildCategoryCards();
+    } catch (e) {
+      console.error('扫描失败:', e);
+      showError(`无法读取文件夹: ${e.message || e}`);
+    }
+  }
+
+  async function pickAndLoad() {
+    const selected = await selectFolder();
+    if (selected) {
+      photoDir = selected;
+      await loadFromDir(photoDir);
+    }
+  }
+
+  function showEmpty(msg) {
+    const div = document.createElement('div');
+    div.className = 'dir-prompt';
+    div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:#999;font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;';
+    const btn = document.createElement('button');
+    btn.textContent = '重新选择文件夹';
+    btn.style.cssText = 'color:#f5f5f5;padding:0.6rem 1.5rem;border:1px solid #555;background:none;cursor:pointer;font-size:14px;';
+    btn.addEventListener('click', () => { div.remove(); pickAndLoad(); });
+    div.innerHTML = `<span>${msg}</span>`;
+    div.appendChild(btn);
+    document.body.appendChild(div);
+  }
+
+  function showError(msg) {
+    const div = document.createElement('div');
+    div.className = 'scan-error';
+    div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:#ff4444;font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;';
+    const btn = document.createElement('button');
+    btn.textContent = '重新选择文件夹';
+    btn.style.cssText = 'color:#f5f5f5;padding:0.6rem 1.5rem;border:1px solid #555;background:none;cursor:pointer;font-size:14px;';
+    btn.addEventListener('click', () => { div.remove(); pickAndLoad(); });
+    div.innerHTML = `<span>${msg}</span>`;
+    div.appendChild(btn);
+    document.body.appendChild(div);
+  }
+
+  // ========== 路径标签 ==========
+  function updateDirLabel(dir) {
+    let label = document.getElementById('dir-label');
+    if (!label) {
+      label = document.createElement('span');
+      label.id = 'dir-label';
+      // 样式由 CSS (#dir-label) 控制
+      document.body.appendChild(label);
+    }
+    label.textContent = dir;
+  }
+
+  // ========== 启动：加载已有路径或弹窗选择 ==========
+  if (photoDir) {
+    updateDirLabel(photoDir);
+    await loadFromDir(photoDir);
+  } else {
+    const selected = await selectFolder();
+    if (selected) {
+      photoDir = selected;
+      await loadFromDir(photoDir);
+    } else {
+      showEmpty('请选择照片文件夹');
+    }
+  }
+
+  // ========== 工具栏：更换文件夹 ==========
+  document.getElementById('tb-folder').addEventListener('click', async () => {
+    const selected = await selectFolder();
+    if (selected) {
+      photoDir = selected;
+      await loadFromDir(photoDir);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
+  initLightbox();
+  initSlideshow();
+  initParallax();
+  initScrollReveal();
+
+  // ========== Hero ==========
+  function initHero() {
+    const seen = new Set();
+    const heroPhotos = [];
+    for (const p of data.photos) {
+      if (!seen.has(p.category) && heroPhotos.length < 6) {
+        seen.add(p.category);
+        heroPhotos.push(p);
+      }
+    }
+    heroPhotos.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.className = 'hero__slide' + (i === 0 ? ' active' : '');
+      div.style.backgroundImage = `url('${p.src}')`;
+      heroSlidesEl.appendChild(div);
+    });
+    const slides = heroSlidesEl.querySelectorAll('.hero__slide');
+    if (slides.length < 2) return;
+    let cur = 0;
+    setInterval(() => {
+      slides[cur].classList.remove('active');
+      cur = (cur + 1) % slides.length;
+      slides[cur].classList.add('active');
+    }, 6000);
+  }
+
+  // ========== Category Cards ==========
+  function buildCategoryCards() {
+    const fragment = document.createDocumentFragment();
+    data.categories.forEach(cat => {
+      const catPhotos = data.byCategory[cat] || [];
+      const cover = catPhotos[0];
+      if (!cover) return;
+
+      const card = document.createElement('div');
+      card.className = 'category-card';
+      card.innerHTML = `
+        <img class="category-card__img" src="${cover.src}" alt="${cat}" loading="lazy">
+        <div class="category-card__label">
+          <div class="category-card__label-name">${cat}</div>
+          <div class="category-card__label-count">${catPhotos.length} 张</div>
+        </div>
+        <div class="category-card__info">
+          <div class="category-card__name">${cat}</div>
+          <div class="category-card__count">${catPhotos.length} photos</div>
+        </div>
+      `;
+      card.addEventListener('click', () => openCategory(cat));
+      fragment.appendChild(card);
+    });
+    categoriesEl.appendChild(fragment);
+  }
+
+  // ========== Gallery ==========
+  function openCategory(cat) {
+    currentCategory = cat;
+    currentPhotos = data.byCategory[cat] || [];
+    loadedCount = 0;
+    sectionTitle.textContent = cat;
+    categoriesEl.style.display = 'none';
+    galleryEl.style.display = 'block';
+    galleryGrid.innerHTML = '';
+    galleryInfo.textContent = `${currentPhotos.length} 张照片`;
+    loadPhotos();
+    window.scrollTo({ top: galleryEl.offsetTop - 40, behavior: 'smooth' });
+  }
+
+  galleryBack.addEventListener('click', () => {
+    currentCategory = null;
+    galleryEl.style.display = 'none';
+    categoriesEl.style.display = 'grid';
+    sectionTitle.textContent = 'Selected Works';
+    window.scrollTo({ top: document.getElementById('portfolio').offsetTop - 40, behavior: 'smooth' });
+  });
+
+  function loadPhotos() {
+    const end = Math.min(loadedCount + BATCH_SIZE, currentPhotos.length);
+    const fragment = document.createDocumentFragment();
+
+    for (let i = loadedCount; i < end; i++) {
+      const p = currentPhotos[i];
+      const item = document.createElement('div');
+      item.className = 'gallery__item';
+      item.dataset.src = p.src;
+      item.dataset.title = p.title;
+      item.dataset.index = i;
+      item.style.animationDelay = `${(i - loadedCount) * 0.04}s`;
+      item.innerHTML = `
+        <img src="${p.src}" alt="${p.title}" loading="lazy">
+        <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>
+      `;
+      fragment.appendChild(item);
+    }
+    galleryGrid.appendChild(fragment);
+    loadedCount = end;
+    galleryMore.style.display = loadedCount < currentPhotos.length ? 'block' : 'none';
+  }
+
+  loadMoreBtn.addEventListener('click', loadPhotos);
+
+  window.addEventListener('scroll', () => {
+    if (!currentCategory || loadedCount >= currentPhotos.length) return;
+    if (window.scrollY + window.innerHeight + 600 > galleryGrid.offsetTop + galleryGrid.offsetHeight) {
+      loadPhotos();
+    }
+  }, { passive: true });
+
+  // ========== Scroll Reveal ==========
+  function initScrollReveal() {
+    const obs = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
+      }),
+      { threshold: 0.1 }
+    );
+    document.querySelectorAll('.portfolio__title').forEach(el => obs.observe(el));
+  }
+
+  // ========== Parallax ==========
+  function initParallax() {
+    const heroSlides = document.querySelector('.hero__slides');
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      const h = document.querySelector('.hero').offsetHeight;
+      if (y < h) {
+        heroSlides.style.transform = `translateY(${y * 0.3}px)`;
+        heroSlides.style.opacity = 1 - (y / h) * 0.6;
+      }
+    }, { passive: true });
+  }
+
+  // ========== Lightbox ==========
+  function initLightbox() {
+    const lightbox = document.getElementById('lightbox');
+    const lbImg = lightbox.querySelector('.lightbox__img');
+    const lbTitle = lightbox.querySelector('.lightbox__title');
+    const lbCounter = lightbox.querySelector('.lightbox__counter');
+    const btnClose = lightbox.querySelector('.lightbox__close');
+    const btnPrev = lightbox.querySelector('.lightbox__prev');
+    const btnNext = lightbox.querySelector('.lightbox__next');
+
+    let items = [];
+    let idx = 0;
+    let transitioning = false;
+    let zoom = 1, panX = 0, panY = 0;
+    let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+
+    function applyLbTransform() {
+      lbImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    }
+
+    function resetZoom() {
+      zoom = 1; panX = 0; panY = 0;
+      lbImg.style.transform = '';
+    }
+
+    function update() {
+      const item = items[idx];
+      if (!item) return;
+      lbImg.style.opacity = '0';
+      setTimeout(() => {
+        resetZoom();
+        lbImg.src = item.dataset.src;
+        lbImg.alt = item.dataset.title;
+        lbTitle.textContent = item.dataset.title;
+        lbCounter.textContent = `${idx + 1} / ${items.length}`;
+        lbImg.style.opacity = '1';
+        transitioning = false;
+      }, 180);
+    }
+
+    function open(index) {
+      items = Array.from(galleryGrid.querySelectorAll('.gallery__item'));
+      idx = index;
+      transitioning = true;
+      resetZoom();
+      const item = items[idx];
+      lbImg.src = item.dataset.src;
+      lbTitle.textContent = item.dataset.title;
+      lbCounter.textContent = `${idx + 1} / ${items.length}`;
+      lightbox.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => transitioning = false, 600);
+    }
+
+    function close() {
+      lightbox.classList.remove('active');
+      document.body.style.overflow = '';
+      resetZoom();
+    }
+
+    function prev() { if (!transitioning) { transitioning = true; idx = (idx - 1 + items.length) % items.length; update(); } }
+    function next() { if (!transitioning) { transitioning = true; idx = (idx + 1) % items.length; update(); } }
+
+    galleryGrid.addEventListener('click', e => {
+      const item = e.target.closest('.gallery__item');
+      if (!item) return;
+      const all = Array.from(galleryGrid.querySelectorAll('.gallery__item'));
+      const i = all.indexOf(item);
+      if (i !== -1) open(i);
+    });
+
+    btnClose.addEventListener('click', close);
+    btnPrev.addEventListener('click', prev);
+    btnNext.addEventListener('click', next);
+    lightbox.addEventListener('click', e => { if (e.target === lightbox || e.target === lbImg.parentElement) close(); });
+
+    // Wheel zoom
+    lightbox.addEventListener('wheel', e => {
+      if (!lightbox.classList.contains('active')) return;
+      e.preventDefault();
+      if (e.deltaY < 0) zoom = Math.min(zoom * 1.15, 8);
+      else zoom = Math.max(zoom / 1.15, 0.5);
+      if (zoom <= 1) { panX = 0; panY = 0; }
+      applyLbTransform();
+    }, { passive: false });
+
+    // Drag pan
+    lightbox.addEventListener('mousedown', e => {
+      if (!lightbox.classList.contains('active') || e.button !== 0) return;
+      if (zoom <= 1) return;
+      dragging = true;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      panStartX = panX; panStartY = panY;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panX = panStartX + (e.clientX - dragStartX);
+      panY = panStartY + (e.clientY - dragStartY);
+      applyLbTransform();
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    // Double click to reset
+    lbImg.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      if (zoom > 1) { resetZoom(); }
+      else { zoom = 2.5; applyLbTransform(); }
+    });
+
+    document.addEventListener('keydown', e => {
+      if (!lightbox.classList.contains('active')) return;
+      if (e.key === 'Escape') close();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    });
+
+    let touchX = 0;
+    lightbox.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; }, { passive: true });
+    lightbox.addEventListener('touchend', e => {
+      if (Math.abs(e.changedTouches[0].screenX - touchX) > 60) {
+        e.changedTouches[0].screenX > touchX ? prev() : next();
+      }
+    }, { passive: true });
+  }
+
+  // ========== Slideshow ==========
+  function initSlideshow() {
+    const slideshow = document.getElementById('slideshow');
+    const img = document.getElementById('slideshow-img');
+    const counter = document.getElementById('slideshow-counter');
+    const controls = document.getElementById('slideshow-controls');
+    const btnPause = document.getElementById('sl-pause');
+    const btnPrev = document.getElementById('sl-prev');
+    const btnNext = document.getElementById('sl-next');
+    const btnZoomIn = document.getElementById('sl-zoom-in');
+    const btnZoomOut = document.getElementById('sl-zoom-out');
+    const btnFit = document.getElementById('sl-fit');
+    const btnOrig = document.getElementById('sl-orig');
+    const btnExit = document.getElementById('sl-exit');
+
+    let photos = [];
+    let idx = 0;
+    let paused = false;
+    let timer = null;
+    let zoom = 1;
+    let panX = 0, panY = 0;
+    let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+    let hideTimer = null;
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function applyTransform() {
+      img.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    }
+
+    function fitToWindow() {
+      zoom = 1; panX = 0; panY = 0;
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+      applyTransform();
+    }
+
+    function loadCurrent() {
+      if (!photos.length) return;
+      const p = photos[idx % photos.length];
+      img.src = p.src;
+      counter.textContent = `${(idx % photos.length) + 1} / ${photos.length}`;
+      fitToWindow();
+    }
+
+    function showControls() {
+      slideshow.classList.add('controls-visible');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        if (!paused) slideshow.classList.remove('controls-visible');
+      }, 3000);
+    }
+
+    function openSlideshow() {
+      if (!data.photos.length) return;
+      photos = shuffle(data.photos);
+      idx = 0;
+      paused = false;
+      zoom = 1; panX = 0; panY = 0;
+      btnPause.textContent = '暂停';
+      slideshow.classList.add('active');
+      loadCurrent();
+      timer = setInterval(() => { if (!paused) { idx++; loadCurrent(); } }, 5000);
+      showControls();
+    }
+
+    function closeSlideshow() {
+      clearInterval(timer);
+      slideshow.classList.remove('active');
+    }
+
+    // Controls
+    btnPrev.addEventListener('click', () => { idx = (idx - 1 + photos.length) % photos.length; loadCurrent(); showControls(); });
+    btnNext.addEventListener('click', () => { idx++; loadCurrent(); showControls(); });
+    btnPause.addEventListener('click', () => {
+      paused = !paused;
+      btnPause.textContent = paused ? '继续' : '暂停';
+      showControls();
+    });
+    btnExit.addEventListener('click', closeSlideshow);
+
+    // Zoom
+    btnZoomIn.addEventListener('click', () => { zoom = Math.min(zoom * 1.3, 6); applyTransform(); showControls(); });
+    btnZoomOut.addEventListener('click', () => { zoom = Math.max(zoom / 1.3, 0.1); applyTransform(); showControls(); });
+    btnFit.addEventListener('click', () => { fitToWindow(); showControls(); });
+    btnOrig.addEventListener('click', () => {
+      img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
+      zoom = 1; panX = 0; panY = 0; applyTransform(); showControls();
+    });
+
+    // Wheel zoom
+    const imgWrap = document.querySelector('.slideshow__img-wrap');
+    imgWrap.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (e.deltaY < 0) zoom = Math.min(zoom * 1.12, 6);
+      else zoom = Math.max(zoom / 1.12, 0.1);
+      applyTransform();
+      showControls();
+    }, { passive: false });
+
+    // Drag pan
+    imgWrap.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      dragging = true;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      panStartX = panX; panStartY = panY;
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panX = panStartX + (e.clientX - dragStartX);
+      panY = panStartY + (e.clientY - dragStartY);
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    // Double click to fit
+    imgWrap.addEventListener('dblclick', fitToWindow);
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if (!slideshow.classList.contains('active')) return;
+      if (e.key === 'Escape') closeSlideshow();
+      else if (e.key === ' ') { e.preventDefault(); btnPause.click(); }
+      else if (e.key === 'ArrowLeft') btnPrev.click();
+      else if (e.key === 'ArrowRight') btnNext.click();
+      else if (e.key === '+' || e.key === '=') btnZoomIn.click();
+      else if (e.key === '-') btnZoomOut.click();
+      else if (e.key === '0') btnFit.click();
+      else if (e.key === '1') btnOrig.click();
+    });
+
+    // Right click to exit
+    slideshow.addEventListener('contextmenu', e => { e.preventDefault(); closeSlideshow(); });
+
+    // Mouse move shows controls
+    slideshow.addEventListener('mousemove', showControls);
+
+    // Toolbar button
+    document.getElementById('tb-slideshow').addEventListener('click', openSlideshow);
+  }
+
+  // Scroll arrow
+  document.querySelector('.hero__scroll')?.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('portfolio')?.scrollIntoView({ behavior: 'smooth' });
+  });
+});
