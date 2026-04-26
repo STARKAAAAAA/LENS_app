@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lens — Photography Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ==================== HERO 全屏轮播 ==================== -->
+  <section class="hero" id="hero">
+    <div class="hero__slides" id="hero-slides"></div>
+    <div class="hero__overlay"></div>
+    <div class="hero__content">
+      <h1 class="hero__title">LENS</h1>
+      <p class="hero__subtitle">Photography Portfolio</p>
+    </div>
+    <a href="#portfolio" class="hero__scroll" aria-label="向下滚动">
+      <span class="hero__scroll-line"></span>
+    </a>
+  </section>
+
+  <!-- ==================== 作品集 ==================== -->
+  <section class="portfolio" id="portfolio">
+    <div class="portfolio__header">
+      <h2 class="portfolio__title" id="section-title">Selected Works</h2>
+    </div>
+
+    <!-- 分类卡片视图 -->
+    <div class="categories" id="categories"></div>
+
+    <!-- 照片瀑布流视图（隐藏） -->
+    <div class="gallery" id="gallery" style="display:none">
+      <div class="gallery__nav">
+        <button class="gallery__back" id="gallery-back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          <span>返回</span>
+        </button>
+        <span class="gallery__info" id="gallery-info"></span>
+      </div>
+      <div class="gallery__grid" id="gallery-grid"></div>
+      <div class="gallery__more" id="gallery-more" style="display:none">
+        <button class="load-more-btn" id="load-more">加载更多</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 灯箱 ==================== -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox__close" aria-label="关闭">&times;</button>
+    <button class="lightbox__prev" aria-label="上一张">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="lightbox__next" aria-label="下一张">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <div class="lightbox__content">
+      <img class="lightbox__img" src="" alt="">
+      <p class="lightbox__title"></p>
+      <p class="lightbox__counter"></p>
+    </div>
+  </div>
+
+  <!-- ==================== 页脚 ==================== -->
+  <footer class="footer">
+    <div class="footer__social">
+      <a href="#" aria-label="Instagram">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="2" width="20" height="20" rx="5"/>
+          <circle cx="12" cy="12" r="5"/>
+          <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </a>
+      <a href="#" aria-label="邮箱">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M22 4L12 13 2 4"/>
+        </svg>
+      </a>
+    </div>
+    <p class="footer__copy">&copy; 2026 Lens Photography</p>
+  </footer>
+
+  <script src="photos.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

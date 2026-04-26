@@ -13,5 +13,10 @@ src-tauri/target/
 Thumbs.db
 .DS_Store
 
+# Python
+__pycache__/
+*.pyc
+
 # Generated
 generate_icons.py
+error.log
