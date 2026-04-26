@@ -290,9 +290,21 @@
         transition: opacity 0.5s var(--ease-out);
       }
 
-      /* 移至左上角 */
+      /* 移至左上角 — JS 设置 fixed + 初始位置，此 class 触发过渡 */
       &.hero__title--corner {
-        animation: moveToCorner 1s var(--ease-out) forwards;
+        position: fixed !important;
+        z-index: 500;
+        left: 28px !important; top: 14px !important;
+        font-size: 1.2rem !important;
+        letter-spacing: 0.18em !important;
+        color: rgba(255,255,255,0.8) !important;
+        background: none !important;
+        -webkit-background-clip: unset !important;
+        background-clip: unset !important;
+        filter: none !important;
+        translate: 0 0 !important;
+        pointer-events: auto;
+        cursor: pointer;
 
         &::after { opacity: 0; }
       }
@@ -350,32 +362,6 @@
   @keyframes scrollPulse {
     0%, 100% { scale: 1 1; opacity: 0.4; }
     50% { scale: 1 0.35; opacity: 1; }
-  }
-  @keyframes moveToCorner {
-    0% {
-      position: fixed; z-index: 500;
-      left: 50vw; top: 50vh; translate: -50% -50%;
-      font-size: clamp(5rem, 15vw, 14rem);
-      letter-spacing: 0.4em;
-      opacity: 1;
-      color: transparent;
-      background: linear-gradient(180deg, #fff 20%, rgba(255,255,255,0.35) 100%);
-      -webkit-background-clip: text; background-clip: text;
-      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
-      pointer-events: none;
-    }
-    100% {
-      position: fixed; z-index: 500;
-      left: 28px; top: 14px; translate: 0 0;
-      font-size: 1.2rem;
-      letter-spacing: 0.18em;
-      opacity: 1;
-      color: rgba(255,255,255,0.8);
-      background: none;
-      -webkit-background-clip: unset; background-clip: unset;
-      filter: none;
-      pointer-events: auto;
-    }
   }
 
   /* ========== Portfolio 毛玻璃面板 ========== */
