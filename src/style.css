@@ -243,14 +243,12 @@
     width: 100%; height: 100vh;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
-    background: #000;
     container-type: inline-size;
-    animation: cinemaReveal 3.5s cubic-bezier(0.16,1,0.2,1) forwards;
 
     & .hero__slides {
       position: absolute; inset: -30px;
-      filter: blur(60px) brightness(0.3);
-      animation: photoUnveil 3.2s cubic-bezier(0.16,1,0.2,1) 0.2s forwards;
+      filter: blur(60px);
+      animation: heroBlurIn 2.8s cubic-bezier(0.22, 0.1, 0.1, 1) forwards;
       will-change: filter;
 
       &.hero__slides--out .hero__slide {
@@ -259,7 +257,7 @@
       }
 
       &.hero__slides--clear {
-        filter: blur(0px) brightness(1);
+        filter: blur(0px);
         animation: none;
         will-change: auto;
       }
@@ -268,20 +266,18 @@
     & .hero__slide {
       position: absolute; inset: 0;
       background-size: cover; background-position: center;
-      opacity: 0; scale: 1;
-      transition: opacity 3s cubic-bezier(0.22,0.1,0.1,1);
-      will-change: opacity;
+      opacity: 0; scale: 1.02;
+      transition: opacity 3s cubic-bezier(0.22,0.1,0.1,1), scale 3s cubic-bezier(0.22,0.1,0.1,1);
+      will-change: opacity, scale, transform;
 
-      &.active { opacity: 1; }
+      &.active { opacity: 1; scale: 1; }
     }
 
     & .hero__overlay {
       position: absolute; inset: 0;
-      background: #000;
-      mask-image: radial-gradient(ellipse 60% 50% at 50% 45%, black 0%, black 0%, transparent 0%);
-      -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 45%, black 0%, black 0%, transparent 0%);
-      animation: curtainOpen 3s cubic-bezier(0.16,1,0.2,1) 0.15s forwards;
-      will-change: mask-image, -webkit-mask-image;
+      background:
+        radial-gradient(ellipse at 50% 35%, transparent 0%, rgba(6,6,5,0.35) 55%, rgba(6,6,5,0.82) 100%),
+        linear-gradient(to bottom, rgba(6,6,5,0.25) 0%, transparent 25%, transparent 65%, var(--bg) 100%);
     }
 
     & .hero__content {
@@ -303,9 +299,10 @@
         rgba(220,200,175,0.85) 40%,
         rgba(180,155,130,0.25) 100%);
       -webkit-background-clip: text; background-clip: text;
-      opacity: 0; translate: 0 60px; scale: 0.95;
-      animation: titleEntrance 2.2s cubic-bezier(0.16, 1, 0.2, 1) 0.8s forwards;
-      will-change: transform, opacity, filter;
+      opacity: 0; translate: 0 60px; scale: 1.08;
+      animation: titleEntrance 2s cubic-bezier(0.16, 1, 0.2, 1) 0.25s forwards;
+      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
+      will-change: transform, opacity;
       transition: none;
 
       &::after {
@@ -313,8 +310,8 @@
         display: block;
         width: 0; height: 1px;
         margin: 1.6rem auto 0;
-        background: linear-gradient(90deg, transparent, rgba(220,200,180,0.4), rgba(220,200,180,0.4), transparent);
-        animation: lineGrow 1.6s cubic-bezier(0.16,1,0.2,1) 2.2s forwards;
+        background: linear-gradient(90deg, transparent, rgba(220,200,180,0.35), rgba(220,200,180,0.35), transparent);
+        animation: lineGrow 1.6s cubic-bezier(0.16,1,0.2,1) 1.5s forwards;
         transition: opacity 0.5s var(--ease-out);
       }
 
@@ -332,11 +329,11 @@
       font-size: clamp(0.8rem, 1.4vw, 1rem);
       font-weight: 300;
       letter-spacing: 0.6em; text-indent: 0.6em;
-      color: rgba(220,200,180,0.4);
+      color: rgba(220,200,180,0.5);
       text-transform: uppercase;
       margin-top: 2em;
       opacity: 0; translate: 0 24px;
-      animation: fadeUp 1.6s cubic-bezier(0.16,1,0.2,1) 1.6s forwards;
+      animation: fadeUp 1.6s cubic-bezier(0.16,1,0.2,1) 0.8s forwards;
       will-change: transform, opacity;
     }
 
@@ -345,7 +342,7 @@
       position: absolute; bottom: 2.5rem; left: 50%; z-index: 2;
       translate: -50% 0;
       opacity: 0;
-      animation: fadeUp 1s cubic-bezier(0.16,1,0.2,1) 3s forwards;
+      animation: fadeUp 1s cubic-bezier(0.16,1,0.2,1) 2.6s forwards;
       width: 30px; height: 52px;
       border-radius: 15px;
       background: rgba(220,200,180,0.06);
@@ -373,35 +370,22 @@
     }
   }
 
-  /* 电影开幕：黑场 → 渐显 */
-  @keyframes cinemaReveal {
-    0%   { background: #000; }
-    60%  { background: #000; }
-    100% { background: var(--bg); }
-  }
-  /* 照片从模糊暗沉中浮现 */
-  @keyframes photoUnveil {
-    0%   { filter: blur(60px) brightness(0.2); }
-    50%  { filter: blur(20px) brightness(0.5); }
-    80%  { filter: blur(4px) brightness(0.85); }
-    100% { filter: blur(0px) brightness(1); }
-  }
-  /* 幕布从中心扩散打开 */
-  @keyframes curtainOpen {
-    0%   { mask-image: radial-gradient(ellipse 40% 30% at 50% 45%, black 0%, black 0%, transparent 0%); -webkit-mask-image: radial-gradient(ellipse 40% 30% at 50% 45%, black 0%, black 0%, transparent 0%); }
-    30%  { mask-image: radial-gradient(ellipse 40% 30% at 50% 45%, black 8%, black 8%, transparent 8%); -webkit-mask-image: radial-gradient(ellipse 40% 30% at 50% 45%, black 8%, black 8%, transparent 8%); }
-    60%  { mask-image: radial-gradient(ellipse 60% 50% at 50% 45%, black 35%, black 35%, transparent 35%); -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 45%, black 35%, black 35%, transparent 35%); }
-    85%  { mask-image: radial-gradient(ellipse 100% 90% at 50% 45%, black 70%, black 70%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse 100% 90% at 50% 45%, black 70%, black 70%, transparent 70%); }
-    100% { mask-image: radial-gradient(ellipse 200% 200% at 50% 45%, black 100%, black 100%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 200% 200% at 50% 45%, black 100%, black 100%, transparent 100%); }
-  }
   @keyframes fadeUp {
     to { opacity: 1; translate: 0 0; }
   }
   @keyframes titleEntrance {
-    0%   { opacity: 0; translate: 0 60px; scale: 0.95; filter: drop-shadow(0 0 80px rgba(200,168,124,0.8)) drop-shadow(0 4px 24px rgba(0,0,0,0.7)); }
-    50%  { opacity: 1; translate: 0 -8px; scale: 1.01; filter: drop-shadow(0 0 40px rgba(200,168,124,0.4)) drop-shadow(0 4px 24px rgba(0,0,0,0.7)); }
-    80%  { opacity: 1; translate: 0 2px; scale: 1.0; filter: drop-shadow(0 0 0px rgba(200,168,124,0)) drop-shadow(0 4px 24px rgba(0,0,0,0.7)); }
-    100% { opacity: 1; translate: 0 0; scale: 1; filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7)); }
+    0%   { opacity: 0; translate: 0 80px; scale: 1.1; }
+    60%  { opacity: 1; translate: 0 -6px; scale: 0.99; }
+    80%  { opacity: 1; translate: 0 2px; scale: 1.005; }
+    100% { opacity: 1; translate: 0 0; scale: 1; }
+  }
+  @keyframes heroBlurIn {
+    0%   { filter: blur(60px); }
+    25%  { filter: blur(38px); }
+    50%  { filter: blur(16px); }
+    75%  { filter: blur(4px); }
+    90%  { filter: blur(1px); }
+    100% { filter: blur(0px); }
   }
   @keyframes lineGrow { to { width: 100px; } }
   @keyframes scrollPulse {
