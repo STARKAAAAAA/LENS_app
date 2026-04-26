@@ -290,23 +290,9 @@
         transition: opacity 0.5s var(--ease-out);
       }
 
-      /* 移至左上角 — JS 设置 fixed + 初始位置，此 class 触发过渡 */
+      /* 移至左上角 — 仅标记，位置/样式由 JS 控制 */
       &.hero__title--corner {
-        position: fixed !important;
-        z-index: 500;
-        left: 28px !important; top: 14px !important;
-        font-size: 1.2rem !important;
-        letter-spacing: 0.18em !important;
-        color: rgba(255,255,255,0.8) !important;
-        background: none !important;
-        -webkit-background-clip: unset !important;
-        background-clip: unset !important;
-        filter: none !important;
-        translate: 0 0 !important;
-        pointer-events: auto;
-        cursor: pointer;
-
-        &::after { opacity: 0; }
+        &::after { opacity: 0; transition: opacity 0.4s ease; }
       }
     }
 

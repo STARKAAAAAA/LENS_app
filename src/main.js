@@ -387,10 +387,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const scroll = document.querySelector('.hero__scroll');
     if (!title || title.classList.contains('hero__title--corner')) return;
 
-    // 1. 获取当前屏幕位置
-    const rect = title.getBoundingClientRect();
+    // 隐藏副标题和滚动指示器
+    if (scroll) scroll.style.opacity = '0';
+    if (content) content.classList.add('hero__content--corner');
 
-    // 2. 设为 fixed 并放到当前位置（瞬间无动画）
+    // 获取当前位置，设为 fixed 瞬移到原位
+    const rect = title.getBoundingClientRect();
     title.style.position = 'fixed';
     title.style.zIndex = '500';
     title.style.left = rect.left + 'px';
@@ -398,20 +400,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     title.style.right = 'auto';
     title.style.bottom = 'auto';
     title.style.transition = 'none';
-    title.style.translate = '0 0';
+    title.style.whiteSpace = 'nowrap';
 
-    // 隐藏副标题和滚动指示器
-    if (scroll) scroll.style.opacity = '0';
-    if (content) content.classList.add('hero__content--corner');
-
-    // 3. 强制重排后开启过渡
+    // 强制重排，然后开过渡
     title.offsetHeight;
-    title.style.transition = 'left 0.8s cubic-bezier(0.16,1,0.3,1), top 0.8s cubic-bezier(0.16,1,0.3,1), font-size 0.8s cubic-bezier(0.16,1,0.3,1), letter-spacing 0.8s ease, color 0.6s ease, filter 0.6s ease';
+    title.style.transition = 'left 0.8s cubic-bezier(0.16,1,0.3,1), top 0.8s cubic-bezier(0.16,1,0.3,1), font-size 0.8s cubic-bezier(0.16,1,0.3,1), letter-spacing 0.8s ease, color 0.4s ease, filter 0.4s ease';
 
-    // 4. 触发到角落
+    // 目标值（纯 inline style，无 !important 干扰）
+    title.style.left = '28px';
+    title.style.top = '14px';
+    title.style.fontSize = '1.2rem';
+    title.style.letterSpacing = '0.18em';
+    title.style.color = 'rgba(255,255,255,0.85)';
+    title.style.background = 'none';
+    title.style.WebkitBackgroundClip = 'unset';
+    title.style.backgroundClip = 'unset';
+    title.style.filter = 'none';
+    title.style.translate = '0 0';
+    title.style.cursor = 'pointer';
+
     title.classList.add('hero__title--corner');
-
-    // 点击回到顶部
     title.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
