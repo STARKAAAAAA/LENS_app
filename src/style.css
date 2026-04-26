@@ -952,6 +952,8 @@
   }
 }
 
+}
+
 /* ========== 响应式 ========== */
 @layer utilities {
   @media (max-width: 1024px) {
