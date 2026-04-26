@@ -411,8 +411,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       slides[cur].classList.add('active');
     }, 6000);
 
-    // titleEntrance 结束 (0.25+2=2.25s) 后渐隐 LENS → 角落 logo
-    setTimeout(moveTitleToCorner, 2350);
+    // 电影开幕完成后 (0.8+2.2+0.5=3.5s) 渐隐 LENS → 角落 logo
+    setTimeout(moveTitleToCorner, 4000);
   }
 
   function moveTitleToCorner() {
