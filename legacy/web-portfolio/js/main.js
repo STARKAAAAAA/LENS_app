@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentCategory = null;
   let currentPhotos = [];
   let loadedCount = 0;
+  let heroTimer = null;
+  let categoryTransitioning = false;
 
   // 按分类分组
   const photoMap = {};
@@ -37,29 +39,48 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollReveal();
 
   // ==================== Hero ====================
-  function initHero() {
+  async function rebuildHero(photoList) {
+    clearInterval(heroTimer);
+    heroTimer = null;
+
+    if (heroSlidesEl.children.length > 0) {
+      heroSlidesEl.classList.add('hero__slides--out');
+      await new Promise(r => setTimeout(r, 350));
+      heroSlidesEl.classList.remove('hero__slides--out');
+    }
+    heroSlidesEl.innerHTML = '';
+
+    if (!photoList || photoList.length === 0) return;
+
     const seen = new Set();
-    const heroPhotos = [];
-    for (const p of photos) {
-      if (!seen.has(p.category) && heroPhotos.length < 6) {
-        seen.add(p.category);
-        heroPhotos.push(p);
+    const selected = [];
+    for (const p of photoList) {
+      const key = p.category || p.src;
+      if (!seen.has(key) && selected.length < 6) {
+        seen.add(key);
+        selected.push(p);
       }
     }
-    heroPhotos.forEach((p, i) => {
+
+    selected.forEach((p, i) => {
       const div = document.createElement('div');
       div.className = 'hero__slide' + (i === 0 ? ' active' : '');
       div.style.backgroundImage = `url('${p.src}')`;
       heroSlidesEl.appendChild(div);
     });
+
     const slides = heroSlidesEl.querySelectorAll('.hero__slide');
     if (slides.length < 2) return;
     let cur = 0;
-    setInterval(() => {
+    heroTimer = setInterval(() => {
       slides[cur].classList.remove('active');
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
+  }
+
+  function initHero() {
+    rebuildHero(photos);
   }
 
   // ==================== 分类卡片 ====================
@@ -90,27 +111,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==================== 打开分类 ====================
-  function openCategory(cat) {
+  async function openCategory(cat) {
+    if (categoryTransitioning) return;
+    categoryTransitioning = true;
+
+    categoriesEl.classList.add('categories--out');
+    await new Promise(r => setTimeout(r, 350));
+
     currentCategory = cat;
     currentPhotos = photoMap[cat] || [];
     loadedCount = 0;
 
     sectionTitle.textContent = cat;
     categoriesEl.style.display = 'none';
-    galleryEl.style.display = 'block';
-    galleryGrid.innerHTML = '';
+    categoriesEl.classList.remove('categories--out');
 
+    rebuildHero(currentPhotos);
+
+    galleryGrid.innerHTML = '';
     galleryInfo.textContent = `${currentPhotos.length} 张照片`;
+    galleryEl.classList.remove('gallery--out');
+    galleryEl.style.display = 'block';
     loadPhotos();
+
+    categoryTransitioning = false;
     window.scrollTo({ top: galleryEl.offsetTop - 40, behavior: 'smooth' });
   }
 
   // ==================== 返回分类列表 ====================
-  galleryBack.addEventListener('click', () => {
+  galleryBack.addEventListener('click', async () => {
+    if (categoryTransitioning) return;
+    categoryTransitioning = true;
+
+    galleryEl.classList.add('gallery--out');
+    await new Promise(r => setTimeout(r, 350));
+
     currentCategory = null;
     galleryEl.style.display = 'none';
+    galleryEl.classList.remove('gallery--out');
+
+    rebuildHero(photos);
+
     categoriesEl.style.display = 'grid';
     sectionTitle.textContent = 'Selected Works';
+
+    categoryTransitioning = false;
     window.scrollTo({ top: document.getElementById('portfolio').offsetTop - 40, behavior: 'smooth' });
   });
 
