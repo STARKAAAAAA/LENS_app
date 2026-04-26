@@ -117,22 +117,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logo = document.getElementById('corner-logo');
     const glow = document.getElementById('lens-glow');
     const sidebarRect = sidebar.getBoundingClientRect();
-    if (!logo || !sidebar.classList.contains('sidebar--open') && sidebarRect.right < 20) {
-      if (logo) logo.style.left = '28px';
-      if (glow) glow.style.left = '14px';
+    const open = sidebar.classList.contains('sidebar--open') || sidebarRect.right > 20;
+
+    if (!logo) { logoTracking = null; return; }
+
+    if (!open) {
+      logo.style.left = '28px';
+      if (glow) glow.style.left = '6px';
       logoTracking = null;
       return;
     }
+
     const targetLeft = sidebarRect.right + 10;
-    if (logo) logo.style.left = targetLeft + 'px';
-    if (glow) glow.style.left = (targetLeft - 14) + 'px';
-    if (sidebar.classList.contains('sidebar--open') || sidebarRect.right > 14) {
-      logoTracking = requestAnimationFrame(trackLogo);
-    } else {
-      if (logo) logo.style.left = '28px';
-      if (glow) glow.style.left = '14px';
-      logoTracking = null;
-    }
+    const delta = targetLeft - 28; // 相对于默认位置的偏移
+    logo.style.left = (28 + delta) + 'px';
+    if (glow) glow.style.left = (6 + delta) + 'px';
+
+    logoTracking = requestAnimationFrame(trackLogo);
   }
 
   function openSidebar() {
@@ -429,19 +430,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     lensGlow.id = 'lens-glow';
     Object.assign(lensGlow.style, {
       position: 'fixed',
-      zIndex: '498',
-      left: '14px',
+      zIndex: '497',
+      left: '6px',
       top: '2px',
-      width: '100px',
+      width: '110px',
       height: '44px',
-      borderRadius: '14px',
-      background: 'rgba(255,255,255,0.06)',
-      backdropFilter: 'blur(30px)',
-      WebkitBackdropFilter: 'blur(30px)',
-      border: '0.5px solid rgba(255,255,255,0.08)',
+      borderRadius: '16px',
+      background: 'rgba(255,255,255,0.05)',
+      backdropFilter: 'blur(40px)',
+      WebkitBackdropFilter: 'blur(40px)',
+      border: '0.5px solid rgba(255,255,255,0.06)',
       opacity: '0',
-      transition: 'opacity 0.8s ease, left 0.5s var(--ease-out)',
-      pointerEvents: 'none'
+      transition: 'opacity 0.8s ease',
+      pointerEvents: 'none',
+      maskImage: 'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)',
+      WebkitMaskImage: 'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)'
     });
     document.body.appendChild(lensGlow);
 
