@@ -423,6 +423,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       logo.style.opacity = '1';
     });
 
+    // 清除背景模糊
+    document.querySelector('.hero__slides')?.classList.add('hero__slides--clear');
+
     title.classList.add('hero__title--corner');
   }
 

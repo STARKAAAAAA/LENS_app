@@ -237,11 +237,18 @@
 
     & .hero__slides {
       position: absolute; inset: -30px;
+      filter: blur(0px);
+      animation: heroBlurIn 2.5s var(--ease-out) forwards;
 
       /* 切换文件夹时快速淡出 */
       &.hero__slides--out .hero__slide {
         opacity: 0 !important;
         transition: opacity 0.35s var(--ease-out) !important;
+      }
+
+      &.hero__slides--clear {
+        filter: blur(0px);
+        animation: none;
       }
     }
 
@@ -352,6 +359,12 @@
 
   @keyframes fadeUp {
     to { opacity: 1; translate: 0 0; }
+  }
+  @keyframes heroBlurIn {
+    0%   { filter: blur(40px); }
+    40%  { filter: blur(20px); }
+    80%  { filter: blur(4px); }
+    100% { filter: blur(0px); }
   }
   @keyframes lineGrow { to { width: 100px; } }
   @keyframes scrollPulse {
