@@ -221,6 +221,12 @@
     }
   }
 
+  /* ========== 角落 Logo ========== */
+  #corner-logo {
+    transition: opacity 0.6s ease, color 0.3s ease;
+    &:hover { color: #fff; }
+  }
+
   /* ========== Hero ========== */
   .hero {
     position: relative;
@@ -290,9 +296,12 @@
         transition: opacity 0.5s var(--ease-out);
       }
 
-      /* 移至左上角 — 仅标记，位置/样式由 JS 控制 */
+      /* 移至左上角 — 原标题淡出 */
       &.hero__title--corner {
-        &::after { opacity: 0; transition: opacity 0.4s ease; }
+        transition: opacity 0.5s ease;
+        opacity: 0 !important;
+        pointer-events: none;
+        &::after { opacity: 0; transition: opacity 0.3s ease; }
       }
     }
 

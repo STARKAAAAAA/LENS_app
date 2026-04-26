@@ -391,38 +391,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (scroll) scroll.style.opacity = '0';
     if (content) content.classList.add('hero__content--corner');
 
-    // 获取当前位置，设为 fixed 瞬移到原位
-    const rect = title.getBoundingClientRect();
-    title.style.position = 'fixed';
-    title.style.zIndex = '500';
-    title.style.left = rect.left + 'px';
-    title.style.top = rect.top + 'px';
-    title.style.right = 'auto';
-    title.style.bottom = 'auto';
-    title.style.transition = 'none';
-    title.style.whiteSpace = 'nowrap';
-
-    // 强制重排，然后开过渡
-    title.offsetHeight;
-    title.style.transition = 'left 0.8s cubic-bezier(0.16,1,0.3,1), top 0.8s cubic-bezier(0.16,1,0.3,1), font-size 0.8s cubic-bezier(0.16,1,0.3,1), letter-spacing 0.8s ease, color 0.4s ease, filter 0.4s ease';
-
-    // 目标值（纯 inline style，无 !important 干扰）
-    title.style.left = '28px';
-    title.style.top = '14px';
-    title.style.fontSize = '1.2rem';
-    title.style.letterSpacing = '0.18em';
-    title.style.color = 'rgba(255,255,255,0.85)';
-    title.style.background = 'none';
-    title.style.WebkitBackgroundClip = 'unset';
-    title.style.backgroundClip = 'unset';
-    title.style.filter = 'none';
-    title.style.translate = '0 0';
-    title.style.cursor = 'pointer';
-
-    title.classList.add('hero__title--corner');
-    title.addEventListener('click', () => {
+    // 创建角落 logo（独立元素，避免渐变文字冲突）
+    const logo = document.createElement('div');
+    logo.id = 'corner-logo';
+    logo.textContent = 'LENS';
+    Object.assign(logo.style, {
+      position: 'fixed',
+      zIndex: '500',
+      left: '28px',
+      top: '14px',
+      fontFamily: "var(--font-display), 'Cormorant Garamond', Georgia, serif",
+      fontSize: '1.2rem',
+      fontWeight: '300',
+      letterSpacing: '0.18em',
+      color: 'rgba(255,255,255,0.85)',
+      cursor: 'pointer',
+      opacity: '0',
+      transition: 'opacity 0.6s ease',
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      lineHeight: '1',
+      padding: '4px 0'
+    });
+    logo.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+    document.body.appendChild(logo);
+
+    // 触发淡入
+    requestAnimationFrame(() => {
+      logo.style.opacity = '1';
+    });
+
+    title.classList.add('hero__title--corner');
   }
 
   // 从全部照片中选（每个分类一张）
