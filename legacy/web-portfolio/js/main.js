@@ -72,33 +72,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const card = document.createElement('div');
       card.className = 'category-card';
-      card.dataset.category = cat;
-
-      const img = document.createElement('img');
-      img.className = 'category-card__img';
-      img.src = cover.src;
-      img.alt = cat;
-      img.loading = 'lazy';
-      card.appendChild(img);
-
-      // 底部常驻标签
-      const label = document.createElement('div');
-      label.className = 'category-card__label';
-      label.innerHTML = `
-        <div class="category-card__label-name">${cat}</div>
-        <div class="category-card__label-count">${catPhotos.length} 张</div>
+      card.innerHTML = `
+        <img class="category-card__img" src="${cover.src}" alt="${cat}" loading="lazy">
+        <div class="category-card__label">
+          <div class="category-card__label-name">${cat}</div>
+          <div class="category-card__label-count">${catPhotos.length} 张</div>
+        </div>
+        <div class="category-card__info">
+          <div class="category-card__name">${cat}</div>
+          <div class="category-card__count">${catPhotos.length} photos</div>
+        </div>
       `;
-      card.appendChild(label);
-
-      // 悬停时显示的居中信息
-      const info = document.createElement('div');
-      info.className = 'category-card__info';
-      info.innerHTML = `
-        <div class="category-card__name">${cat}</div>
-        <div class="category-card__count">${catPhotos.length} photos</div>
-      `;
-      card.appendChild(info);
-
       card.addEventListener('click', () => openCategory(cat));
       fragment.appendChild(card);
     });
@@ -143,24 +127,15 @@ document.addEventListener('DOMContentLoaded', () => {
       item.dataset.title = p.title;
       item.dataset.index = i;
       item.style.animationDelay = `${(i - loadedCount) * 0.04}s`;
-
-      const img = document.createElement('img');
-      img.src = p.src;
-      img.alt = p.title;
-      img.loading = 'lazy';
-      item.appendChild(img);
-
-      const overlay = document.createElement('div');
-      overlay.className = 'gallery__item-overlay';
-      overlay.innerHTML = `<span class="gallery__item-title">${p.title}</span>`;
-      item.appendChild(overlay);
-
+      item.innerHTML = `
+        <img src="${p.src}" alt="${p.title}" loading="lazy">
+        <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>
+      `;
       fragment.appendChild(item);
     }
     galleryGrid.appendChild(fragment);
     loadedCount = end;
 
-    // 显示/隐藏"加载更多"
     if (loadedCount < currentPhotos.length) {
       galleryMore.style.display = 'block';
     } else {
@@ -170,13 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadMoreBtn.addEventListener('click', loadPhotos);
 
-  // ==================== 滚动到底部自动加载 ====================
+  // ==================== 滚动自动加载 ====================
   window.addEventListener('scroll', () => {
     if (!currentCategory) return;
     if (loadedCount >= currentPhotos.length) return;
-    const scrollBottom = window.scrollY + window.innerHeight;
-    const gridBottom = galleryGrid.offsetTop + galleryGrid.offsetHeight;
-    if (scrollBottom + 600 > gridBottom) {
+    if (window.scrollY + window.innerHeight + 600 > galleryGrid.offsetTop + galleryGrid.offsetHeight) {
       loadPhotos();
     }
   }, { passive: true });
@@ -208,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
   }
 
-  // ==================== 灯箱 ====================
+  // ==================== 灯箱（含缩放拖拽） ====================
   function initLightbox() {
     const lightbox = document.getElementById('lightbox');
     const lbImg = lightbox.querySelector('.lightbox__img');
@@ -221,23 +194,33 @@ document.addEventListener('DOMContentLoaded', () => {
     let items = [];
     let idx = 0;
     let transitioning = false;
+    let zoom = 1, panX = 0, panY = 0;
+    let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
     function getGalleryItems() {
       return Array.from(galleryGrid.querySelectorAll('.gallery__item'));
+    }
+
+    function applyTransform() {
+      lbImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    }
+
+    function resetZoom() {
+      zoom = 1; panX = 0; panY = 0;
+      lbImg.style.transform = '';
     }
 
     function update() {
       const item = items[idx];
       if (!item) return;
       lbImg.style.opacity = '0';
-      lbTitle.style.opacity = '0';
       setTimeout(() => {
+        resetZoom();
         lbImg.src = item.dataset.src;
         lbImg.alt = item.dataset.title;
         lbTitle.textContent = item.dataset.title;
         lbCounter.textContent = `${idx + 1} / ${items.length}`;
         lbImg.style.opacity = '1';
-        lbTitle.style.opacity = '1';
         transitioning = false;
       }, 180);
     }
@@ -246,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
       items = getGalleryItems();
       idx = index;
       transitioning = true;
+      resetZoom();
       const item = items[idx];
       lbImg.src = item.dataset.src;
       lbTitle.textContent = item.dataset.title;
@@ -258,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function close() {
       lightbox.classList.remove('active');
       document.body.style.overflow = '';
+      resetZoom();
     }
 
     function prev() {
@@ -286,6 +271,40 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPrev.addEventListener('click', prev);
     btnNext.addEventListener('click', next);
     lightbox.addEventListener('click', e => { if (e.target === lightbox) close(); });
+
+    // 滚轮缩放
+    lightbox.addEventListener('wheel', e => {
+      if (!lightbox.classList.contains('active')) return;
+      e.preventDefault();
+      if (e.deltaY < 0) zoom = Math.min(zoom * 1.15, 8);
+      else zoom = Math.max(zoom / 1.15, 0.5);
+      if (zoom <= 1) { panX = 0; panY = 0; }
+      applyTransform();
+    }, { passive: false });
+
+    // 拖拽平移
+    lightbox.addEventListener('mousedown', e => {
+      if (!lightbox.classList.contains('active') || e.button !== 0) return;
+      if (zoom <= 1) return;
+      dragging = true;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      panStartX = panX; panStartY = panY;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      panX = panStartX + (e.clientX - dragStartX);
+      panY = panStartY + (e.clientY - dragStartY);
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    // 双击放大/重置
+    lbImg.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      if (zoom > 1) { resetZoom(); }
+      else { zoom = 2.5; applyTransform(); }
+    });
 
     document.addEventListener('keydown', e => {
       if (!lightbox.classList.contains('active')) return;
