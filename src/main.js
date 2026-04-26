@@ -910,4 +910,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     document.getElementById('portfolio')?.scrollIntoView({ behavior: 'smooth' });
   });
+
+  // ========== 一键回顶部 ==========
+  const backToTop = document.getElementById('back-to-top');
+  backToTop.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  window.addEventListener('scroll', () => {
+    backToTop.classList.toggle('visible', window.scrollY > window.innerHeight * 0.8);
+  }, { passive: true });
 });
