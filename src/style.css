@@ -49,8 +49,10 @@
     font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.7;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow-x: hidden;
   }
 }
@@ -98,13 +100,14 @@
     & .sidebar__header {
       display: flex; align-items: center; gap: 10px;
       padding: 20px 18px 14px;
-      font-size: 0.75rem; font-weight: 500;
-      letter-spacing: 0.15em; text-transform: uppercase;
+      font-family: var(--font-display);
+      font-size: 0.8rem; font-weight: 400; font-style: italic;
+      letter-spacing: 0.12em;
       color: var(--text-2);
       position: relative; z-index: 2;
       flex-shrink: 0;
 
-      & .sidebar__header-icon { opacity: 0.5; }
+      & .sidebar__header-icon { opacity: 0.4; }
     }
 
     & .sidebar__list {
@@ -325,12 +328,12 @@
     }
 
     & .hero__subtitle {
-      font-family: var(--font-body);
+      font-family: var(--font-display);
       font-size: clamp(0.8rem, 1.4vw, 1rem);
-      font-weight: 300;
-      letter-spacing: 0.6em; text-indent: 0.6em;
-      color: rgba(220,200,180,0.5);
-      text-transform: uppercase;
+      font-weight: 300; font-style: italic;
+      letter-spacing: 0.35em; text-indent: 0.35em;
+      color: rgba(220,200,180,0.3);
+      text-transform: none;
       margin-top: 2em;
       opacity: 0; translate: 0 24px;
       animation: fadeUp 1.6s cubic-bezier(0.16,1,0.2,1) 0.8s forwards;
@@ -438,7 +441,18 @@
 
       &.visible::after { scale: 1 1; }
     }
-  }
+
+    & .portfolio__desc {
+      font-family: var(--font-display);
+      font-size: 0.85rem; font-style: italic;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      color: var(--text-3);
+      margin-top: 1.2rem;
+      opacity: 0; translate: 0 16px;
+      transition: all 1s var(--ease-out) 0.3s;
+      &.visible { opacity: 0.6; translate: 0 0; }
+    }
 
   /* ========== 分类卡片 ========== */
   .categories {
@@ -587,7 +601,9 @@
 
   .gallery__back {
     display: flex; align-items: center; gap: 0.5rem;
-    font-size: 0.85rem; letter-spacing: 0.08em;
+    font-family: var(--font-display);
+    font-size: 0.85rem; font-style: italic;
+    letter-spacing: 0.06em;
     color: var(--text-3);
     transition: color 0.4s ease;
 
@@ -595,7 +611,9 @@
   }
 
   .gallery__info {
-    font-size: 0.75rem; letter-spacing: 0.15em;
+    font-family: var(--font-display);
+    font-size: 0.7rem; font-style: italic;
+    letter-spacing: 0.1em;
     color: var(--text-3);
   }
 
@@ -636,8 +654,8 @@
 
     & .gallery__item-title {
       font-family: var(--font-display);
-      font-size: 1rem; font-style: italic;
-      letter-spacing: 0.08em;
+      font-size: 0.95rem; font-style: italic; font-weight: 300;
+      letter-spacing: 0.06em;
       opacity: 0; translate: 0 10px;
       transition: opacity 0.4s var(--ease-out) 0.06s, translate 0.4s var(--ease-out) 0.06s;
     }
@@ -656,9 +674,10 @@
 
   /* 毛玻璃加载按钮 */
   .load-more-btn {
-    font-size: 0.75rem; font-weight: 500;
-    letter-spacing: 0.25em; text-transform: uppercase;
-    color: rgba(220,200,180,0.45);
+    font-family: var(--font-display);
+    font-size: 0.75rem; font-weight: 400; font-style: italic;
+    letter-spacing: 0.2em;
+    color: rgba(220,200,180,0.4);
     padding: 0.8rem 2.8rem;
     border-radius: var(--radius-pill);
     background: rgba(220,200,180,0.05);
@@ -866,8 +885,9 @@
   }
 
   .toolbar__btn {
-    font-size: 0.7rem; font-weight: 500;
-    letter-spacing: 0.12em; color: rgba(220,200,180,0.45);
+    font-family: var(--font-display);
+    font-size: 0.72rem; font-weight: 400; font-style: italic;
+    letter-spacing: 0.1em; color: rgba(220,200,180,0.4);
     padding: 7px 20px;
     border-radius: var(--radius-pill);
     background: transparent;

@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }),
       { threshold: 0.1 }
     );
-    document.querySelectorAll('.portfolio__title').forEach(el => obs.observe(el));
+    document.querySelectorAll('.portfolio__title, .portfolio__desc').forEach(el => obs.observe(el));
   }
 
   // ========== Parallax ==========
