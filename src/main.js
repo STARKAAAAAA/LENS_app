@@ -376,6 +376,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
+
+    // 3.5s 后 LENS 移至左上角
+    setTimeout(moveTitleToCorner, 3500);
+  }
+
+  function moveTitleToCorner() {
+    const title = document.querySelector('.hero__title');
+    const content = document.querySelector('.hero__content');
+    const scroll = document.querySelector('.hero__scroll');
+    if (!title || title.classList.contains('hero__title--corner')) return;
+
+    // 隐藏副标题和滚动指示器
+    if (scroll) scroll.style.opacity = '0';
+    if (content) content.classList.add('hero__content--corner');
+
+    // 添加移动动画
+    title.classList.add('hero__title--corner');
+
+    // 点击回到顶部
+    title.style.cursor = 'pointer';
+    title.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   // 从全部照片中选（每个分类一张）
