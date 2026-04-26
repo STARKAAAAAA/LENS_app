@@ -111,13 +111,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   let heroTimer = null;
 
   // ========== 侧边栏自动隐藏/滑出 ==========
+  let logoTracking = null;
+
+  function trackLogo() {
+    const logo = document.getElementById('corner-logo');
+    const sidebarRect = sidebar.getBoundingClientRect();
+    if (!logo || !sidebar.classList.contains('sidebar--open') && sidebarRect.right < 20) {
+      // 侧边栏已收回，logo 回原位
+      if (logo) logo.style.left = '28px';
+      logoTracking = null;
+      return;
+    }
+    // logo 跟随侧边栏右边缘 + 8px 间距
+    const targetLeft = sidebarRect.right + 10;
+    logo.style.left = targetLeft + 'px';
+    if (sidebar.classList.contains('sidebar--open') || sidebarRect.right > 14) {
+      logoTracking = requestAnimationFrame(trackLogo);
+    } else {
+      logo.style.left = '28px';
+      logoTracking = null;
+    }
+  }
+
   function openSidebar() {
     clearTimeout(sidebarHideTimer);
     sidebar.classList.add('sidebar--open');
+    // 开始跟踪侧边栏位置
+    if (!logoTracking) {
+      logoTracking = requestAnimationFrame(trackLogo);
+    }
   }
+
   function closeSidebar() {
     sidebarHideTimer = setTimeout(() => {
       sidebar.classList.remove('sidebar--open');
+      // 继续跟踪直到侧边栏完全缩回
+      if (!logoTracking) {
+        logoTracking = requestAnimationFrame(trackLogo);
+      }
     }, 400);
   }
 
