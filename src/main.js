@@ -377,8 +377,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       slides[cur].classList.add('active');
     }, 6000);
 
-    // 3.5s 后 LENS 移至左上角
-    setTimeout(moveTitleToCorner, 3500);
+    // fadeUp 结束 (0.3+1.8=2.1s) 后立刻渐隐 LENS → 角落 logo 淡入
+    setTimeout(moveTitleToCorner, 2200);
   }
 
   function moveTitleToCorner() {
