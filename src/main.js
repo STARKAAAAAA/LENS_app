@@ -422,6 +422,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (scroll) scroll.style.opacity = '0';
     if (content) content.classList.add('hero__content--corner');
 
+    // 创建顶部毛玻璃条
+    const topBar = document.createElement('div');
+    topBar.id = 'top-bar';
+    Object.assign(topBar.style, {
+      position: 'fixed',
+      zIndex: '499',
+      left: '0', top: '0', right: '0',
+      height: '48px',
+      background: 'rgba(3,3,3,0.35)',
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+      opacity: '0',
+      transition: 'opacity 0.8s ease',
+      pointerEvents: 'none'
+    });
+    document.body.appendChild(topBar);
+
     // 创建角落 logo（独立元素，避免渐变文字冲突）
     const logo = document.createElement('div');
     logo.id = 'corner-logo';
@@ -430,7 +448,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       position: 'fixed',
       zIndex: '500',
       left: '28px',
-      top: '14px',
+      top: '10px',
       fontFamily: "var(--font-display), 'Cormorant Garamond', Georgia, serif",
       fontSize: '1.2rem',
       fontWeight: '300',
@@ -451,6 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 触发淡入
     requestAnimationFrame(() => {
+      topBar.style.opacity = '1';
       logo.style.opacity = '1';
     });
 
