@@ -849,9 +849,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     function loadCurrent() {
       if (!photos.length) return;
       const p = photos[idx % photos.length];
-      img.src = p.src;
-      counter.textContent = `${(idx % photos.length) + 1} / ${photos.length}`;
-      fitToWindow();
+      // 淡出 → 换图 → 淡入
+      img.classList.add('slideshow__img--out');
+      setTimeout(() => {
+        img.src = p.src;
+        counter.textContent = `${(idx % photos.length) + 1} / ${photos.length}`;
+        fitToWindow();
+        img.classList.remove('slideshow__img--out');
+      }, 400);
     }
 
     function showControls() {

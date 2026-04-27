@@ -813,9 +813,15 @@
   /* ========== 幻灯片 ========== */
   .slideshow {
     position: fixed; inset: 0; z-index: 2000;
-    background: var(--bg); display: none; flex-direction: column;
+    background: var(--bg); display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden;
+    scale: 1.04;
+    transition: opacity 0.5s ease, visibility 0s 0.5s, scale 0.5s var(--ease-out);
 
-    &.active { display: flex; }
+    &.active {
+      opacity: 1; visibility: visible; scale: 1;
+      transition: opacity 0.5s ease, visibility 0s 0s, scale 0.5s var(--ease-out);
+    }
 
     & .slideshow__img-wrap {
       flex: 1;
@@ -827,8 +833,11 @@
 
     & .slideshow__img {
       max-width: 100%; max-height: 100%; object-fit: contain;
-      transition: translate 0.1s linear;
+      transition: opacity 0.5s ease, translate 0.1s linear;
+      opacity: 1;
       user-select: none; -webkit-user-drag: none;
+
+      &.slideshow__img--out { opacity: 0; }
     }
 
     & .slideshow__controls {
