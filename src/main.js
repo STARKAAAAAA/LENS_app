@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearTimeout(sidebarHideTimer);
     if (!sidebarClicked) {
       sidebar.classList.add('sidebar--peek');
+      sidebarTrigger.style.pointerEvents = 'none';
     }
   }
 
@@ -149,6 +150,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     sidebarClicked = true;
     sidebar.classList.add('sidebar--open');
     sidebar.classList.remove('sidebar--peek');
+    sidebarTrigger.style.pointerEvents = 'none';
+    if (!logoTracking) {
+      logoTracking = requestAnimationFrame(trackLogo);
+    }
+  }
+
+  function hideSidebarNow() {
+    clearTimeout(sidebarHideTimer);
+    sidebarClicked = false;
+    sidebar.classList.remove('sidebar--open', 'sidebar--peek');
+    sidebarTrigger.style.pointerEvents = 'auto';
     if (!logoTracking) {
       logoTracking = requestAnimationFrame(trackLogo);
     }
@@ -159,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!sidebar.matches(':hover')) {
         sidebarClicked = false;
         sidebar.classList.remove('sidebar--open', 'sidebar--peek');
-        // 继续跟踪直到完全缩回
+        sidebarTrigger.style.pointerEvents = 'auto';
         if (!logoTracking) {
           logoTracking = requestAnimationFrame(trackLogo);
         }
@@ -169,8 +181,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 触发区 hover → 探出
   sidebarTrigger.addEventListener('mouseenter', peekSidebar);
-  // 点击侧边栏任意位置 → 展开
-  sidebar.addEventListener('click', openSidebar);
+  // 点击探出 → 展开，点击已展开的背景 → 收起
+  sidebar.addEventListener('click', (e) => {
+    if (!sidebarClicked) {
+      openSidebar();
+    } else if (e.target === sidebar || e.target.classList.contains('sidebar__list') || e.target.id === 'sidebar-list') {
+      // 点击侧边栏空白背景区域 → 收起
+      hideSidebarNow();
+    }
+  });
   // 鼠标离开侧边栏 → 收起
   sidebar.addEventListener('mouseleave', hideSidebar);
   // 鼠标离开触发区 → 如果没点开过，立刻收起探出
@@ -179,6 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       sidebarHideTimer = setTimeout(() => {
         if (!sidebar.matches(':hover')) {
           sidebar.classList.remove('sidebar--peek');
+          sidebarTrigger.style.pointerEvents = 'auto';
         }
       }, 200);
     }
