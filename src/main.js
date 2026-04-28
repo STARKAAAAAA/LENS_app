@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     selected.forEach((p, i) => {
       const div = document.createElement('div');
       div.className = 'hero__slide' + (i === 0 ? ' active' : '');
-      div.style.backgroundImage = `url('${p.src}')`;
+      div.style.backgroundImage = `url('${p.src}?full=1')`;
       heroSlidesEl.appendChild(div);
     });
 
@@ -741,7 +741,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       lbImg.style.opacity = '0';
       setTimeout(() => {
         resetZoom();
-        lbImg.src = item.dataset.src;
+        lbImg.src = item.dataset.src + '?full=1';
         lbImg.alt = item.dataset.title;
         lbTitle.textContent = item.dataset.title;
         lbCounter.textContent = `${idx + 1} / ${items.length}`;
@@ -756,7 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       transitioning = true;
       resetZoom();
       const item = items[idx];
-      lbImg.src = item.dataset.src;
+      lbImg.src = item.dataset.src + '?full=1';
       lbTitle.textContent = item.dataset.title;
       lbCounter.textContent = `${idx + 1} / ${items.length}`;
       lightbox.classList.add('active');
@@ -886,7 +886,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 淡出 → 换图 → 淡入
       img.classList.add('slideshow__img--out');
       setTimeout(() => {
-        img.src = p.src;
+        img.src = p.src + '?full=1';
         counter.textContent = `${(idx % photos.length) + 1} / ${photos.length}`;
         fitToWindow();
         img.classList.remove('slideshow__img--out');

@@ -10,12 +10,19 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol("asset", |_app, request| {
             let uri_str = request.uri().to_string();
-            let path = if let Some(rest) = uri_str.strip_prefix("asset://localhost/") {
+            // Check for ?full=1 to skip compression (hero / lightbox)
+            let (clean_uri, full_quality) = if uri_str.contains("?full=1") {
+                (uri_str.replace("?full=1", ""), true)
+            } else {
+                (uri_str, false)
+            };
+
+            let path = if let Some(rest) = clean_uri.strip_prefix("asset://localhost/") {
                 rest
-            } else if let Some(rest) = uri_str.strip_prefix("asset:///") {
+            } else if let Some(rest) = clean_uri.strip_prefix("asset:///") {
                 rest
             } else {
-                &uri_str
+                &clean_uri
             };
 
             let file_path = percent_decode(path);
@@ -36,9 +43,8 @@ fn main() {
 
             match std::fs::read(&actual_path) {
                 Ok(contents) => {
-                    // 对 JPEG 大图自动缩放到最长边 1920px
-                    let body = if ext == "jpg" || ext == "jpeg" {
-                        resize_jpeg(&contents, 1920)
+                    let body = if !full_quality && (ext == "jpg" || ext == "jpeg") {
+                        resize_if_large(&contents)
                     } else {
                         contents
                     };
@@ -52,6 +58,7 @@ fn main() {
                     };
                     tauri::http::Response::builder()
                         .header("Content-Type", mime)
+                        .header("Cache-Control", "max-age=3600")
                         .body(body)
                         .unwrap()
                 }
@@ -63,29 +70,31 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-fn resize_jpeg(data: &[u8], max_dim: u32) -> Vec<u8> {
-    // 小于 500KB 的图不处理，直接返回原图
-    if data.len() < 500_000 {
+fn resize_if_large(data: &[u8]) -> Vec<u8> {
+    // <1MB or quick check: only process truly large camera photos
+    if data.len() < 1_000_000 {
         return data.to_vec();
     }
     match image::load_from_memory(data) {
         Ok(img) => {
             let (w, h) = img.dimensions();
             let longest = w.max(h);
-            if longest <= max_dim {
-                return data.to_vec(); // 已足够小
+            // Only resize if >3000px (real camera RAW exports)
+            if longest <= 3000 {
+                return data.to_vec();
             }
-            let ratio = max_dim as f64 / longest as f64;
+            let ratio = 2560.0 / longest as f64;
             let nw = (w as f64 * ratio) as u32;
             let nh = (h as f64 * ratio) as u32;
-            let resized = img.resize_exact(nw, nh, image::imageops::FilterType::Lanczos3);
+            // CatmullRom: fast, nearly as good as Lanczos3
+            let resized = img.resize_exact(nw, nh, image::imageops::FilterType::CatmullRom);
             let mut buf = std::io::Cursor::new(Vec::new());
             match resized.write_to(&mut buf, image::ImageFormat::Jpeg) {
                 Ok(_) => buf.into_inner(),
                 Err(_) => data.to_vec(),
             }
         }
-        Err(_) => data.to_vec(), // 解码失败返回原图
+        Err(_) => data.to_vec(),
     }
 }
 
