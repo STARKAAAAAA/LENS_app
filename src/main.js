@@ -3,7 +3,7 @@ import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
-const BATCH_SIZE = 30;
+const BATCH_SIZE = 12;
 const CONFIG_KEY = 'lens-photo-dir';
 const SAVED_KEY = 'lens-saved-folders';
 
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         imgObserver.unobserve(img);
       }
     });
-  }, { rootMargin: '600px' });
+  }, { rootMargin: '200px' });
 
   function observeImages(container) {
     container.querySelectorAll('img[data-src]').forEach(img => {
