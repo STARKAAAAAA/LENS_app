@@ -151,9 +151,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sidebar.classList.add('sidebar--open');
     sidebar.classList.remove('sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'none';
-    if (!logoTracking) {
-      logoTracking = requestAnimationFrame(trackLogo);
-    }
+    // rAF 追踪仅在完全展开时启用
+    cancelAnimationFrame(logoTracking);
+    logoTracking = requestAnimationFrame(trackLogo);
   }
 
   function hideSidebarNow() {
@@ -161,9 +161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     sidebarClicked = false;
     sidebar.classList.remove('sidebar--open', 'sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'auto';
-    if (!logoTracking) {
-      logoTracking = requestAnimationFrame(trackLogo);
-    }
+    cancelAnimationFrame(logoTracking);
+    logoTracking = null;
   }
 
   function hideSidebar() {
@@ -172,9 +171,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         sidebarClicked = false;
         sidebar.classList.remove('sidebar--open', 'sidebar--peek');
         sidebarTrigger.style.pointerEvents = 'auto';
-        if (!logoTracking) {
-          logoTracking = requestAnimationFrame(trackLogo);
-        }
+        cancelAnimationFrame(logoTracking);
+        logoTracking = null;
+        // logo 归位
+        const logo = document.getElementById('corner-logo');
+        const glow = document.getElementById('lens-glow');
+        if (logo) logo.style.left = '28px';
+        if (glow) glow.style.left = '6px';
       }
     }, 500);
   }
@@ -963,10 +966,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ========== 一键回顶部 ==========
   const backToTop = document.getElementById('back-to-top');
+  let scrollTicking = false;
   backToTop.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   window.addEventListener('scroll', () => {
-    backToTop.classList.toggle('visible', window.scrollY > window.innerHeight * 0.8);
+    if (!scrollTicking) {
+      requestAnimationFrame(() => {
+        backToTop.classList.toggle('visible', window.scrollY > window.innerHeight * 0.8);
+        scrollTicking = false;
+      });
+      scrollTicking = true;
+    }
   }, { passive: true });
 });
