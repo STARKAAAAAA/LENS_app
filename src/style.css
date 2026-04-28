@@ -80,7 +80,9 @@
     width: 240px;
     z-index: 200;
     display: flex; flex-direction: column;
-    background: rgba(10,10,8,0.94);
+    background: rgba(220,200,180,0.08);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 0.5px solid rgba(220,200,180,0.12);
     border-radius: var(--radius);
     overflow: hidden;
@@ -91,8 +93,15 @@
     transform: translateX(-100%);
     transition: transform 0.5s var(--ease-out);
 
-    &.sidebar--peek { transform: translateX(calc(-100% + 14px)); }
-    &.sidebar--open { transform: translateX(0); }
+    /* 靠近时探出 14px */
+    &.sidebar--peek {
+      transform: translateX(calc(-100% + 14px));
+    }
+
+    /* 点击展开 */
+    &.sidebar--open {
+      transform: translateX(0);
+    }
 
     & .sidebar__header {
       display: flex; align-items: center; gap: 10px;
@@ -211,7 +220,9 @@
       letter-spacing: 0.06em;
       color: var(--text-2);
       border-radius: var(--radius-pill);
-      background: rgba(220,200,180,0.12);
+      background: rgba(220,200,180,0.08);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 0.5px solid rgba(220,200,180,0.12);
       cursor: pointer;
       transition: all 0.4s var(--ease-out);
@@ -342,7 +353,9 @@
       animation: fadeUp 1s cubic-bezier(0.16,1,0.2,1) 2.6s forwards;
       width: 30px; height: 52px;
       border-radius: 15px;
-      background: rgba(10,10,8,0.85);
+      background: rgba(220,200,180,0.06);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 0.5px solid rgba(220,200,180,0.12);
       display: flex; align-items: flex-end; justify-content: center;
       padding-bottom: 10px;
@@ -399,7 +412,9 @@
       content: '';
       position: absolute;
       top: 6rem; left: -2rem; right: -2rem; bottom: -2rem;
-      background: rgba(10,10,8,0.85);
+      background: rgba(220,200,180,0.04);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       border: 0.5px solid rgba(220,200,180,0.08);
       border-radius: var(--radius);
       pointer-events: none;
@@ -497,8 +512,8 @@
       align-items: center; justify-content: center;
       padding: 2rem;
       background: rgba(220,200,180,0.06);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 0.5px solid rgba(220,200,180,0.08);
       border-radius: inherit;
       opacity: 0;
@@ -506,7 +521,9 @@
       z-index: 2;
     }
 
-    &:hover .category-card__info { opacity: 1; }
+    &:hover .category-card__info {
+      opacity: 1;
+    }
 
     & .category-card__name {
       font-family: var(--font-display);
@@ -582,7 +599,9 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 2rem;
     padding: 1rem 1.5rem;
-    background: rgba(10,10,8,0.9);
+    background: rgba(220,200,180,0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 0.5px solid rgba(220,200,180,0.10);
     border-radius: var(--radius);
   }
@@ -670,7 +689,9 @@
     color: rgba(220,200,180,0.4);
     padding: 0.8rem 2.8rem;
     border-radius: var(--radius-pill);
-    background: rgba(220,200,180,0.08);
+    background: rgba(220,200,180,0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 0.5px solid rgba(220,200,180,0.10);
     transition: all 0.5s var(--ease-out);
 
@@ -873,7 +894,9 @@
     position: fixed; top: 16px; right: 16px; z-index: 100;
     display: flex; gap: 2px;
     padding: 5px;
-    background: rgba(10,10,8,0.9);
+    background: rgba(220,200,180,0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 0.5px solid rgba(220,200,180,0.10);
     border-radius: var(--radius-pill);
     box-shadow: 0 4px 24px rgba(0,0,0,0.3);
@@ -901,7 +924,9 @@
     position: fixed; bottom: 20px; right: 20px; z-index: 300;
     width: 42px; height: 42px;
     border-radius: 50%;
-    background: rgba(10,10,8,0.88);
+    background: rgba(220,200,180,0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 0.5px solid rgba(220,200,180,0.12);
     color: rgba(220,200,180,0.5);
     display: flex; align-items: center; justify-content: center;
@@ -938,7 +963,9 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding: 6px 16px;
     border-radius: var(--radius-pill);
-    background: rgba(10,10,8,0.9);
+    background: rgba(220,200,180,0.04);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 0.5px solid rgba(220,200,180,0.06);
   }
 }
