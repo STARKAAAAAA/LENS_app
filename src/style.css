@@ -52,8 +52,6 @@
     line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    /* 减少合成器负担 */
-    isolation: isolate;
   }
 }
 
@@ -412,10 +410,8 @@
       content: '';
       position: absolute;
       top: 6rem; left: -2rem; right: -2rem; bottom: -2rem;
-      background: rgba(220,200,180,0.04);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 0.5px solid rgba(220,200,180,0.08);
+      background: rgba(10,10,8,0.75);
+      border: 0.5px solid rgba(220,200,180,0.06);
       border-radius: var(--radius);
       pointer-events: none;
     }
@@ -626,8 +622,6 @@
 
   .gallery__grid {
     columns: 3; column-gap: 10px;
-    content-visibility: auto;
-    contain-intrinsic-size: auto 500px;
   }
 
   .gallery__item {

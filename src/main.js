@@ -648,12 +648,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   loadMoreBtn.addEventListener('click', loadPhotos);
 
-  window.addEventListener('scroll', () => {
+  // 用 getBoundingClientRect 替代 offsetTop/offsetHeight，避免强制重排
+  function checkLoadMore() {
     if (!currentCategory || loadedCount >= currentPhotos.length) return;
-    if (window.scrollY + window.innerHeight + 600 > galleryGrid.offsetTop + galleryGrid.offsetHeight) {
-      loadPhotos();
-    }
-  }, { passive: true });
+    const gridBottom = galleryGrid.getBoundingClientRect().bottom;
+    if (gridBottom < window.innerHeight + 800) loadPhotos();
+  }
+  setInterval(checkLoadMore, 300);
 
   // ========== Scroll Reveal ==========
   function initScrollReveal() {
@@ -669,12 +670,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ========== Parallax ==========
   function initParallax() {
     const heroSlides = document.querySelector('.hero__slides');
+    const heroH = document.querySelector('.hero').offsetHeight;
+    let paraTicking = false;
     window.addEventListener('scroll', () => {
-      const y = window.scrollY;
-      const h = document.querySelector('.hero').offsetHeight;
-      if (y < h) {
-        heroSlides.style.transform = `translateY(${y * 0.3}px)`;
-        heroSlides.style.opacity = 1 - (y / h) * 0.6;
+      if (!paraTicking) {
+        requestAnimationFrame(() => {
+          const y = window.scrollY;
+          if (y < heroH) {
+            heroSlides.style.transform = `translateY(${y * 0.3}px)`;
+            heroSlides.style.opacity = 1 - (y / heroH) * 0.6;
+          }
+          paraTicking = false;
+        });
+        paraTicking = true;
       }
     }, { passive: true });
   }
