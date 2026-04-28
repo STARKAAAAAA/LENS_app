@@ -555,6 +555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.className = 'category-card';
       card.innerHTML = `
         <img class="category-card__img" src="${cover.src}" alt="${cat}" loading="lazy">
+        <div class="category-card__dim"></div>
         <div class="category-card__label">
           <div class="category-card__label-name">${cat}</div>
           <div class="category-card__label-count">${catPhotos.length} 张</div>
