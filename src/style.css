@@ -12,6 +12,7 @@
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; font-size: 16px; }
   img { display: block; max-width: 100%; }
+  img[data-src] { background: rgba(220,200,180,0.03); }
   button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
   a { text-decoration: none; color: inherit; }
 }

@@ -110,6 +110,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   let sidebarHideTimer = null;
   let heroTimer = null;
 
+  // ========== 图片懒加载 (IntersectionObserver) ==========
+  const imgObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        const src = img.dataset.src;
+        if (src) {
+          img.src = src;
+          img.removeAttribute('data-src');
+        }
+        imgObserver.unobserve(img);
+      }
+    });
+  }, { rootMargin: '600px' });
+
+  function observeImages(container) {
+    container.querySelectorAll('img[data-src]').forEach(img => {
+      imgObserver.observe(img);
+    });
+  }
+
   // ========== 侧边栏：靠近探出 / 点击展开 / 远离收起 ==========
   let logoTracking = null;
   let sidebarClicked = false;
@@ -554,7 +575,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = document.createElement('div');
       card.className = 'category-card';
       card.innerHTML = `
-        <img class="category-card__img" src="${cover.src}" alt="${cat}" loading="lazy">
+        <img class="category-card__img" data-src="${cover.src}" alt="${cat}" decoding="async">
         <div class="category-card__label">
           <div class="category-card__label-name">${cat}</div>
           <div class="category-card__label-count">${catPhotos.length} 张</div>
@@ -568,6 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       fragment.appendChild(card);
     });
     categoriesEl.appendChild(fragment);
+    observeImages(categoriesEl);
   }
 
   // ========== Gallery ==========
@@ -636,12 +658,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       item.dataset.index = i;
       item.style.animationDelay = `${(i - loadedCount) * 0.04}s`;
       item.innerHTML = `
-        <img src="${p.src}" alt="${p.title}" loading="lazy">
+        <img data-src="${p.src}" alt="${p.title}" decoding="async">
         <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>
       `;
       fragment.appendChild(item);
     }
     galleryGrid.appendChild(fragment);
+    observeImages(galleryGrid);
     loadedCount = end;
     galleryMore.style.display = loadedCount < currentPhotos.length ? 'block' : 'none';
   }
