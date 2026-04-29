@@ -12,7 +12,6 @@
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; font-size: 16px; }
   img { display: block; max-width: 100%; }
-  img[data-src] { background: rgba(220,200,180,0.03); }
   button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
   a { text-decoration: none; color: inherit; }
 }
@@ -477,13 +476,22 @@
     border-radius: var(--radius);
     background: rgba(220,200,180,0.015);
     border: 0.5px solid rgba(220,200,180,0.05);
-    content-visibility: auto;
-    contain-intrinsic-size: 280px 350px;
     transition:
       transform 0.6s var(--ease-out),
       box-shadow 0.6s ease,
       border-color 0.5s ease;
     transform-origin: center bottom;
+
+    /* 暗色叠加层（替代 filter，性能更好） */
+    &::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.35);
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 0;
+      transition: background 0.6s var(--ease-out);
+    }
 
     &:hover {
       transform: translateY(-8px) scale(1.015);
@@ -491,17 +499,17 @@
       box-shadow:
         0 24px 80px rgba(0,0,0,0.6),
         0 0 0 1px rgba(220,200,180,0.04) inset;
+
+      &::after { background: rgba(0,0,0,0.72); }
     }
 
     & .category-card__img {
       width: 100%; height: 100%; object-fit: cover;
-      transition: transform 1.8s var(--ease-out), filter 1.2s ease;
-      filter: brightness(0.65) saturate(0.85);
+      transition: transform 1.8s var(--ease-out);
     }
 
     &:hover .category-card__img {
       transform: scale(1.1);
-      filter: brightness(0.28) saturate(0.4);
     }
 
     /* 毛玻璃信息面板 */
@@ -633,20 +641,21 @@
 
     & img {
       width: 100%; height: auto; display: block;
-      transition: transform 1.4s var(--ease-out), filter 0.8s ease;
+      transition: transform 1.4s var(--ease-out);
     }
 
     &:hover img {
       transform: scale(1.05);
-      filter: brightness(0.7);
     }
 
     & .gallery__item-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(to top,
-        rgba(0,0,0,0.7) 0%,
-        rgba(0,0,0,0.2) 40%,
-        transparent 70%);
+      background:
+        linear-gradient(to top,
+          rgba(0,0,0,0.7) 0%,
+          rgba(0,0,0,0.2) 40%,
+          transparent 70%),
+        rgba(0,0,0,0.3);
       opacity: 0;
       display: flex; align-items: flex-end;
       padding: 1.5rem;
@@ -685,8 +694,6 @@
     padding: 0.8rem 2.8rem;
     border-radius: var(--radius-pill);
     background: rgba(220,200,180,0.05);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 0.5px solid rgba(220,200,180,0.10);
     transition: all 0.5s var(--ease-out);
 
@@ -949,6 +956,39 @@
     }
   }
 
+  /* ========== 加载画面（全屏遮罩 + 居中动画） ========== */
+  .loading-screen {
+    position: fixed; inset: 0; z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(6,6,5,0.92);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    opacity: 1; transition: opacity 0.4s ease;
+  }
+  .loading-screen.loading-screen--out {
+    opacity: 0; pointer-events: none;
+  }
+  .loading-screen__content {
+    text-align: center;
+  }
+  .loading-screen__spinner {
+    width: 40px; height: 40px;
+    margin: 0 auto 2rem;
+    border-radius: 50%;
+    border: 3px solid rgba(200,168,124,0.15);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+    box-shadow: 0 0 24px rgba(200,168,124,0.2);
+  }
+  .loading-screen__text {
+    font-family: var(--font-display);
+    font-size: 0.9rem; font-style: italic;
+    font-weight: 300; letter-spacing: 0.15em;
+    color: rgba(220,200,180,0.65);
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* 路径标签 */
   #dir-label {
     position: fixed; bottom: 12px; left: 12px; z-index: 100;
@@ -958,9 +998,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding: 6px 16px;
     border-radius: var(--radius-pill);
-    background: rgba(220,200,180,0.04);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(10,10,8,0.85);
     border: 0.5px solid rgba(220,200,180,0.06);
   }
 }

@@ -1,57 +1,38 @@
 import { readDir } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { listen } from '@tauri-apps/api/event';
 
-const BATCH_SIZE = 12;
 const CONFIG_KEY = 'lens-photo-dir';
 const SAVED_KEY = 'lens-saved-folders';
 
 // ========== 配置管理 ==========
-function loadDir() {
-  return localStorage.getItem(CONFIG_KEY) || '';
-}
-function saveDir(dir) {
-  localStorage.setItem(CONFIG_KEY, dir);
-}
-
+function loadDir() { return localStorage.getItem(CONFIG_KEY) || ''; }
+function saveDir(dir) { localStorage.setItem(CONFIG_KEY, dir); }
 function getSavedFolders() {
-  try {
-    return JSON.parse(localStorage.getItem(SAVED_KEY)) || [];
-  } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; }
+  catch { return []; }
 }
-function saveFolders(dirs) {
-  localStorage.setItem(SAVED_KEY, JSON.stringify(dirs));
-}
+function saveFolders(dirs) { localStorage.setItem(SAVED_KEY, JSON.stringify(dirs)); }
 
 // ========== 选择文件夹 ==========
 async function selectFolder() {
-  const selected = await open({
-    directory: true,
-    multiple: false,
-    title: '选择照片文件夹',
-  });
+  const selected = await open({ directory: true, multiple: false, title: '选择照片文件夹' });
   return selected || null;
 }
 
 // ========== 扫描照片 ==========
 async function scanPhotos(baseDir) {
   const photos = [];
-
   async function walk(dir) {
     let entries;
-    try {
-      entries = await readDir(dir);
-    } catch (e) {
-      console.error(`读取失败: ${dir}`, e);
-      throw e;
-    }
-
+    try { entries = await readDir(dir); }
+    catch (e) { console.error(`读取失败: ${dir}`, e); throw e; }
     for (const entry of entries) {
       const fullPath = await join(dir, entry.name);
-      if (entry.isDirectory) {
-        await walk(fullPath);
-      } else if (entry.name.toLowerCase().endsWith('.jpg')) {
+      if (entry.isDirectory) { await walk(fullPath); }
+      else if (entry.name.toLowerCase().endsWith('.jpg')) {
         const rel = fullPath.replace(baseDir + '\\', '').replace(baseDir + '/', '');
         const parts = rel.split(/[\\/]/);
         const topFolder = parts[0];
@@ -61,7 +42,6 @@ async function scanPhotos(baseDir) {
       }
     }
   }
-
   await walk(baseDir);
   photos.sort((a, b) => a.folder.localeCompare(b.folder, undefined, { numeric: true }));
   const categories = [...new Set(photos.map(p => p.category))];
@@ -70,7 +50,6 @@ async function scanPhotos(baseDir) {
     if (!byCategory[p.category]) byCategory[p.category] = [];
     byCategory[p.category].push(p);
   });
-
   return { categories, photos, byCategory };
 }
 
@@ -78,12 +57,24 @@ function cleanCategory(dirname) {
   const m = dirname.match(/^\d{4}\s+\d{1,2}\s+\d{1,2}\s*(.*)/);
   return (m && m[1]) ? m[1].trim() : dirname.trim();
 }
-
 function cleanTitle(filename) {
   let name = filename.replace(/\.[^.]+$/, '');
   name = name.replace(/-DxO_DeepPRIME\s*XD2?s?/g, '');
   name = name.replace(/-CR3_DxO_DeepPRIMEXD/g, '');
   return name.trim();
+}
+
+// ========== 图片预加载工具 ==========
+function preloadImages(imgs, onProgress) {
+  let loaded = 0;
+  const total = imgs.length;
+  return Promise.all(imgs.map(img => {
+    return new Promise(resolve => {
+      if (img.complete) { loaded++; if (onProgress) onProgress(loaded, total); resolve(); return; }
+      img.onload = () => { loaded++; if (onProgress) onProgress(loaded, total); resolve(); };
+      img.onerror = () => { loaded++; if (onProgress) onProgress(loaded, total); resolve(); };
+    });
+  }));
 }
 
 // ========== App ==========
@@ -94,11 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const galleryGrid = document.getElementById('gallery-grid');
   const galleryInfo = document.getElementById('gallery-info');
   const galleryBack = document.getElementById('gallery-back');
-  const galleryMore = document.getElementById('gallery-more');
-  const loadMoreBtn = document.getElementById('load-more');
   const sectionTitle = document.getElementById('section-title');
   const sidebarList = document.getElementById('sidebar-list');
-
   const sidebar = document.getElementById('sidebar');
   const sidebarTrigger = document.getElementById('sidebar-trigger');
 
@@ -106,95 +94,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   let photoDir = loadDir();
   let currentCategory = null;
   let currentPhotos = [];
-  let loadedCount = 0;
   let sidebarHideTimer = null;
   let heroTimer = null;
+  let heroAnimationDone = false;
+  const appStartTime = performance.now();
 
-  // ========== 图片懒加载 (IntersectionObserver) ==========
-  const imgObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const img = entry.target;
-        const src = img.dataset.src;
-        if (src) {
-          img.src = src;
-          img.removeAttribute('data-src');
-        }
-        imgObserver.unobserve(img);
-      }
-    });
-  }, { rootMargin: '200px' });
-
-  function observeImages(container) {
-    container.querySelectorAll('img[data-src]').forEach(img => {
-      imgObserver.observe(img);
-    });
-  }
-
-  // ========== 侧边栏：靠近探出 / 点击展开 / 远离收起 ==========
+  // ========== 侧边栏 ==========
   let logoTracking = null;
   let sidebarClicked = false;
 
   function trackLogo() {
     const logo = document.getElementById('corner-logo');
     const glow = document.getElementById('lens-glow');
-    const sidebarRect = sidebar.getBoundingClientRect();
-    const open = sidebar.classList.contains('sidebar--open') && sidebarRect.right > 20;
-
+    const sr = sidebar.getBoundingClientRect();
+    const open = sidebar.classList.contains('sidebar--open') && sr.right > 20;
     if (!logo) { logoTracking = null; return; }
-
-    if (!open) {
-      logo.style.left = '28px';
-      if (glow) glow.style.left = '6px';
-      logoTracking = null;
-      return;
-    }
-
-    const targetLeft = sidebarRect.right + 10;
+    if (!open) { logo.style.left = '28px'; if (glow) glow.style.left = '6px'; logoTracking = null; return; }
+    const targetLeft = sr.right + 10;
     const delta = targetLeft - 28;
     logo.style.left = (28 + delta) + 'px';
     if (glow) glow.style.left = (6 + delta) + 'px';
-
     logoTracking = requestAnimationFrame(trackLogo);
   }
 
   function peekSidebar() {
     clearTimeout(sidebarHideTimer);
-    if (!sidebarClicked) {
-      sidebar.classList.add('sidebar--peek');
-      sidebarTrigger.style.pointerEvents = 'none';
-    }
+    if (!sidebarClicked) { sidebar.classList.add('sidebar--peek'); sidebarTrigger.style.pointerEvents = 'none'; }
   }
-
   function openSidebar() {
     clearTimeout(sidebarHideTimer);
     sidebarClicked = true;
-    sidebar.classList.add('sidebar--open');
-    sidebar.classList.remove('sidebar--peek');
+    sidebar.classList.add('sidebar--open'); sidebar.classList.remove('sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'none';
-    // rAF 追踪仅在完全展开时启用
     cancelAnimationFrame(logoTracking);
     logoTracking = requestAnimationFrame(trackLogo);
   }
-
   function hideSidebarNow() {
     clearTimeout(sidebarHideTimer);
     sidebarClicked = false;
     sidebar.classList.remove('sidebar--open', 'sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'auto';
-    cancelAnimationFrame(logoTracking);
-    logoTracking = null;
+    cancelAnimationFrame(logoTracking); logoTracking = null;
   }
-
   function hideSidebar() {
     sidebarHideTimer = setTimeout(() => {
       if (!sidebar.matches(':hover')) {
         sidebarClicked = false;
         sidebar.classList.remove('sidebar--open', 'sidebar--peek');
         sidebarTrigger.style.pointerEvents = 'auto';
-        cancelAnimationFrame(logoTracking);
-        logoTracking = null;
-        // logo 归位
+        cancelAnimationFrame(logoTracking); logoTracking = null;
         const logo = document.getElementById('corner-logo');
         const glow = document.getElementById('lens-glow');
         if (logo) logo.style.left = '28px';
@@ -203,27 +151,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
   }
 
-  // 触发区 hover → 探出
   sidebarTrigger.addEventListener('mouseenter', peekSidebar);
-  // 点击探出 → 展开，点击已展开的背景 → 收起
   sidebar.addEventListener('click', (e) => {
-    if (!sidebarClicked) {
-      openSidebar();
-    } else if (e.target === sidebar || e.target.classList.contains('sidebar__list') || e.target.id === 'sidebar-list') {
-      // 点击侧边栏空白背景区域 → 收起
-      hideSidebarNow();
-    }
+    if (!sidebarClicked) { openSidebar(); }
+    else if (e.target === sidebar || e.target.classList.contains('sidebar__list') || e.target.id === 'sidebar-list') { hideSidebarNow(); }
   });
-  // 鼠标离开侧边栏 → 收起
   sidebar.addEventListener('mouseleave', hideSidebar);
-  // 鼠标离开触发区 → 如果没点开过，立刻收起探出
   sidebarTrigger.addEventListener('mouseleave', () => {
     if (!sidebarClicked) {
       sidebarHideTimer = setTimeout(() => {
-        if (!sidebar.matches(':hover')) {
-          sidebar.classList.remove('sidebar--peek');
-          sidebarTrigger.style.pointerEvents = 'auto';
-        }
+        if (!sidebar.matches(':hover')) { sidebar.classList.remove('sidebar--peek'); sidebarTrigger.style.pointerEvents = 'auto'; }
       }, 200);
     }
   });
@@ -232,7 +169,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderSidebar(activeDir) {
     const dirs = getSavedFolders();
     sidebarList.innerHTML = '';
-
     if (dirs.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'sidebar__empty';
@@ -240,35 +176,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       sidebarList.appendChild(empty);
       return;
     }
-
     dirs.forEach(dir => {
       const name = dir.split(/[\\/]/).filter(Boolean).pop() || dir;
       const isActive = dir === (activeDir || loadDir());
-
       const item = document.createElement('div');
       item.className = 'sidebar__item' + (isActive ? ' sidebar__item--active' : '');
       item.title = dir;
       item.innerHTML = `
-        <svg class="sidebar__item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+        <svg class="sidebar__item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <span class="sidebar__item-name">${name}</span>
-        <span class="sidebar__item-remove">×</span>
-      `;
-
-      // 点击切换文件夹
+        <span class="sidebar__item-remove">×</span>`;
       item.addEventListener('click', (e) => {
         if (e.target.classList.contains('sidebar__item-remove')) return;
         if (dir === loadDir()) return;
         loadFromDir(dir);
       });
-
-      // 悬停删除
-      item.querySelector('.sidebar__item-remove').addEventListener('click', (e) => {
-        e.stopPropagation();
-        removeSavedFolder(dir);
-      });
-
+      item.querySelector('.sidebar__item-remove').addEventListener('click', (e) => { e.stopPropagation(); removeSavedFolder(dir); });
       sidebarList.appendChild(item);
     });
   }
@@ -276,15 +199,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   function addSavedFolder(dir) {
     const dirs = getSavedFolders();
     const normalized = dir.replace(/\\/g, '/');
-    // 检查是否已存在（路径规范化比较）
-    const exists = dirs.some(d => d.replace(/\\/g, '/') === normalized);
-    if (!exists) {
-      dirs.unshift(dir);
-      saveFolders(dirs);
-    }
+    if (!dirs.some(d => d.replace(/\\/g, '/') === normalized)) { dirs.unshift(dir); saveFolders(dirs); }
     renderSidebar(dir);
   }
-
   function removeSavedFolder(dir) {
     const dirs = getSavedFolders();
     const idx = dirs.findIndex(d => d.replace(/\\/g, '/') === dir.replace(/\\/g, '/'));
@@ -292,52 +209,273 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveFolders(dirs);
     const current = loadDir();
     if (current.replace(/\\/g, '/') === dir.replace(/\\/g, '/')) {
-      localStorage.removeItem(CONFIG_KEY);
-      photoDir = '';
-      if (dirs.length > 0) {
-        loadFromDir(dirs[0]);
-      } else {
-        // 清空 UI
-        heroSlidesEl.innerHTML = '';
-        categoriesEl.innerHTML = '';
-        galleryEl.style.display = 'none';
-        categoriesEl.style.display = 'grid';
+      localStorage.removeItem(CONFIG_KEY); photoDir = '';
+      if (dirs.length > 0) { loadFromDir(dirs[0]); }
+      else {
+        heroSlidesEl.innerHTML = ''; categoriesEl.innerHTML = '';
+        galleryEl.style.display = 'none'; categoriesEl.style.display = 'grid';
         sectionTitle.textContent = 'Selected Works';
-        updateDirLabel('');
-        renderSidebar();
+        updateDirLabel(''); renderSidebar();
       }
-    } else {
-      renderSidebar();
-    }
+    } else { renderSidebar(); }
   }
 
-  // ========== 加载照片 ==========
-  async function loadFromDir(dir) {
-    // 清空画廊和分类 UI
-    categoriesEl.innerHTML = '';
-    if (galleryEl.style.display !== 'none') {
-      galleryEl.style.display = 'none';
+  // ========== 加载画面 ==========
+  let loadingAnimFrame = null;
+  let loadingQuoteInterval = null;
+
+  const PHOTO_QUOTES = [
+    '摄影是光的诗歌，影是时间的印记',
+    '每一帧光影，皆是时间的切片',
+    '相机是双眼的延伸，镜头是心灵的窗',
+    '按下快门的瞬间，永恒被凝固',
+    '好的照片不在于看见什么，而在于如何看见',
+    '光影之间，藏着一个世界',
+    '最美的画面，往往在等待中出现',
+    '摄影教会我们，用心去观察世界',
+  ];
+
+  async function showLoadingScreen(msg) {
+    let el = document.getElementById('loading-screen');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'loading-screen';
+      Object.assign(el.style, {
+        position: 'fixed', inset: '0', zIndex: '99999',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(6,6,5,0.9)',
+        backdropFilter: 'blur(40px)',
+        WebkitBackdropFilter: 'blur(40px)',
+      });
+
+      // === 胶囊装载器容器 ===
+      const capsuleWrap = document.createElement('div');
+      capsuleWrap.id = 'loading-capsule-wrap';
+      Object.assign(capsuleWrap.style, {
+        position: 'relative',
+        width: '200px', height: '60px',
+        marginBottom: '2.5rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      });
+
+      // 胶囊轨道（暖金圆角长条）
+      const track = document.createElement('div');
+      track.id = 'loading-track';
+      Object.assign(track.style, {
+        width: '160px', height: '6px',
+        borderRadius: '100px',
+        background: 'rgba(200,168,124,0.12)',
+        position: 'relative', overflow: 'hidden',
+      });
+
+      // 流光（内部移动光带）
+      const shimmer = document.createElement('div');
+      shimmer.id = 'loading-shimmer';
+      Object.assign(shimmer.style, {
+        position: 'absolute',
+        top: '0', left: '0',
+        width: '50%', height: '100%',
+        borderRadius: '100px',
+        background: 'linear-gradient(90deg, transparent, rgba(200,168,124,0.6), transparent)',
+      });
+
+      // 环绕眩光光环
+      const glowRing = document.createElement('div');
+      glowRing.id = 'loading-glow-ring';
+      Object.assign(glowRing.style, {
+        position: 'absolute', inset: '-8px',
+        borderRadius: '100px',
+        border: '1px solid transparent',
+        borderTopColor: 'rgba(200,168,124,0.25)',
+        borderRightColor: 'rgba(200,168,124,0.35)',
+        borderBottomColor: 'rgba(200,168,124,0.15)',
+        borderLeftColor: 'rgba(200,168,124,0.25)',
+        filter: 'blur(0.5px)',
+        boxShadow: '0 0 16px rgba(200,168,124,0.08), inset 0 0 8px rgba(200,168,124,0.03)',
+      });
+
+      track.appendChild(shimmer);
+      capsuleWrap.appendChild(glowRing);
+      capsuleWrap.appendChild(track);
+
+      // 进度文字
+      const text = document.createElement('div');
+      text.id = 'loading-text';
+      Object.assign(text.style, {
+        fontFamily: "Cormorant Garamond, Georgia, serif",
+        fontSize: '0.85rem', fontStyle: 'italic', fontWeight: '300',
+        letterSpacing: '0.12em', color: 'rgba(220,200,180,0.55)',
+        marginBottom: '0.6rem',
+      });
+
+      // 首次加载提示
+      const hint = document.createElement('div');
+      hint.id = 'loading-hint';
+      Object.assign(hint.style, {
+        fontFamily: "Cormorant Garamond, Georgia, serif",
+        fontSize: '0.72rem', fontStyle: 'italic', fontWeight: '300',
+        letterSpacing: '0.08em', color: 'rgba(220,200,180,0.3)',
+        marginBottom: '2.5rem', display: 'none',
+      });
+
+      // 轮播金句
+      const quote = document.createElement('div');
+      quote.id = 'loading-quote';
+      Object.assign(quote.style, {
+        position: 'absolute', bottom: '16vh', left: '50%',
+        transform: 'translateX(-50%)',
+        fontFamily: "Cormorant Garamond, Georgia, serif",
+        fontSize: '1.05rem', fontStyle: 'italic', fontWeight: '300',
+        letterSpacing: '0.08em', color: 'rgba(220,200,180,0.3)',
+        textAlign: 'center', whiteSpace: 'nowrap',
+        transition: 'opacity 1.2s ease',
+        maxWidth: '80vw', overflow: 'hidden', textOverflow: 'ellipsis',
+      });
+
+      el.appendChild(capsuleWrap);
+      el.appendChild(text);
+      el.appendChild(hint);
+      el.appendChild(quote);
+      document.body.appendChild(el);
     }
+
+    el.style.display = 'flex';
+    el.style.opacity = '1';
+    document.getElementById('loading-text').textContent = msg;
+    loadingShownAt = Date.now();
+
+    // 胶囊动画：流光左右移动 + 光环旋转
+    if (!loadingAnimFrame) {
+      const shimmer = document.getElementById('loading-shimmer');
+      const glowRing = document.getElementById('loading-glow-ring');
+      let pos = -60, dir = 1, deg = 0;
+      const speed = 1.5;
+      const animate = () => {
+        pos += speed * dir;
+        if (pos > 60) dir = -1;
+        if (pos < -60) dir = 1;
+        if (shimmer) shimmer.style.transform = `translateX(${pos}%)`;
+        deg = (deg + 1.2) % 360;
+        if (glowRing) glowRing.style.transform = `rotate(${deg}deg)`;
+        loadingAnimFrame = requestAnimationFrame(animate);
+      };
+      loadingAnimFrame = requestAnimationFrame(animate);
+    }
+
+    // 摄影金句轮播
+    if (!loadingQuoteInterval) {
+      const quoteEl = document.getElementById('loading-quote');
+      let quoteIdx = 0;
+      quoteEl.textContent = PHOTO_QUOTES[0];
+      quoteEl.style.opacity = '1';
+      loadingQuoteInterval = setInterval(() => {
+        quoteEl.style.opacity = '0';
+        setTimeout(() => {
+          quoteIdx = (quoteIdx + 1) % PHOTO_QUOTES.length;
+          quoteEl.textContent = PHOTO_QUOTES[quoteIdx];
+          quoteEl.style.opacity = '1';
+        }, 1200);
+      }, 4500);
+    }
+
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, 50));
+  }
+  function updateLoadingScreen(msg) {
+    const t = document.getElementById('loading-text');
+    if (t) t.textContent = msg;
+  }
+  let loadingShownAt = 0;
+
+  function hideLoadingScreen() {
+    const el = document.getElementById('loading-screen');
+    if (!el) return;
+    const elapsed = Date.now() - loadingShownAt;
+    const delay = Math.max(0, 600 - elapsed);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 0.4s ease';
+      setTimeout(() => {
+        if (el.parentNode) el.remove();
+        if (loadingAnimFrame) { cancelAnimationFrame(loadingAnimFrame); loadingAnimFrame = null; }
+        if (loadingSpinnerInterval) { clearInterval(loadingSpinnerInterval); loadingSpinnerInterval = null; }
+        if (loadingQuoteInterval) { clearInterval(loadingQuoteInterval); loadingQuoteInterval = null; }
+      }, 400);
+    }, delay);
+  }
+
+  // ========== 路径标签 ==========
+  function updateDirLabel(dir) {
+    let label = document.getElementById('dir-label');
+    if (!label) { label = document.createElement('span'); label.id = 'dir-label'; document.body.appendChild(label); }
+    label.textContent = dir;
+  }
+
+  // ========== 加载照片流程 ==========
+  async function loadFromDir(dir) {
+    categoriesEl.innerHTML = '';
+    if (galleryEl.style.display !== 'none') galleryEl.style.display = 'none';
     categoriesEl.style.display = 'grid';
     sectionTitle.textContent = 'Selected Works';
-
-    // 移除旧的错误/空状态提示
     document.querySelectorAll('.dir-prompt, .scan-error').forEach(el => el.remove());
 
     try {
+      // 1. 扫描（不显示加载画面，让启动动画播放）
       data = await scanPhotos(dir);
-      saveDir(dir);
-      photoDir = dir;
-      updateDirLabel(dir);
-      addSavedFolder(dir);
+      saveDir(dir); photoDir = dir;
+      updateDirLabel(dir); addSavedFolder(dir);
       console.log(`扫描完成: ${data.photos.length} 张, ${data.categories.length} 个分类`);
+
       if (data.photos.length === 0) {
-        showEmpty('该文件夹中没有找到 .jpg 照片');
-        return;
+        showEmpty('该文件夹中没有找到 .jpg 照片'); return;
       }
+
+      // 2. 首次启动：等启动动画播完再显示加载画面
+      if (!heroAnimationDone) {
+        const elapsed = performance.now() - appStartTime;
+        if (elapsed < 2500) await new Promise(r => setTimeout(r, 2500 - elapsed));
+        heroAnimationDone = true;
+      }
+
+      // 3. 显示加载画面 → 生成缩略图 → 预加载卡片
+      const paths = data.photos.map(p => p.path);
+      await showLoadingScreen(`正在生成缩略图... 0 / ${paths.length}`);
+
+      let firstLoadHintShown = false;
+      const unlisten = await listen('thumbnail-progress', (event) => {
+        const { current, total, fresh } = event.payload;
+        updateLoadingScreen(`正在生成缩略图... ${current} / ${total}`);
+        // 超过三分之一是全新生成 → 显示首次加载提示
+        if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
+          firstLoadHintShown = true;
+          const hint = document.getElementById('loading-hint');
+          if (hint) { hint.textContent = '首次加载需要生成预览图，下次打开将秒开'; hint.style.display = 'block'; }
+        }
+      });
+      const thumbMap = await invoke('generate_thumbnails', { paths });
+      unlisten();
+
+      let thumbHits = 0;
+      data.photos.forEach(p => {
+        const tp = thumbMap[p.path];
+        if (tp) { p.thumbSrc = convertFileSrc(tp); thumbHits++; }
+      });
+      console.log(`缩略图缓存: ${thumbHits} / ${data.photos.length} 就绪`);
+
+      // 预加载分类卡片
+      updateLoadingScreen('正在加载分类...');
+      buildCategoryCardsDOM();
+      const cardImgs = categoriesEl.querySelectorAll('img');
+      await preloadImages(Array.from(cardImgs), (n, t) => {
+        updateLoadingScreen(`正在加载分类... ${n} / ${t}`);
+      });
+
+      hideLoadingScreen();
       await rebuildHero(data.photos);
-      buildCategoryCards();
+      categoriesEl.style.display = 'grid';
     } catch (e) {
+      hideLoadingScreen();
       console.error('扫描失败:', e);
       showError(`无法读取文件夹: ${e.message || e}`);
     }
@@ -345,92 +483,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function pickAndLoad() {
     const selected = await selectFolder();
-    if (selected) {
-      photoDir = selected;
-      await loadFromDir(photoDir);
-    }
+    if (selected) { photoDir = selected; await loadFromDir(photoDir); }
   }
 
   function showEmpty(msg) {
-    const div = document.createElement('div');
-    div.className = 'dir-prompt';
+    const div = document.createElement('div'); div.className = 'dir-prompt';
     div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:#999;font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;';
     const btn = document.createElement('button');
     btn.textContent = '重新选择文件夹';
     btn.style.cssText = 'color:#f5f5f5;padding:0.6rem 1.5rem;border:1px solid #555;background:none;cursor:pointer;font-size:14px;';
     btn.addEventListener('click', () => { div.remove(); pickAndLoad(); });
-    div.innerHTML = `<span>${msg}</span>`;
-    div.appendChild(btn);
+    div.innerHTML = `<span>${msg}</span>`; div.appendChild(btn);
     document.body.appendChild(div);
   }
-
   function showError(msg) {
-    const div = document.createElement('div');
-    div.className = 'scan-error';
+    const div = document.createElement('div'); div.className = 'scan-error';
     div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:#ff4444;font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;';
     const btn = document.createElement('button');
     btn.textContent = '重新选择文件夹';
     btn.style.cssText = 'color:#f5f5f5;padding:0.6rem 1.5rem;border:1px solid #555;background:none;cursor:pointer;font-size:14px;';
     btn.addEventListener('click', () => { div.remove(); pickAndLoad(); });
-    div.innerHTML = `<span>${msg}</span>`;
-    div.appendChild(btn);
+    div.innerHTML = `<span>${msg}</span>`; div.appendChild(btn);
     document.body.appendChild(div);
   }
 
-  // ========== 路径标签 ==========
-  function updateDirLabel(dir) {
-    let label = document.getElementById('dir-label');
-    if (!label) {
-      label = document.createElement('span');
-      label.id = 'dir-label';
-      // 样式由 CSS (#dir-label) 控制
-      document.body.appendChild(label);
-    }
-    label.textContent = dir;
-  }
-
-  // ========== 侧边栏添加按钮 ==========
+  // ========== 侧边栏按钮 ==========
   document.getElementById('sidebar-add').addEventListener('click', async () => {
     const selected = await selectFolder();
-    if (selected) {
-      await loadFromDir(selected);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (selected) { await loadFromDir(selected); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   });
 
-  // ========== 启动：加载已有路径或弹窗选择 ==========
+  // ========== 启动 ==========
   const savedDirs = getSavedFolders();
   if (photoDir) {
-    // 确保当前路径在保存列表中
-    if (!savedDirs.some(d => d.replace(/\\/g, '/') === photoDir.replace(/\\/g, '/'))) {
-      addSavedFolder(photoDir);
-    } else {
-      renderSidebar(photoDir);
-    }
+    if (!savedDirs.some(d => d.replace(/\\/g, '/') === photoDir.replace(/\\/g, '/'))) { addSavedFolder(photoDir); }
+    else { renderSidebar(photoDir); }
     updateDirLabel(photoDir);
     await loadFromDir(photoDir);
   } else if (savedDirs.length > 0) {
-    // 加载最近使用的文件夹
     await loadFromDir(savedDirs[0]);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
-    // 首次启动，渲染空侧边栏
     renderSidebar();
     const selected = await selectFolder();
-    if (selected) {
-      await loadFromDir(selected);
-    } else {
-      showEmpty('请选择照片文件夹');
-    }
+    if (selected) { await loadFromDir(selected); }
+    else { showEmpty('请选择照片文件夹'); }
   }
 
-  // ========== 工具栏：添加文件夹 ==========
   document.getElementById('tb-folder').addEventListener('click', async () => {
     const selected = await selectFolder();
-    if (selected) {
-      await loadFromDir(selected);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (selected) { await loadFromDir(selected); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   });
 
   initLightbox();
@@ -440,37 +541,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ========== Hero ==========
   async function rebuildHero(photos) {
-    // 清理旧定时器 + 淡出
-    clearInterval(heroTimer);
-    heroTimer = null;
-
+    clearInterval(heroTimer); heroTimer = null;
     if (heroSlidesEl.children.length > 0) {
       heroSlidesEl.classList.add('hero__slides--out');
       await new Promise(r => setTimeout(r, 350));
       heroSlidesEl.classList.remove('hero__slides--out');
     }
     heroSlidesEl.innerHTML = '';
-
     if (!photos || photos.length === 0) return;
-
-    // 选最多 6 张，去重
-    const seen = new Set();
-    const selected = [];
+    const seen = new Set(); const selected = [];
     for (const p of photos) {
       const key = p.category || p.src;
-      if (!seen.has(key) && selected.length < 6) {
-        seen.add(key);
-        selected.push(p);
-      }
+      if (!seen.has(key) && selected.length < 6) { seen.add(key); selected.push(p); }
     }
-
     selected.forEach((p, i) => {
       const div = document.createElement('div');
       div.className = 'hero__slide' + (i === 0 ? ' active' : '');
       div.style.backgroundImage = `url('${p.src}?full=1')`;
       heroSlidesEl.appendChild(div);
     });
-
     const slides = heroSlidesEl.querySelectorAll('.hero__slide');
     if (slides.length < 2) return;
     let cur = 0;
@@ -479,8 +568,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
-
-    // titleEntrance 结束 (0.25+2=2.25s) 后渐隐 LENS → 角落 logo
     setTimeout(moveTitleToCorner, 2350);
   }
 
@@ -489,93 +576,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     const content = document.querySelector('.hero__content');
     const scroll = document.querySelector('.hero__scroll');
     if (!title || title.classList.contains('hero__title--corner')) return;
-
-    // 隐藏副标题和滚动指示器
     if (scroll) scroll.style.opacity = '0';
     if (content) content.classList.add('hero__content--corner');
 
-    // 创建 LENS 底部暖金光斑
-    const lensGlow = document.createElement('div');
-    lensGlow.id = 'lens-glow';
+    const lensGlow = document.createElement('div'); lensGlow.id = 'lens-glow';
     Object.assign(lensGlow.style, {
-      position: 'fixed',
-      zIndex: '497',
-      left: '6px',
-      top: '2px',
-      width: '110px',
-      height: '44px',
-      borderRadius: '16px',
-      background: 'rgba(200,180,160,0.04)',
-      backdropFilter: 'blur(40px)',
-      WebkitBackdropFilter: 'blur(40px)',
-      border: '0.5px solid rgba(200,180,160,0.06)',
-      opacity: '0',
-      transition: 'opacity 0.8s ease',
-      pointerEvents: 'none',
-      maskImage: 'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)',
-      WebkitMaskImage: 'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)'
+      position:'fixed',zIndex:'497',left:'6px',top:'2px',width:'110px',height:'44px',
+      borderRadius:'16px',background:'rgba(200,180,160,0.04)',
+      backdropFilter:'blur(40px)',WebkitBackdropFilter:'blur(40px)',
+      border:'0.5px solid rgba(200,180,160,0.06)',opacity:'0',transition:'opacity 0.8s ease',
+      pointerEvents:'none',
+      maskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)',
+      WebkitMaskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)'
     });
     document.body.appendChild(lensGlow);
 
-    // 创建角落 logo
-    const logo = document.createElement('div');
-    logo.id = 'corner-logo';
-    logo.textContent = 'LENS';
+    const logo = document.createElement('div'); logo.id = 'corner-logo'; logo.textContent = 'LENS';
     Object.assign(logo.style, {
-      position: 'fixed',
-      zIndex: '500',
-      left: '28px',
-      top: '10px',
-      fontFamily: "var(--font-display), 'Cormorant Garamond', Georgia, serif",
-      fontSize: '1.2rem',
-      fontWeight: '300',
-      letterSpacing: '0.18em',
-      color: 'rgba(220,200,175,0.85)',
-      cursor: 'pointer',
-      opacity: '0',
-      scale: '0.8',
-      transition: 'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1), color 0.3s ease',
-      userSelect: 'none',
-      WebkitUserSelect: 'none',
-      lineHeight: '1',
-      padding: '4px 0',
-      willChange: 'opacity, scale'
+      position:'fixed',zIndex:'500',left:'28px',top:'10px',
+      fontFamily:"var(--font-display), 'Cormorant Garamond', Georgia, serif",
+      fontSize:'1.2rem',fontWeight:'300',letterSpacing:'0.18em',
+      color:'rgba(220,200,175,0.85)',cursor:'pointer',opacity:'0',scale:'0.8',
+      transition:'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1), color 0.3s ease',
+      userSelect:'none',WebkitUserSelect:'none',lineHeight:'1',padding:'4px 0',willChange:'opacity, scale'
     });
-    logo.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    logo.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
     document.body.appendChild(logo);
 
-    // 触发淡入 + 弹性缩放
-    requestAnimationFrame(() => {
-      lensGlow.style.opacity = '1';
-      logo.style.opacity = '1';
-      logo.style.scale = '1';
-    });
-
-    // 清除背景模糊
+    requestAnimationFrame(() => { lensGlow.style.opacity = '1'; logo.style.opacity = '1'; logo.style.scale = '1'; });
     document.querySelector('.hero__slides')?.classList.add('hero__slides--clear');
-
     title.classList.add('hero__title--corner');
   }
 
-  // 从全部照片中选（每个分类一张）
-  function initHero() {
-    rebuildHero(data.photos);
-  }
+  function initHero() { rebuildHero(data.photos); }
 
-  // ========== Category Cards ==========
-  function buildCategoryCards() {
+  // ========== 分类卡片（全部直接加载，无懒加载） ==========
+  function buildCategoryCardsDOM() {
+    categoriesEl.innerHTML = '';
     const fragment = document.createDocumentFragment();
     data.categories.forEach(cat => {
       const catPhotos = data.byCategory[cat] || [];
       const cover = catPhotos[0];
       if (!cover) return;
-
       const card = document.createElement('div');
       card.className = 'category-card';
       card.innerHTML = `
-        <img class="category-card__img" data-src="${cover.src}" alt="${cat}" decoding="async">
+        <img class="category-card__img" src="${cover.thumbSrc || cover.src}" alt="${cat}" decoding="async">
         <div class="category-card__label">
           <div class="category-card__label-name">${cat}</div>
           <div class="category-card__label-count">${catPhotos.length} 张</div>
@@ -583,41 +629,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="category-card__info">
           <div class="category-card__name">${cat}</div>
           <div class="category-card__count">${catPhotos.length} photos</div>
-        </div>
-      `;
+        </div>`;
       card.addEventListener('click', () => openCategory(cat));
       fragment.appendChild(card);
     });
     categoriesEl.appendChild(fragment);
-    observeImages(categoriesEl);
   }
 
-  // ========== Gallery ==========
+  // ========== 画廊（全部预加载，加载完才显示） ==========
   let categoryTransitioning = false;
 
   async function openCategory(cat) {
     if (categoryTransitioning) return;
     categoryTransitioning = true;
 
-    // 淡出分类卡片
     categoriesEl.classList.add('categories--out');
     await new Promise(r => setTimeout(r, 350));
 
     currentCategory = cat;
     currentPhotos = data.byCategory[cat] || [];
-    loadedCount = 0;
     sectionTitle.textContent = cat;
     categoriesEl.style.display = 'none';
     categoriesEl.classList.remove('categories--out');
 
-    // Hero 切换为该分类的照片
     rebuildHero(currentPhotos);
 
+    // 构建全部画廊 DOM
     galleryGrid.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    currentPhotos.forEach((p, i) => {
+      const item = document.createElement('div');
+      item.className = 'gallery__item';
+      item.dataset.src = p.src;
+      item.dataset.title = p.title;
+      item.dataset.index = i;
+      item.style.animationDelay = `${i * 0.02}s`;
+      item.innerHTML = `
+        <img src="${p.thumbSrc || p.src}" alt="${p.title}" decoding="async">
+        <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>`;
+      fragment.appendChild(item);
+    });
+    galleryGrid.appendChild(fragment);
     galleryInfo.textContent = `${currentPhotos.length} 张照片`;
+
+    // 预加载全部图片，完成后才显示
+    await showLoadingScreen(`加载中... 0 / ${currentPhotos.length}`);
+    const imgs = galleryGrid.querySelectorAll('img');
+    await preloadImages(Array.from(imgs), (n, t) => {
+      updateLoadingScreen(`加载中... ${n} / ${t}`);
+    });
+    hideLoadingScreen();
+
     galleryEl.classList.remove('gallery--out');
     galleryEl.style.display = 'block';
-    loadPhotos();
 
     categoryTransitioning = false;
     window.scrollTo({ top: galleryEl.offsetTop - 40, behavior: 'smooth' });
@@ -626,65 +690,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   galleryBack.addEventListener('click', async () => {
     if (categoryTransitioning) return;
     categoryTransitioning = true;
-
-    // 淡出画廊
     galleryEl.classList.add('gallery--out');
     await new Promise(r => setTimeout(r, 350));
-
     currentCategory = null;
     galleryEl.style.display = 'none';
     galleryEl.classList.remove('gallery--out');
-
-    // Hero 恢复为各分类代表照片
     rebuildHero(data.photos);
-
     categoriesEl.style.display = 'grid';
     sectionTitle.textContent = 'Selected Works';
-
     categoryTransitioning = false;
     window.scrollTo({ top: document.getElementById('portfolio').offsetTop - 40, behavior: 'smooth' });
   });
 
-  function loadPhotos() {
-    const end = Math.min(loadedCount + BATCH_SIZE, currentPhotos.length);
-    const fragment = document.createDocumentFragment();
-
-    for (let i = loadedCount; i < end; i++) {
-      const p = currentPhotos[i];
-      const item = document.createElement('div');
-      item.className = 'gallery__item';
-      item.dataset.src = p.src;
-      item.dataset.title = p.title;
-      item.dataset.index = i;
-      item.style.animationDelay = `${(i - loadedCount) * 0.04}s`;
-      item.innerHTML = `
-        <img data-src="${p.src}" alt="${p.title}" decoding="async">
-        <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>
-      `;
-      fragment.appendChild(item);
-    }
-    galleryGrid.appendChild(fragment);
-    observeImages(galleryGrid);
-    loadedCount = end;
-    galleryMore.style.display = loadedCount < currentPhotos.length ? 'block' : 'none';
-  }
-
-  loadMoreBtn.addEventListener('click', loadPhotos);
-
-  // 用 getBoundingClientRect 替代 offsetTop/offsetHeight，避免强制重排
-  function checkLoadMore() {
-    if (!currentCategory || loadedCount >= currentPhotos.length) return;
-    const gridBottom = galleryGrid.getBoundingClientRect().bottom;
-    if (gridBottom < window.innerHeight + 800) loadPhotos();
-  }
-  setInterval(checkLoadMore, 300);
-
   // ========== Scroll Reveal ==========
   function initScrollReveal() {
     const obs = new IntersectionObserver(
-      entries => entries.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
-      }),
+      entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } }),
       { threshold: 0.1 }
     );
     document.querySelectorAll('.portfolio__title, .portfolio__desc').forEach(el => obs.observe(el));
@@ -720,20 +741,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnPrev = lightbox.querySelector('.lightbox__prev');
     const btnNext = lightbox.querySelector('.lightbox__next');
 
-    let items = [];
-    let idx = 0;
-    let transitioning = false;
+    let items = [], idx = 0, transitioning = false;
     let zoom = 1, panX = 0, panY = 0;
     let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
-    function applyLbTransform() {
-      lbImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-    }
-
-    function resetZoom() {
-      zoom = 1; panX = 0; panY = 0;
-      lbImg.style.transform = '';
-    }
+    function applyLbTransform() { lbImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; }
+    function resetZoom() { zoom = 1; panX = 0; panY = 0; lbImg.style.transform = ''; }
 
     function update() {
       const item = items[idx];
@@ -752,9 +765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function open(index) {
       items = Array.from(galleryGrid.querySelectorAll('.gallery__item'));
-      idx = index;
-      transitioning = true;
-      resetZoom();
+      idx = index; transitioning = true; resetZoom();
       const item = items[idx];
       lbImg.src = item.dataset.src + '?full=1';
       lbTitle.textContent = item.dataset.title;
@@ -763,13 +774,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.style.overflow = 'hidden';
       setTimeout(() => transitioning = false, 600);
     }
-
-    function close() {
-      lightbox.classList.remove('active');
-      document.body.style.overflow = '';
-      resetZoom();
-    }
-
+    function close() { lightbox.classList.remove('active'); document.body.style.overflow = ''; resetZoom(); }
     function prev() { if (!transitioning) { transitioning = true; idx = (idx - 1 + items.length) % items.length; update(); } }
     function next() { if (!transitioning) { transitioning = true; idx = (idx + 1) % items.length; update(); } }
 
@@ -786,7 +791,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnNext.addEventListener('click', next);
     lightbox.addEventListener('click', e => { if (e.target === lightbox || e.target === lbImg.parentElement) close(); });
 
-    // Wheel zoom
     lightbox.addEventListener('wheel', e => {
       if (!lightbox.classList.contains('active')) return;
       e.preventDefault();
@@ -796,28 +800,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyLbTransform();
     }, { passive: false });
 
-    // Drag pan
     lightbox.addEventListener('mousedown', e => {
-      if (!lightbox.classList.contains('active') || e.button !== 0) return;
-      if (zoom <= 1) return;
-      dragging = true;
-      dragStartX = e.clientX; dragStartY = e.clientY;
-      panStartX = panX; panStartY = panY;
-      e.preventDefault();
+      if (!lightbox.classList.contains('active') || e.button !== 0 || zoom <= 1) return;
+      dragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
+      panStartX = panX; panStartY = panY; e.preventDefault();
     });
     window.addEventListener('mousemove', e => {
       if (!dragging) return;
-      panX = panStartX + (e.clientX - dragStartX);
-      panY = panStartY + (e.clientY - dragStartY);
+      panX = panStartX + (e.clientX - dragStartX); panY = panStartY + (e.clientY - dragStartY);
       applyLbTransform();
     });
     window.addEventListener('mouseup', () => { dragging = false; });
 
-    // Double click to reset
     lbImg.addEventListener('dblclick', e => {
       e.stopPropagation();
-      if (zoom > 1) { resetZoom(); }
-      else { zoom = 2.5; applyLbTransform(); }
+      if (zoom > 1) resetZoom(); else { zoom = 2.5; applyLbTransform(); }
     });
 
     document.addEventListener('keydown', e => {
@@ -841,7 +838,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const slideshow = document.getElementById('slideshow');
     const img = document.getElementById('slideshow-img');
     const counter = document.getElementById('slideshow-counter');
-    const controls = document.getElementById('slideshow-controls');
     const btnPause = document.getElementById('sl-pause');
     const btnPrev = document.getElementById('sl-prev');
     const btnNext = document.getElementById('sl-next');
@@ -851,39 +847,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnOrig = document.getElementById('sl-orig');
     const btnExit = document.getElementById('sl-exit');
 
-    let photos = [];
-    let idx = 0;
-    let paused = false;
-    let timer = null;
-    let zoom = 1;
-    let panX = 0, panY = 0;
+    let photos = [], idx = 0, paused = false, timer = null;
+    let zoom = 1, panX = 0, panY = 0;
     let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
     let hideTimer = null;
 
-    function shuffle(arr) {
-      const a = [...arr];
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    }
-
-    function applyTransform() {
-      img.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-    }
-
-    function fitToWindow() {
-      zoom = 1; panX = 0; panY = 0;
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '100%';
-      applyTransform();
-    }
+    function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+    function applyTransform() { img.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; }
+    function fitToWindow() { zoom = 1; panX = 0; panY = 0; img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; applyTransform(); }
 
     function loadCurrent() {
       if (!photos.length) return;
       const p = photos[idx % photos.length];
-      // 淡出 → 换图 → 淡入
       img.classList.add('slideshow__img--out');
       setTimeout(() => {
         img.src = p.src + '?full=1';
@@ -894,79 +869,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showControls() {
-      slideshow.classList.add('controls-visible');
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        if (!paused) slideshow.classList.remove('controls-visible');
-      }, 3000);
+      slideshow.classList.add('controls-visible'); clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => { if (!paused) slideshow.classList.remove('controls-visible'); }, 3000);
     }
 
     function openSlideshow() {
       if (!data.photos.length) return;
-      photos = shuffle(data.photos);
-      idx = 0;
-      paused = false;
-      zoom = 1; panX = 0; panY = 0;
+      photos = shuffle(data.photos); idx = 0; paused = false; zoom = 1; panX = 0; panY = 0;
       btnPause.textContent = '暂停';
-      slideshow.classList.add('active');
-      loadCurrent();
+      slideshow.classList.add('active'); loadCurrent();
       timer = setInterval(() => { if (!paused) { idx++; loadCurrent(); } }, 5000);
       showControls();
     }
+    function closeSlideshow() { clearInterval(timer); slideshow.classList.remove('active'); }
 
-    function closeSlideshow() {
-      clearInterval(timer);
-      slideshow.classList.remove('active');
-    }
-
-    // Controls
     btnPrev.addEventListener('click', () => { idx = (idx - 1 + photos.length) % photos.length; loadCurrent(); showControls(); });
     btnNext.addEventListener('click', () => { idx++; loadCurrent(); showControls(); });
-    btnPause.addEventListener('click', () => {
-      paused = !paused;
-      btnPause.textContent = paused ? '继续' : '暂停';
-      showControls();
-    });
+    btnPause.addEventListener('click', () => { paused = !paused; btnPause.textContent = paused ? '继续' : '暂停'; showControls(); });
     btnExit.addEventListener('click', closeSlideshow);
-
-    // Zoom
     btnZoomIn.addEventListener('click', () => { zoom = Math.min(zoom * 1.3, 6); applyTransform(); showControls(); });
     btnZoomOut.addEventListener('click', () => { zoom = Math.max(zoom / 1.3, 0.1); applyTransform(); showControls(); });
     btnFit.addEventListener('click', () => { fitToWindow(); showControls(); });
-    btnOrig.addEventListener('click', () => {
-      img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
-      zoom = 1; panX = 0; panY = 0; applyTransform(); showControls();
-    });
+    btnOrig.addEventListener('click', () => { img.style.maxWidth = 'none'; img.style.maxHeight = 'none'; zoom = 1; panX = 0; panY = 0; applyTransform(); showControls(); });
 
-    // Wheel zoom
     const imgWrap = document.querySelector('.slideshow__img-wrap');
     imgWrap.addEventListener('wheel', e => {
       e.preventDefault();
-      if (e.deltaY < 0) zoom = Math.min(zoom * 1.12, 6);
-      else zoom = Math.max(zoom / 1.12, 0.1);
-      applyTransform();
-      showControls();
+      if (e.deltaY < 0) zoom = Math.min(zoom * 1.12, 6); else zoom = Math.max(zoom / 1.12, 0.1);
+      applyTransform(); showControls();
     }, { passive: false });
 
-    // Drag pan
     imgWrap.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
-      dragging = true;
-      dragStartX = e.clientX; dragStartY = e.clientY;
-      panStartX = panX; panStartY = panY;
+      dragging = true; dragStartX = e.clientX; dragStartY = e.clientY; panStartX = panX; panStartY = panY;
     });
-    window.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      panX = panStartX + (e.clientX - dragStartX);
-      panY = panStartY + (e.clientY - dragStartY);
-      applyTransform();
-    });
+    window.addEventListener('mousemove', e => { if (!dragging) return; panX = panStartX + (e.clientX - dragStartX); panY = panStartY + (e.clientY - dragStartY); applyTransform(); });
     window.addEventListener('mouseup', () => { dragging = false; });
-
-    // Double click to fit
     imgWrap.addEventListener('dblclick', fitToWindow);
 
-    // Keyboard
     document.addEventListener('keydown', e => {
       if (!slideshow.classList.contains('active')) return;
       if (e.key === 'Escape') closeSlideshow();
@@ -979,17 +919,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       else if (e.key === '1') btnOrig.click();
     });
 
-    // Right click to exit
     slideshow.addEventListener('contextmenu', e => { e.preventDefault(); closeSlideshow(); });
-
-    // Mouse move shows controls
     slideshow.addEventListener('mousemove', showControls);
-
-    // Toolbar button
     document.getElementById('tb-slideshow').addEventListener('click', openSlideshow);
   }
 
-  // Scroll arrow
+  // ========== Scroll arrow ==========
   document.querySelector('.hero__scroll')?.addEventListener('click', e => {
     e.preventDefault();
     document.getElementById('portfolio')?.scrollIntoView({ behavior: 'smooth' });
@@ -998,9 +933,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ========== 一键回顶部 ==========
   const backToTop = document.getElementById('back-to-top');
   let scrollTicking = false;
-  backToTop.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+  backToTop.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
   window.addEventListener('scroll', () => {
     if (!scrollTicking) {
       requestAnimationFrame(() => {
