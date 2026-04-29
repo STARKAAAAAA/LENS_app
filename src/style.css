@@ -255,10 +255,10 @@
     & .hero__slide {
       position: absolute; inset: 0;
       background-size: cover; background-position: center;
-      opacity: 0; scale: 1.02;
-      transition: opacity 3s ease, scale 3s ease;
+      opacity: 0;
+      transition: opacity 3s ease;
 
-      &.active { opacity: 1; scale: 1; }
+      &.active { opacity: 1; }
     }
 
     /* 暗色遮罩从全黑渐隐，露出背景图 —— 纯 opacity 动画，零 GPU 着色器 */
