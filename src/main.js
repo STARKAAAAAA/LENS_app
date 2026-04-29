@@ -696,7 +696,63 @@ document.addEventListener('DOMContentLoaded', async () => {
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
-    setTimeout(moveTitleToCorner, 2350);
+    playStartupSequence();
+  }
+
+  // ========== 启动动画：单个 rAF 循环同步驱动所有元素 ==========
+  function playStartupSequence() {
+    const reveal = document.querySelector('.hero__reveal');
+    const title = document.querySelector('.hero__title');
+    const subtitle = document.querySelector('.hero__subtitle');
+    const scroll = document.querySelector('.hero__scroll');
+    const scrollLine = document.querySelector('.hero__scroll-line');
+
+    const start = performance.now();
+    const DURATION = 2600;
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function tick(now) {
+      const raw = Math.min((now - start) / DURATION, 1);
+
+      // 遮罩渐隐：0–75%
+      if (reveal) reveal.style.opacity = 1 - easeOut(Math.min(raw / 0.75, 1));
+
+      // 标题淡入上移：5–55%
+      const tT = Math.max(0, Math.min(1, (raw - 0.05) / 0.50));
+      const et = easeOut(tT);
+      if (title) {
+        title.style.opacity = et;
+        title.style.transform = `translateY(${(1 - et) * 40}px) scale(${1.05 - et * 0.05})`;
+        // 装饰线展开
+        const tL = Math.max(0, Math.min(1, (raw - 0.40) / 0.25));
+        const el = easeOut(tL);
+        title.style.setProperty('--line-scale', el);
+        title.style.setProperty('--line-opacity', el);
+      }
+
+      // 副标题淡入：30–60%
+      const tS = Math.max(0, Math.min(1, (raw - 0.30) / 0.30));
+      const es = easeOut(tS);
+      if (subtitle) {
+        subtitle.style.opacity = es;
+        subtitle.style.transform = `translateY(${(1 - es) * 20}px)`;
+      }
+
+      // 滚动指示器淡入：75–100%
+      const tC = Math.max(0, Math.min(1, (raw - 0.72) / 0.28));
+      if (scroll) scroll.style.opacity = easeOut(tC);
+      // 滚动指示线脉冲在动画结束后用 CSS animation，或仅做初始状态
+
+      if (raw < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        // 收尾：标题移至角落
+        moveTitleToCorner();
+      }
+    }
+
+    requestAnimationFrame(tick);
   }
 
   function moveTitleToCorner() {

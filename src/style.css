@@ -261,11 +261,10 @@
       &.active { opacity: 1; }
     }
 
-    /* 暗色遮罩从全黑渐隐，露出背景图 —— 纯 opacity 动画，零 GPU 着色器 */
+    /* 暗色遮罩从全黑渐隐，露出背景图 —— JS rAF 驱动 */
     & .hero__reveal {
       position: absolute; inset: 0; z-index: 1;
       background: var(--bg);
-      animation: heroRevealFade 2.4s cubic-bezier(0.22,0.1,0.1,1) 0.2s forwards;
       pointer-events: none;
     }
 
@@ -295,26 +294,24 @@
         rgba(220,200,175,0.85) 40%,
         rgba(180,155,130,0.25) 100%);
       -webkit-background-clip: text; background-clip: text;
-      opacity: 0; translate: 0 60px; scale: 1.08;
-      animation: titleEntrance 2s cubic-bezier(0.16, 1, 0.2, 1) 0.25s forwards;
+      opacity: 0; transform: translateY(40px); scale: 1.05;
       filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
-      transition: none;
+      will-change: transform, opacity;
 
       &::after {
         content: '';
         display: block;
-        width: 0; height: 1px;
+        width: 100px; height: 1px;
         margin: 1.6rem auto 0;
         background: linear-gradient(90deg, transparent, rgba(220,200,180,0.35), rgba(220,200,180,0.35), transparent);
-        animation: lineGrow 1.6s cubic-bezier(0.16,1,0.2,1) 1.5s forwards;
-        transition: opacity 0.5s var(--ease-out);
+        opacity: var(--line-opacity, 0);
+        transform: scaleX(var(--line-scale, 0));
+        will-change: transform, opacity;
       }
 
-      /* 移至左上角 — 原标题淡出 */
       &.hero__title--corner {
+        opacity: 0 !important; pointer-events: none;
         transition: opacity 0.5s ease;
-        opacity: 0 !important;
-        pointer-events: none;
         &::after { opacity: 0; transition: opacity 0.3s ease; }
       }
     }
@@ -327,16 +324,14 @@
       color: rgba(220,200,180,0.3);
       text-transform: none;
       margin-top: 2em;
-      opacity: 0; translate: 0 24px;
-      animation: fadeUp 1.6s cubic-bezier(0.16,1,0.2,1) 0.8s forwards;
+      opacity: 0; transform: translateY(20px);
     }
 
     /* 毛玻璃滚动胶囊 */
     & .hero__scroll {
       position: absolute; bottom: 2.5rem; left: 50%; z-index: 2;
-      translate: -50% 0;
+      transform: translateX(-50%);
       opacity: 0;
-      animation: fadeUp 1s cubic-bezier(0.16,1,0.2,1) 2.6s forwards;
       width: 30px; height: 52px;
       border-radius: 15px;
       background: rgba(220,200,180,0.06);
@@ -346,12 +341,12 @@
       display: flex; align-items: flex-end; justify-content: center;
       padding-bottom: 10px;
       transition: all 0.5s var(--ease-out);
+      will-change: transform, opacity;
 
       & .hero__scroll-line {
         display: block; width: 1px; height: 18px;
         border-radius: 1px;
         background: rgba(220,200,180,0.4);
-        animation: scrollPulse 2.8s var(--ease-smooth) infinite;
         transform-origin: top;
         position: relative; z-index: 1;
       }
@@ -362,25 +357,6 @@
         box-shadow: 0 0 30px rgba(220,200,180,0.04);
       }
     }
-  }
-
-  @keyframes fadeUp {
-    to { opacity: 1; translate: 0 0; }
-  }
-  @keyframes titleEntrance {
-    0%   { opacity: 0; translate: 0 80px; scale: 1.1; }
-    60%  { opacity: 1; translate: 0 -6px; scale: 0.99; }
-    80%  { opacity: 1; translate: 0 2px; scale: 1.005; }
-    100% { opacity: 1; translate: 0 0; scale: 1; }
-  }
-  @keyframes heroRevealFade {
-    0%   { opacity: 1; }
-    100% { opacity: 0; }
-  }
-  @keyframes lineGrow { to { width: 100px; } }
-  @keyframes scrollPulse {
-    0%, 100% { scale: 1 1; opacity: 0.4; }
-    50% { scale: 1 0.35; opacity: 1; }
   }
 
   /* ========== Portfolio 毛玻璃面板 ========== */
