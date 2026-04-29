@@ -96,8 +96,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentPhotos = [];
   let sidebarHideTimer = null;
   let heroTimer = null;
-  let heroAnimationDone = false;
-  const appStartTime = performance.now();
+  let startupResolve = null;
+  const startupPromise = new Promise(r => { startupResolve = r; });
+  let startupAnimationDone = false;
 
   // ========== 侧边栏 ==========
   let logoTracking = null;
@@ -551,12 +552,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         showEmpty('该文件夹中没有找到 .jpg 照片'); return;
       }
 
-      // 2. 首次启动：等启动动画播完再显示加载画面
-      if (!heroAnimationDone) {
-        const elapsed = performance.now() - appStartTime;
-        if (elapsed < 2500) await new Promise(r => setTimeout(r, 2500 - elapsed));
-        heroAnimationDone = true;
-      }
+      // 2. 等启动动画播完再显示加载画面
+      if (!startupAnimationDone) await startupPromise;
 
       // 3. 显示加载画面 → 生成缩略图 → 预加载卡片
       const paths = data.photos.map(p => p.path);
@@ -631,6 +628,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sidebar-add').addEventListener('click', pickAndLoad);
 
   // ========== 启动 ==========
+  // 预先创建遮罩层，确保启动动画能访问
+  if (!document.querySelector('.hero__reveal')) {
+    const reveal = document.createElement('div');
+    reveal.className = 'hero__reveal';
+    document.querySelector('.hero')?.appendChild(reveal);
+  }
+  playStartupSequence(); // 立即播放启动动画，不等数据
+
   const savedDirs = getSavedFolders();
   if (photoDir) {
     if (!savedDirs.some(d => d.replace(/\\/g, '/') === photoDir.replace(/\\/g, '/'))) { addSavedFolder(photoDir); }
@@ -696,7 +701,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
-    playStartupSequence();
+    if (!startupAnimationDone) playStartupSequence();
   }
 
   // ========== 启动动画：单个 rAF 循环同步驱动所有元素 ==========
@@ -746,8 +751,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (raw < 1) {
         requestAnimationFrame(tick);
       } else {
-        // 收尾：标题移至角落
         moveTitleToCorner();
+        startupAnimationDone = true;
+        if (startupResolve) { startupResolve(); startupResolve = null; }
       }
     }
 
