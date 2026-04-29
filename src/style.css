@@ -1199,70 +1199,74 @@
   }
 }
 
-  /* ========== 快捷键面板 ========== */
+  /* ========== 快捷键面板（液态玻璃弹出） ========== */
   .shortcuts-overlay {
     position: fixed; inset: 0; z-index: 3000;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(6,6,5,0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(6,6,5,0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     opacity: 0; visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0s 0.3s;
+    transition: opacity 0.35s var(--ease-out), visibility 0s 0.35s;
   }
   .shortcuts-overlay--open {
     opacity: 1; visibility: visible;
-    transition: opacity 0.3s ease, visibility 0s 0s;
+    transition: opacity 0.35s var(--ease-out), visibility 0s 0s;
   }
   .shortcuts-panel {
-    background: rgba(30,28,26,0.92);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 0.5px solid rgba(200,168,124,0.15);
+    position: fixed; top: 52px; right: 76px;
+    z-index: 3001;
+    background: rgba(30,28,26,0.94);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 0.5px solid rgba(200,168,124,0.18);
     border-radius: var(--radius);
-    padding: 2rem 2.5rem;
-    min-width: 360px;
-    box-shadow: 0 8px 48px rgba(0,0,0,0.6);
-    transform: scale(0.95) translateY(8px);
-    transition: transform 0.35s var(--ease-spring);
+    padding: 1.8rem 2.2rem;
+    min-width: 300px;
+    box-shadow:
+      0 4px 24px rgba(0,0,0,0.5),
+      0 0 0 0.5px rgba(200,168,124,0.08) inset;
+    transform-origin: top right;
+    opacity: 0; transform: scale(0.92) translateY(-6px);
+    transition: opacity 0.4s var(--ease-out), transform 0.5s var(--ease-spring);
+    pointer-events: none;
   }
   .shortcuts-overlay--open .shortcuts-panel {
-    transform: scale(1) translateY(0);
+    opacity: 1; transform: scale(1) translateY(0);
+    pointer-events: auto;
   }
   .shortcuts__title {
     font-family: var(--font-display);
-    font-size: 1.2rem; font-weight: 300; font-style: italic;
-    letter-spacing: 0.15em; color: var(--text);
-    text-align: center; margin-bottom: 1.5rem;
+    font-size: 1.1rem; font-weight: 300; font-style: italic;
+    letter-spacing: 0.12em; color: var(--text);
+    text-align: center; margin-bottom: 1.2rem;
   }
   .shortcuts__grid {
-    display: flex; flex-direction: column; gap: 10px;
+    display: flex; flex-direction: column; gap: 8px;
   }
   .shortcuts__row {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 8px;
   }
   .shortcuts__row kbd {
     font-family: var(--font-body);
-    font-size: 0.68rem; font-weight: 500;
-    letter-spacing: 0.05em;
+    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.04em;
     color: var(--accent);
     background: rgba(200,168,124,0.1);
     border: 0.5px solid rgba(200,168,124,0.2);
-    border-radius: 6px;
-    padding: 3px 10px;
-    min-width: 28px; text-align: center;
+    border-radius: 5px;
+    padding: 2px 8px; min-width: 24px; text-align: center;
     white-space: nowrap;
   }
   .shortcuts__row span {
     font-family: var(--font-body);
-    font-size: 0.78rem; color: var(--text-2);
+    font-size: 0.76rem; color: var(--text-2);
     letter-spacing: 0.04em;
     flex: 1; text-align: right;
   }
   .shortcuts__hint {
     font-family: var(--font-body);
-    font-size: 0.65rem; color: var(--text-3);
+    font-size: 0.62rem; color: var(--text-3);
     letter-spacing: 0.06em;
-    text-align: center; margin-top: 1.5rem;
+    text-align: center; margin-top: 1rem;
   }
 
 /* ========== 响应式 ========== */

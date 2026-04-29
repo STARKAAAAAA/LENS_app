@@ -768,10 +768,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ========== 快捷键面板 ==========
   const shortcutsOverlay = document.getElementById('shortcuts-overlay');
+  const shortcutsBtn = document.getElementById('tb-shortcuts');
   function toggleShortcuts() {
     const open = shortcutsOverlay.classList.toggle('shortcuts-overlay--open');
     document.body.style.overflow = open ? 'hidden' : '';
   }
+  shortcutsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleShortcuts();
+  });
   shortcutsOverlay.addEventListener('click', (e) => {
     if (e.target === shortcutsOverlay) toggleShortcuts();
   });
