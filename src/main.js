@@ -642,7 +642,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { return JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
     catch { return {}; }
   }
-  function saveRatings(ratings) { localStorage.setItem(RATING_KEY, JSON.stringify(ratings)); }
   function getPhotoRating(path) {
     const ratings = loadRatings();
     return ratings[path] || { stars: 0, fav: false };
@@ -653,24 +652,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveRatings(ratings);
   }
 
-  const savedDirs = getSavedFolders();
-  if (photoDir) {
-    if (!savedDirs.some(d => d.replace(/\\/g, '/') === photoDir.replace(/\\/g, '/'))) { addSavedFolder(photoDir); }
-    else { renderSidebar(photoDir); }
-    updateDirLabel(photoDir);
-    await loadFromDir(photoDir);
-  } else if (savedDirs.length > 0) {
-    await loadFromDir(savedDirs[0]);
-  } else {
-    renderSidebar();
-    const selected = await selectFolder();
-    if (selected) { await loadFromDir(selected); }
-    else { showEmpty('请选择照片文件夹'); }
-  }
-
-  document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
-
-  // ========== 设置面板 ==========
+  // ========== 设置面板（在 await 之前定义） ==========
   const TOGGLE_KEY = 'lens-feature-toggles';
   const DEFAULT_TOGGLES = {
     exif: true, rating: false, filmstrip: false,
@@ -683,33 +665,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   function saveToggles(t) { localStorage.setItem(TOGGLE_KEY, JSON.stringify(t)); }
   let featureToggles = loadToggles();
-  let densityToggle = false;
 
   function applyTogglesUI() {
-    // 开关按钮
     document.querySelectorAll('.toggle-switch').forEach(btn => {
       const key = btn.dataset.key;
       const on = featureToggles[key];
       btn.classList.toggle('toggle-switch--on', on);
     });
-    // 密度按钮
     document.querySelectorAll('.density-btn').forEach(b => {
       b.classList.toggle('density-btn--active', b.dataset.density === featureToggles.density);
     });
-    // 密度 -> 触发放缩动画 + 换值
     const sizes = { s: '200px', m: '280px', l: '360px' };
     const size = sizes[featureToggles.density] || '280px';
     document.documentElement.style.setProperty('--thumb-card-size', size);
-
     const cats = document.getElementById('categories');
     const gGrid = document.getElementById('gallery-grid');
     const cols = { s: 4, m: 3, l: 2 };
-
-    // 先换值，再做动画（避免二次重排闪烁）
     if (cats) cats.style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}, 1fr))`;
     if (gGrid) gGrid.style.columns = cols[featureToggles.density] || 3;
-
-    // 金光扫过动画（DOM overlay，确保可见）
     [cats, gGrid].forEach(el => {
       if (!el) return;
       const sweep = document.createElement('div');
@@ -737,7 +710,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsPanel.classList.contains('settings-panel--open') ? closeSettingsPanel() : openSettingsPanel();
   });
 
-  // 切换开关
   settingsPanel.addEventListener('click', (e) => {
     const sw = e.target.closest('.toggle-switch');
     if (sw) {
@@ -756,7 +728,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // 点击面板外关闭
   document.addEventListener('click', (e) => {
     if (!settingsPanel.classList.contains('settings-panel--open')) return;
     if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
@@ -764,7 +735,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Escape 关闭面板
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && settingsPanel.classList.contains('settings-panel--open')) {
       closeSettingsPanel();
@@ -772,6 +742,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   applyTogglesUI();
+
+  const savedDirs = getSavedFolders();
+  if (photoDir) {
+    if (!savedDirs.some(d => d.replace(/\\/g, '/') === photoDir.replace(/\\/g, '/'))) { addSavedFolder(photoDir); }
+    else { renderSidebar(photoDir); }
+    updateDirLabel(photoDir);
+    await loadFromDir(photoDir);
+  } else if (savedDirs.length > 0) {
+    await loadFromDir(savedDirs[0]);
+  } else {
+    renderSidebar();
+    const selected = await selectFolder();
+    if (selected) { await loadFromDir(selected); }
+    else { showEmpty('请选择照片文件夹'); }
+  }
+
+  document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
 
   initLightbox();
   initSlideshow();
