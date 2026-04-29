@@ -441,6 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   let loadingShownAt = 0;
 
+  let loadingScreenDoneResolve = null;
   function hideLoadingScreen() {
     const el = document.getElementById('loading-screen');
     if (!el) return;
@@ -453,8 +454,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el.parentNode) el.remove();
         if (loadingAnimFrame) { cancelAnimationFrame(loadingAnimFrame); loadingAnimFrame = null; }
         if (loadingQuoteInterval) { clearInterval(loadingQuoteInterval); loadingQuoteInterval = null; }
+        if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
       }, 400);
     }, delay);
+    return new Promise(r => { loadingScreenDoneResolve = r; });
   }
 
   // ========== 路径标签 ==========
@@ -596,11 +599,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLoadingScreen(`正在加载分类... ${n} / ${t}`);
       });
 
-      hideLoadingScreen();
+      await hideLoadingScreen();
       await rebuildHero(data.photos);
       categoriesEl.style.display = 'grid';
     } catch (e) {
-      hideLoadingScreen();
+      await hideLoadingScreen();
       console.error('扫描失败:', e);
       showError(`无法读取文件夹: ${e.message || e}`);
     }
@@ -636,27 +639,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   playStartupSequence();
 
-  // ========== 评分数据（在 await 之前定义） ==========
+  // ========== 评分数据（内存缓存 + localStorage 持久化） ==========
   const RATING_KEY = 'lens-photo-ratings';
+  let _ratingsCache = null;
   function loadRatings() {
-    try { return JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
-    catch { return {}; }
+    if (!_ratingsCache) {
+      try { _ratingsCache = JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
+      catch { _ratingsCache = {}; }
+    }
+    return _ratingsCache;
+  }
+  function saveRatings(r) {
+    _ratingsCache = r;
+    try { localStorage.setItem(RATING_KEY, JSON.stringify(r)); } catch {}
   }
   function getPhotoRating(path) {
-    const ratings = loadRatings();
-    return ratings[path] || { stars: 0, fav: false };
+    return loadRatings()[path] || { stars: 0, fav: false };
   }
   function setPhotoRating(path, stars, fav) {
     const ratings = loadRatings();
-    ratings[path] = { stars: stars ?? getPhotoRating(path).stars, fav: fav ?? getPhotoRating(path).fav };
+    const cur = ratings[path] || { stars: 0, fav: false };
+    ratings[path] = { stars: stars ?? cur.stars, fav: fav ?? cur.fav };
     saveRatings(ratings);
   }
 
   // ========== 设置面板（在 await 之前定义） ==========
   const TOGGLE_KEY = 'lens-feature-toggles';
   const DEFAULT_TOGGLES = {
-    exif: true, rating: false, filmstrip: false,
-    shortcuts: true, sortFilter: false,
+    exif: true, rating: true,
+    shortcuts: true, sortFilter: true,
+    sortMethod: 'name', filterMode: 'all',
     density: 'm', rawScan: false,
   };
   function loadToggles() {
@@ -665,6 +677,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   function saveToggles(t) { localStorage.setItem(TOGGLE_KEY, JSON.stringify(t)); }
   let featureToggles = loadToggles();
+
+  // v1.5+ 迁移：确保评分、筛选排序默认开启
+  const TOGGLE_VERSION_KEY = 'lens-toggle-version';
+  if (localStorage.getItem(TOGGLE_VERSION_KEY) !== '1.5.0') {
+    featureToggles.rating = true;
+    featureToggles.sortFilter = true;
+    featureToggles.sortMethod = featureToggles.sortMethod || 'name';
+    featureToggles.filterMode = featureToggles.filterMode || 'all';
+    saveToggles(featureToggles);
+    localStorage.setItem(TOGGLE_VERSION_KEY, '1.5.0');
+  }
 
   function applyTogglesUI() {
     document.querySelectorAll('.toggle-switch').forEach(btn => {
@@ -717,6 +740,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       featureToggles[key] = !featureToggles[key];
       saveToggles(featureToggles);
       sw.classList.toggle('toggle-switch--on', featureToggles[key]);
+      if (key === 'sortFilter') {
+        if (featureToggles.sortFilter && currentCategory) {
+          renderGalleryDropdowns();
+        } else {
+          document.getElementById('gallery-sort')?.remove();
+          document.getElementById('gallery-filter')?.remove();
+          featureToggles.sortMethod = 'name';
+          featureToggles.filterMode = 'all';
+          saveToggles(featureToggles);
+          if (currentCategory) {
+            buildGalleryGridDOM(getSortedFilteredPhotos());
+          }
+        }
+      }
       return;
     }
     const db = e.target.closest('.density-btn');
@@ -758,8 +795,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     else { showEmpty('请选择照片文件夹'); }
   }
 
-  // 启动完成后显示工具栏
-  document.getElementById('toolbar').classList.add('toolbar--visible');
+  // 启动完成后显示工具栏（加载画面已消失 + 安全延迟 + CSS animation 驱动）
+  setTimeout(() => {
+    document.getElementById('toolbar').classList.add('toolbar--visible');
+  }, 300);
 
   document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
 
@@ -784,9 +823,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (shortcutsClosing) return;
     shortcutsClosing = true;
     shortcutsPanel.classList.add('shortcuts-panel--out');
+    shortcutsOverlay.classList.remove('shortcuts-overlay--open');
     const onEnd = () => {
       shortcutsPanel.removeEventListener('animationend', onEnd);
-      shortcutsOverlay.classList.remove('shortcuts-overlay--open');
       shortcutsPanel.classList.remove('shortcuts-panel--out');
       shortcutsClosing = false;
       document.body.style.overflow = '';
@@ -1028,8 +1067,217 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ========== 排序 & 筛选 ==========
+  function sortPhotos(photos, method) {
+    const arr = [...photos];
+    if (method === 'name') {
+      arr.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
+    } else if (method === 'date') {
+      arr.sort((a, b) => {
+        const da = extractDateFromPath(a.path);
+        const db = extractDateFromPath(b.path);
+        if (da && db) return db - da;
+        if (da && !db) return -1;
+        if (!da && db) return 1;
+        return a.title.localeCompare(b.title, undefined, { numeric: true });
+      });
+    } else if (method === 'random') {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+    return arr;
+  }
+  function extractDateFromPath(path) {
+    const m = path.match(/(\d{4})[\s\-_](\d{1,2})[\s\-_](\d{1,2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    return null;
+  }
+
+  function filterPhotos(photos, mode) {
+    if (mode === 'all') return [...photos];
+    const ratings = loadRatings();
+    if (mode === 'fav') {
+      return photos.filter(p => ratings[p.path]?.fav === true);
+    }
+    const starMatch = mode.match(/^(\d)star$/);
+    if (starMatch) {
+      const min = Number(starMatch[1]);
+      return photos.filter(p => (ratings[p.path]?.stars || 0) >= min);
+    }
+    return [...photos];
+  }
+
+  function getSortedFilteredPhotos() {
+    const sorted = sortPhotos(currentPhotos, featureToggles.sortMethod || 'name');
+    return filterPhotos(sorted, featureToggles.filterMode || 'all');
+  }
+
   // ========== 画廊（全部预加载，加载完才显示） ==========
   let categoryTransitioning = false;
+
+  function buildGalleryGridDOM(photos) {
+    galleryGrid.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    photos.forEach((p, i) => {
+      const item = document.createElement('div');
+      item.className = 'gallery__item';
+      item.dataset.src = p.src;
+      item.dataset.path = p.path;
+      item.dataset.title = p.title;
+      item.dataset.index = i;
+      item.style.animationDelay = `${i * 0.02}s`;
+      item.innerHTML = `
+        <img src="${p.thumbSrc || p.src}" alt="${p.title}" decoding="async">
+        <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>`;
+      fragment.appendChild(item);
+    });
+    galleryGrid.appendChild(fragment);
+    galleryInfo.textContent = `${photos.length} 张照片`;
+  }
+
+  // ========== 自定义下拉组件（菜单挂载到 body，避免 contain:paint 裁剪） ==========
+  function createDropdown(id, options, currentValue, onChange) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-dropdown';
+    wrapper.id = id;
+
+    const trigger = document.createElement('button');
+    trigger.className = 'custom-dropdown__trigger';
+    trigger.type = 'button';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'custom-dropdown__arrow';
+
+    const menu = document.createElement('div');
+    menu.className = 'custom-dropdown__menu';
+    // 挂到 body 避免被 .portfolio contain:paint 裁剪
+    document.body.appendChild(menu);
+
+    function positionMenu() {
+      const r = trigger.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top = (r.bottom + 6) + 'px';
+      menu.style.left = r.left + 'px';
+      menu.style.minWidth = r.width + 'px';
+    }
+
+    const labelMap = {};
+    options.forEach(opt => {
+      labelMap[opt.value] = opt.label;
+      const item = document.createElement('div');
+      item.className = 'custom-dropdown__option';
+      item.dataset.value = opt.value;
+      item.textContent = opt.label;
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (opt.value === currentValue) { closeMenu(); return; }
+        currentValue = opt.value;
+        trigger.childNodes[0].textContent = opt.label;
+        menu.querySelectorAll('.custom-dropdown__option').forEach(o => {
+          o.classList.toggle('custom-dropdown__option--sel', o.dataset.value === opt.value);
+        });
+        closeMenu();
+        onChange(opt.value);
+      });
+      menu.appendChild(item);
+    });
+
+    function updateTrigger(val) {
+      currentValue = val;
+      trigger.innerHTML = '';
+      trigger.appendChild(document.createTextNode(labelMap[val] || options[0].label));
+      trigger.appendChild(arrow);
+      menu.querySelectorAll('.custom-dropdown__option').forEach(o => {
+        o.classList.toggle('custom-dropdown__option--sel', o.dataset.value === val);
+      });
+    }
+
+    trigger.appendChild(document.createTextNode(labelMap[currentValue] || options[0].label));
+    trigger.appendChild(arrow);
+
+    function openMenu() {
+      document.querySelectorAll('.custom-dropdown__menu--open').forEach(m => {
+        if (m !== menu) m.classList.remove('custom-dropdown__menu--open');
+      });
+      positionMenu();
+      menu.classList.add('custom-dropdown__menu--open');
+      trigger.classList.add('custom-dropdown__trigger--open');
+    }
+    function closeMenu() {
+      menu.classList.remove('custom-dropdown__menu--open');
+      trigger.classList.remove('custom-dropdown__trigger--open');
+    }
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.classList.contains('custom-dropdown__menu--open') ? closeMenu() : openMenu();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrapper.contains(e.target) && !menu.contains(e.target)) closeMenu();
+    });
+
+    // 窗口滚动/缩放时重新定位
+    window.addEventListener('scroll', () => { if (menu.classList.contains('custom-dropdown__menu--open')) positionMenu(); }, { passive: true });
+    window.addEventListener('resize', () => { if (menu.classList.contains('custom-dropdown__menu--open')) positionMenu(); }, { passive: true });
+
+    wrapper.appendChild(trigger);
+    return { el: wrapper, update: updateTrigger, menu };
+  }
+
+  let _activeDropdowns = [];
+  function renderGalleryDropdowns() {
+    // 清理旧下拉组件（wrapper + body 上的 menu）
+    _activeDropdowns.forEach(d => { d.el.remove(); if (d.menu) d.menu.remove(); });
+    _activeDropdowns = [];
+
+    if (!featureToggles.sortFilter) return;
+
+    const nav = document.querySelector('.gallery__nav');
+    if (!nav) return;
+
+    const sortOpts = [
+      { value: 'name', label: '按名称' },
+      { value: 'date', label: '按日期' },
+      { value: 'random', label: '随机' },
+    ];
+    const filterOpts = [
+      { value: 'all', label: '全部' },
+      { value: 'fav', label: '已收藏' },
+      { value: '1star', label: '1 星以上' },
+      { value: '2star', label: '2 星以上' },
+      { value: '3star', label: '3 星以上' },
+      { value: '4star', label: '4 星以上' },
+      { value: '5star', label: '5 星' },
+    ];
+
+    let sortCurrent = featureToggles.sortMethod || 'name';
+    let filterCurrent = featureToggles.filterMode || 'all';
+
+    const onChange = () => {
+      featureToggles.sortMethod = sortCurrent;
+      featureToggles.filterMode = filterCurrent;
+      saveToggles(featureToggles);
+      buildGalleryGridDOM(getSortedFilteredPhotos());
+    };
+
+    const sortComp = createDropdown('gallery-sort', sortOpts, sortCurrent, (v) => {
+      sortCurrent = v; onChange();
+    });
+    const filterComp = createDropdown('gallery-filter', filterOpts, filterCurrent, (v) => {
+      filterCurrent = v; onChange();
+    });
+
+    _activeDropdowns = [sortComp, filterComp];
+
+    const info = document.getElementById('gallery-info');
+    if (info) {
+      nav.insertBefore(filterComp.el, info);
+      nav.insertBefore(sortComp.el, filterComp.el);
+    }
+  }
 
   async function openCategory(cat) {
     if (categoryTransitioning) return;
@@ -1046,27 +1294,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     rebuildHero(currentPhotos);
 
-    // 构建全部画廊 DOM
-    galleryGrid.innerHTML = '';
-    const fragment = document.createDocumentFragment();
-    currentPhotos.forEach((p, i) => {
-      const item = document.createElement('div');
-      item.className = 'gallery__item';
-      item.dataset.src = p.src;
-      item.dataset.path = p.path;
-      item.dataset.title = p.title;
-      item.dataset.index = i;
-      item.style.animationDelay = `${i * 0.02}s`;
-      item.innerHTML = `
-        <img src="${p.thumbSrc || p.src}" alt="${p.title}" decoding="async">
-        <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>`;
-      fragment.appendChild(item);
-    });
-    galleryGrid.appendChild(fragment);
-    galleryInfo.textContent = `${currentPhotos.length} 张照片`;
+    // 排序、筛选并渲染
+    const photos = getSortedFilteredPhotos();
+    buildGalleryGridDOM(photos);
+    renderGalleryDropdowns();
 
     // 预加载全部图片，完成后才显示
-    await showLoadingScreen(`加载中... 0 / ${currentPhotos.length}`);
+    await showLoadingScreen(`加载中... 0 / ${photos.length}`);
     const imgs = galleryGrid.querySelectorAll('img');
     await preloadImages(Array.from(imgs), (n, t) => {
       updateLoadingScreen(`加载中... ${n} / ${t}`);
@@ -1179,14 +1413,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ratingStars = document.getElementById('rating-stars');
     const ratingFav = document.getElementById('rating-fav');
     const ratingPanel = document.getElementById('lightbox-rating');
-    let currentRatingPath = null;
 
     function updateRatingUI(path) {
-      currentRatingPath = path;
-      if (!featureToggles.rating) {
-        ratingPanel.classList.remove('rating--visible');
-        return;
-      }
+      lightbox.dataset.currentPath = path || '';
       const r = getPhotoRating(path);
       ratingStars.querySelectorAll('.rating__star').forEach(s => {
         s.classList.toggle('rating__star--on', Number(s.dataset.v) <= r.stars);
@@ -1195,25 +1424,36 @@ document.addEventListener('DOMContentLoaded', async () => {
       ratingPanel.classList.add('rating--visible');
     }
 
-    ratingStars.addEventListener('click', (e) => {
+    // 评分/收藏点击处理（document 级事件委托）
+    document.addEventListener('click', (e) => {
+      if (!lightbox.classList.contains('active')) return;
+      const path = lightbox.dataset.currentPath;
+      if (!path) return;
       const star = e.target.closest('.rating__star');
-      if (!star || !currentRatingPath) return;
-      const v = Number(star.dataset.v);
-      const cur = getPhotoRating(currentRatingPath).stars;
-      // 点击同一颗星取消评分
-      const newStars = v === cur ? 0 : v;
-      setPhotoRating(currentRatingPath, newStars, undefined);
-      updateRatingUI(currentRatingPath);
-      // 更新分类卡片
-      if (data.categories.length > 0) refreshCategoryCards();
-    });
-
-    ratingFav.addEventListener('click', () => {
-      if (!currentRatingPath) return;
-      const cur = getPhotoRating(currentRatingPath);
-      setPhotoRating(currentRatingPath, undefined, !cur.fav);
-      updateRatingUI(currentRatingPath);
-      if (data.categories.length > 0) refreshCategoryCards();
+      if (star) {
+        e.stopPropagation();
+        // 辉光动画
+        star.classList.add('rating__star--glow');
+        star.addEventListener('animationend', () => star.classList.remove('rating__star--glow'), { once: true });
+        const v = Number(star.dataset.v);
+        const cur = getPhotoRating(path).stars;
+        const newStars = v === cur ? 0 : v;
+        setPhotoRating(path, newStars, undefined);
+        updateRatingUI(path);
+        if (data.categories.length > 0) refreshCategoryCards();
+        return;
+      }
+      const fav = e.target.closest('#rating-fav');
+      if (fav) {
+        e.stopPropagation();
+        fav.classList.add('rating__star--glow');
+        fav.addEventListener('animationend', () => fav.classList.remove('rating__star--glow'), { once: true });
+        const cur = getPhotoRating(path);
+        setPhotoRating(path, undefined, !cur.fav);
+        updateRatingUI(path);
+        if (data.categories.length > 0) refreshCategoryCards();
+        return;
+      }
     });
 
     // EXIF 面板
