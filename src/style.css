@@ -996,11 +996,11 @@
     border: 0.5px solid rgba(220,200,180,0.10);
     border-radius: var(--radius-pill);
     box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-    opacity: 0; transform: scaleX(0.3);
-    transform-origin: right center;
-    transition: opacity 0.5s var(--ease-out), transform 0.7s var(--ease-spring);
+    opacity: 0;
+    max-width: 32px; overflow: hidden;
+    transition: opacity 0.5s var(--ease-out), max-width 0.7s var(--ease-spring);
   }
-  .toolbar--visible { opacity: 1; transform: scaleX(1); }
+  .toolbar--visible { opacity: 1; max-width: 400px; }
 
   .toolbar__btn {
     font-family: var(--font-display);
@@ -1230,19 +1230,20 @@
       0 4px 24px rgba(0,0,0,0.5),
       0 0 0 0.5px rgba(200,168,124,0.08) inset;
     transform-origin: top right;
-    opacity: 0; transform: scale(0.92) translateY(-6px); filter: blur(0px);
-    transition: opacity 0.35s var(--ease-out), transform 0.55s var(--ease-spring), filter 0.35s var(--ease-out);
+    opacity: 0; transform: scale(0.92) translateY(-6px);
+    transition: opacity 0.35s var(--ease-out), transform 0.55s var(--ease-spring);
     pointer-events: none;
   }
   .shortcuts-overlay--open .shortcuts-panel {
-    opacity: 1; transform: scale(1) translateY(0); filter: blur(0px);
+    opacity: 1; transform: scale(1) translateY(0);
     pointer-events: auto;
   }
   .shortcuts-panel--out {
-    opacity: 0 !important;
-    transform: scale(0.9) translateY(-6px) !important;
-    filter: blur(8px) !important;
-    transition: opacity 0.35s var(--ease-out), transform 0.35s var(--ease-out), filter 0.35s var(--ease-out) !important;
+    animation: panelDissolve 0.35s var(--ease-out) both;
+  }
+  @keyframes panelDissolve {
+    from { opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }
+    to { opacity: 0; transform: scale(0.92) translateY(-6px); filter: blur(8px); }
   }
   .shortcuts__title {
     font-family: var(--font-display);

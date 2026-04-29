@@ -784,13 +784,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (shortcutsClosing) return;
     shortcutsClosing = true;
     shortcutsPanel.classList.add('shortcuts-panel--out');
-    shortcutsOverlay.style.transition = 'opacity 0.25s var(--ease-out), visibility 0s 0.25s';
-    setTimeout(() => {
+    const onEnd = () => {
+      shortcutsPanel.removeEventListener('animationend', onEnd);
       shortcutsOverlay.classList.remove('shortcuts-overlay--open');
-      shortcutsOverlay.style.transition = '';
+      shortcutsPanel.classList.remove('shortcuts-panel--out');
       shortcutsClosing = false;
       document.body.style.overflow = '';
-    }, 300);
+    };
+    shortcutsPanel.addEventListener('animationend', onEnd);
   }
   function toggleShortcuts() {
     if (shortcutsOverlay.classList.contains('shortcuts-overlay--open')) {
