@@ -663,6 +663,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       heroSlidesEl.classList.remove('hero__slides--out');
     }
     heroSlidesEl.innerHTML = '';
+
+    // 暗色揭示遮罩：全黑 → 渐隐，露出背景图（纯 opacity，零 GPU 着色器）
+    let reveal = document.querySelector('.hero__reveal');
+    if (!reveal) {
+      reveal = document.createElement('div');
+      reveal.className = 'hero__reveal';
+      document.querySelector('.hero')?.appendChild(reveal);
+    } else {
+      reveal.style.animation = 'none';
+      reveal.offsetHeight; // 强制回流，重置动画
+      reveal.style.animation = '';
+    }
+
     if (!photos || photos.length === 0) return;
     const seen = new Set(); const selected = [];
     for (const p of photos) {
@@ -719,7 +732,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.appendChild(logo);
 
     requestAnimationFrame(() => { lensGlow.style.opacity = '1'; logo.style.opacity = '1'; logo.style.scale = '1'; });
-    document.querySelector('.hero__slides')?.classList.add('hero__slides--clear');
     title.classList.add('hero__title--corner');
   }
 

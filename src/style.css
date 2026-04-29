@@ -245,19 +245,10 @@
 
     & .hero__slides {
       position: absolute; inset: -30px;
-      filter: blur(60px);
-      animation: heroBlurIn 2.8s cubic-bezier(0.22, 0.1, 0.1, 1) forwards;
-      will-change: filter;
 
       &.hero__slides--out .hero__slide {
         opacity: 0 !important;
         transition: opacity 0.35s var(--ease-out) !important;
-      }
-
-      &.hero__slides--clear {
-        filter: blur(0px);
-        animation: none;
-        will-change: auto;
       }
     }
 
@@ -265,10 +256,17 @@
       position: absolute; inset: 0;
       background-size: cover; background-position: center;
       opacity: 0; scale: 1.02;
-      transition: opacity 3s cubic-bezier(0.22,0.1,0.1,1), scale 3s cubic-bezier(0.22,0.1,0.1,1);
-      will-change: opacity, scale, transform;
+      transition: opacity 3s ease, scale 3s ease;
 
       &.active { opacity: 1; scale: 1; }
+    }
+
+    /* 暗色遮罩从全黑渐隐，露出背景图 —— 纯 opacity 动画，零 GPU 着色器 */
+    & .hero__reveal {
+      position: absolute; inset: 0; z-index: 1;
+      background: var(--bg);
+      animation: heroRevealFade 2.4s cubic-bezier(0.22,0.1,0.1,1) 0.2s forwards;
+      pointer-events: none;
     }
 
     & .hero__overlay {
@@ -375,13 +373,9 @@
     80%  { opacity: 1; translate: 0 2px; scale: 1.005; }
     100% { opacity: 1; translate: 0 0; scale: 1; }
   }
-  @keyframes heroBlurIn {
-    0%   { filter: blur(60px); }
-    25%  { filter: blur(38px); }
-    50%  { filter: blur(16px); }
-    75%  { filter: blur(4px); }
-    90%  { filter: blur(1px); }
-    100% { filter: blur(0px); }
+  @keyframes heroRevealFade {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
   }
   @keyframes lineGrow { to { width: 100px; } }
   @keyframes scrollPulse {
