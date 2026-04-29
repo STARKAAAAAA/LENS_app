@@ -11,7 +11,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![generate_thumbnails])
+        .invoke_handler(tauri::generate_handler![generate_thumbnails, get_cache_info, clear_cache])
         .register_uri_scheme_protocol("asset", |_app, request| {
             let uri_str = request.uri().to_string();
             let (clean_uri, full_quality) = if uri_str.contains("?full=1") {
@@ -195,6 +195,51 @@ fn generate_one(original: &str, dest: &PathBuf) {
     if thumb.write_to(&mut buf, image::ImageFormat::Jpeg).is_ok() {
         let _ = std::fs::write(dest, buf.into_inner());
     }
+}
+
+// ========== 缓存管理 ==========
+
+#[derive(serde::Serialize)]
+struct CacheInfo {
+    size_bytes: u64,
+    file_count: u32,
+}
+
+#[tauri::command]
+fn get_cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
+    let cache_dir = app.path().app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("thumbnails");
+
+    let mut size_bytes = 0u64;
+    let mut file_count = 0u32;
+
+    if cache_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&cache_dir) {
+            for entry in entries.flatten() {
+                if let Ok(meta) = entry.metadata() {
+                    size_bytes += meta.len();
+                    file_count += 1;
+                }
+            }
+        }
+    }
+
+    Ok(CacheInfo { size_bytes, file_count })
+}
+
+#[tauri::command]
+fn clear_cache(app: tauri::AppHandle) -> Result<(), String> {
+    let cache_dir = app.path().app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("thumbnails");
+
+    if cache_dir.exists() {
+        std::fs::remove_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 // ========== 原有：大图压缩（画廊用） ==========

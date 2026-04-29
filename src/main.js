@@ -249,55 +249,84 @@ document.addEventListener('DOMContentLoaded', async () => {
         WebkitBackdropFilter: 'blur(40px)',
       });
 
-      // === 胶囊装载器容器 ===
+      // === 胶囊装载器（SVG 光环绕行） ===
       const capsuleWrap = document.createElement('div');
       capsuleWrap.id = 'loading-capsule-wrap';
       Object.assign(capsuleWrap.style, {
         position: 'relative',
-        width: '200px', height: '60px',
+        width: '208px', height: '44px',
         marginBottom: '2.5rem',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       });
 
-      // 胶囊轨道（暖金圆角长条）
+      // 胶囊轨道
       const track = document.createElement('div');
       track.id = 'loading-track';
       Object.assign(track.style, {
         width: '160px', height: '6px',
         borderRadius: '100px',
-        background: 'rgba(200,168,124,0.12)',
+        background: 'rgba(200,168,124,0.1)',
         position: 'relative', overflow: 'hidden',
+        zIndex: '1',
       });
 
-      // 流光（内部移动光带）
+      // 内部流光
       const shimmer = document.createElement('div');
       shimmer.id = 'loading-shimmer';
       Object.assign(shimmer.style, {
-        position: 'absolute',
-        top: '0', left: '0',
+        position: 'absolute', top: '0', left: '0',
         width: '50%', height: '100%',
         borderRadius: '100px',
-        background: 'linear-gradient(90deg, transparent, rgba(200,168,124,0.6), transparent)',
+        background: 'linear-gradient(90deg, transparent, rgba(200,168,124,0.55), transparent)',
       });
-
-      // 环绕眩光光环
-      const glowRing = document.createElement('div');
-      glowRing.id = 'loading-glow-ring';
-      Object.assign(glowRing.style, {
-        position: 'absolute', inset: '-8px',
-        borderRadius: '100px',
-        border: '1px solid transparent',
-        borderTopColor: 'rgba(200,168,124,0.25)',
-        borderRightColor: 'rgba(200,168,124,0.35)',
-        borderBottomColor: 'rgba(200,168,124,0.15)',
-        borderLeftColor: 'rgba(200,168,124,0.25)',
-        filter: 'blur(0.5px)',
-        boxShadow: '0 0 16px rgba(200,168,124,0.08), inset 0 0 8px rgba(200,168,124,0.03)',
-      });
-
       track.appendChild(shimmer);
-      capsuleWrap.appendChild(glowRing);
+
+      // SVG 光环绕胶囊旋转
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNS, 'svg');
+      svg.id = 'loading-orbit-svg';
+      svg.setAttribute('width', '208');
+      svg.setAttribute('height', '44');
+      svg.setAttribute('viewBox', '0 0 208 44');
+      svg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;';
+
+      // 发光滤镜
+      const defs = document.createElementNS(svgNS, 'defs');
+      const filter = document.createElementNS(svgNS, 'filter');
+      filter.id = 'orbit-glow-filter';
+      filter.innerHTML = '<feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>';
+      defs.appendChild(filter);
+      svg.appendChild(defs);
+
+      // 绕行轨道（暗淡底轨）
+      const trackPath = document.createElementNS(svgNS, 'rect');
+      trackPath.setAttribute('x', '16'); trackPath.setAttribute('y', '11');
+      trackPath.setAttribute('width', '176'); trackPath.setAttribute('height', '22');
+      trackPath.setAttribute('rx', '11'); trackPath.setAttribute('ry', '11');
+      trackPath.setAttribute('fill', 'none');
+      trackPath.setAttribute('stroke', 'rgba(200,168,124,0.08)');
+      trackPath.setAttribute('stroke-width', '1');
+      svg.appendChild(trackPath);
+
+      // 绕行光点（stroke-dashoffset 动画，光点沿胶囊外沿绕行）
+      const orbitLight = document.createElementNS(svgNS, 'rect');
+      orbitLight.id = 'loading-orbit-light';
+      orbitLight.setAttribute('x', '16'); orbitLight.setAttribute('y', '11');
+      orbitLight.setAttribute('width', '176'); orbitLight.setAttribute('height', '22');
+      orbitLight.setAttribute('rx', '11'); orbitLight.setAttribute('ry', '11');
+      orbitLight.setAttribute('fill', 'none');
+      orbitLight.setAttribute('stroke', 'rgba(200,168,124,0.55)');
+      orbitLight.setAttribute('stroke-width', '1.5');
+      orbitLight.setAttribute('stroke-dasharray', '28 430');
+      orbitLight.setAttribute('stroke-dashoffset', '0');
+      orbitLight.setAttribute('filter', 'url(#orbit-glow-filter)');
+      orbitLight.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(orbitLight);
+
+      capsuleWrap.appendChild(svg);
       capsuleWrap.appendChild(track);
+
+      // 几何计算：胶囊周长 = 2*(176-22) + π*22 = 308 + 69.1 = 377，加上 dash 长度 = 405
 
       // 进度文字
       const text = document.createElement('div');
@@ -338,6 +367,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.appendChild(hint);
       el.appendChild(quote);
       document.body.appendChild(el);
+
+      // 创建侧边栏缓存信息区
+      createCacheSection();
     }
 
     el.style.display = 'flex';
@@ -345,19 +377,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('loading-text').textContent = msg;
     loadingShownAt = Date.now();
 
-    // 胶囊动画：流光左右移动 + 光环旋转
+    // 动画：流光往返 + SVG 光点绕胶囊旋转
     if (!loadingAnimFrame) {
       const shimmer = document.getElementById('loading-shimmer');
-      const glowRing = document.getElementById('loading-glow-ring');
-      let pos = -60, dir = 1, deg = 0;
-      const speed = 1.5;
+      const orbitLight = document.getElementById('loading-orbit-light');
+      let shimmerPos = -60, shimmerDir = 1;
+      let orbitOffset = 0;
       const animate = () => {
-        pos += speed * dir;
-        if (pos > 60) dir = -1;
-        if (pos < -60) dir = 1;
-        if (shimmer) shimmer.style.transform = `translateX(${pos}%)`;
-        deg = (deg + 1.2) % 360;
-        if (glowRing) glowRing.style.transform = `rotate(${deg}deg)`;
+        // 流光左右往复
+        shimmerPos += 1.5 * shimmerDir;
+        if (shimmerPos > 60) shimmerDir = -1;
+        if (shimmerPos < -60) shimmerDir = 1;
+        if (shimmer) shimmer.style.transform = `translateX(${shimmerPos}%)`;
+        // 光点绕胶囊外沿
+        orbitOffset = (orbitOffset - 0.9) % -458;
+        if (orbitLight) orbitLight.setAttribute('stroke-dashoffset', String(Math.round(orbitOffset)));
         loadingAnimFrame = requestAnimationFrame(animate);
       };
       loadingAnimFrame = requestAnimationFrame(animate);
@@ -412,6 +446,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     label.textContent = dir;
   }
 
+  // ========== 缓存管理 ==========
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function createCacheSection() {
+    if (document.getElementById('cache-section')) return;
+    const section = document.createElement('div');
+    section.id = 'cache-section';
+    Object.assign(section.style, {
+      padding: '10px 18px 14px',
+      borderTop: '0.5px solid rgba(220,200,180,0.06)',
+      marginTop: '4px',
+    });
+
+    const row = document.createElement('div');
+    Object.assign(row.style, {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    });
+
+    const info = document.createElement('span');
+    info.id = 'cache-info';
+    Object.assign(info.style, {
+      fontFamily: "Cormorant Garamond, Georgia, serif",
+      fontSize: '0.62rem', fontStyle: 'italic',
+      letterSpacing: '0.05em', color: 'rgba(220,200,180,0.25)',
+    });
+    info.textContent = '缓存: --';
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '清除';
+    Object.assign(delBtn.style, {
+      fontFamily: "Cormorant Garamond, Georgia, serif",
+      fontSize: '0.6rem', fontStyle: 'italic',
+      letterSpacing: '0.06em',
+      color: 'rgba(220,200,180,0.3)',
+      background: 'none', border: '0.5px solid rgba(220,200,180,0.10)',
+      borderRadius: '100px', padding: '3px 12px', cursor: 'pointer',
+      transition: 'all 0.3s ease',
+    });
+    delBtn.addEventListener('mouseenter', () => {
+      delBtn.style.color = 'rgba(220,200,180,0.7)';
+      delBtn.style.borderColor = 'rgba(220,200,180,0.25)';
+    });
+    delBtn.addEventListener('mouseleave', () => {
+      delBtn.style.color = 'rgba(220,200,180,0.3)';
+      delBtn.style.borderColor = 'rgba(220,200,180,0.10)';
+    });
+    delBtn.addEventListener('click', async () => {
+      await invoke('clear_cache');
+      updateCacheDisplay();
+    });
+
+    row.appendChild(info);
+    row.appendChild(delBtn);
+    section.appendChild(row);
+    sidebar.appendChild(section);
+  }
+
+  async function updateCacheDisplay() {
+    try {
+      const cache = await invoke('get_cache_info');
+      const info = document.getElementById('cache-info');
+      if (info) info.textContent = `缓存: ${formatBytes(cache.size_bytes)} | ${cache.file_count} 文件`;
+    } catch (e) { /* ignore */ }
+  }
+
   // ========== 加载照片流程 ==========
   async function loadFromDir(dir) {
     categoriesEl.innerHTML = '';
@@ -462,6 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (tp) { p.thumbSrc = convertFileSrc(tp); thumbHits++; }
       });
       console.log(`缩略图缓存: ${thumbHits} / ${data.photos.length} 就绪`);
+      updateCacheDisplay();
 
       // 预加载分类卡片
       updateLoadingScreen('正在加载分类...');
@@ -538,6 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSlideshow();
   initParallax();
   initScrollReveal();
+  updateCacheDisplay();
 
   // ========== Hero ==========
   async function rebuildHero(photos) {
