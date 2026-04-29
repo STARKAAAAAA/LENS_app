@@ -799,6 +799,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       openShortcuts();
     }
   }
+  shortcutsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleShortcuts();
+  });
+  shortcutsOverlay.addEventListener('click', (e) => {
+    if (e.target === shortcutsOverlay) toggleShortcuts();
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === '?' && featureToggles.shortcuts) {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
