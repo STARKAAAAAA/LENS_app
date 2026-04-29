@@ -73,6 +73,14 @@ fn main() {
         .expect("error while running tauri application");
 }
 
+// ========== 缓存目录 ==========
+
+fn thumb_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app.path().app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("thumbnails"))
+}
+
 // ========== 缩略图生成 ==========
 
 /// 生成缩略图缓存，返回 {原图路径: 缩略图缓存路径}
@@ -81,9 +89,7 @@ async fn generate_thumbnails(
     app: tauri::AppHandle,
     paths: Vec<String>,
 ) -> Result<HashMap<String, String>, String> {
-    let cache_dir = app.path().app_cache_dir()
-        .map_err(|e| e.to_string())?
-        .join("thumbnails");
+    let cache_dir = thumb_cache_dir(&app)?;
     std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
 
     // 缓存超过 7 天自动清除
@@ -207,9 +213,7 @@ struct CacheInfo {
 
 #[tauri::command]
 fn get_cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
-    let cache_dir = app.path().app_cache_dir()
-        .map_err(|e| e.to_string())?
-        .join("thumbnails");
+    let cache_dir = thumb_cache_dir(&app)?;
 
     let mut size_bytes = 0u64;
     let mut file_count = 0u32;
@@ -230,9 +234,7 @@ fn get_cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
 
 #[tauri::command]
 fn clear_cache(app: tauri::AppHandle) -> Result<(), String> {
-    let cache_dir = app.path().app_cache_dir()
-        .map_err(|e| e.to_string())?
-        .join("thumbnails");
+    let cache_dir = thumb_cache_dir(&app)?;
 
     if cache_dir.exists() {
         std::fs::remove_dir_all(&cache_dir).map_err(|e| e.to_string())?;
@@ -276,9 +278,9 @@ fn percent_decode(input: &str) -> String {
         if c == '%' {
             let h1 = chars.next().unwrap_or('0');
             let h2 = chars.next().unwrap_or('0');
-            if let Ok(byte) = u8::from_str_radix(&format!("{}{}", h1, h2), 16) {
-                bytes.push(byte);
-            }
+            let byte = ((h1.to_digit(16).unwrap_or(0) << 4)
+                       | h2.to_digit(16).unwrap_or(0)) as u8;
+            bytes.push(byte);
         } else {
             let mut buf = [0u8; 4];
             let s = c.encode_utf8(&mut buf);

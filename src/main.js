@@ -451,7 +451,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(() => {
         if (el.parentNode) el.remove();
         if (loadingAnimFrame) { cancelAnimationFrame(loadingAnimFrame); loadingAnimFrame = null; }
-        if (loadingSpinnerInterval) { clearInterval(loadingSpinnerInterval); loadingSpinnerInterval = null; }
         if (loadingQuoteInterval) { clearInterval(loadingQuoteInterval); loadingQuoteInterval = null; }
       }, 400);
     }, delay);
@@ -612,12 +611,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function pickAndLoad() {
     const selected = await selectFolder();
-    if (selected) { photoDir = selected; await loadFromDir(photoDir); }
+    if (selected) { photoDir = selected; await loadFromDir(photoDir); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   }
 
-  function showEmpty(msg) {
-    const div = document.createElement('div'); div.className = 'dir-prompt';
-    div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:#999;font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;';
+  function showOverlay(msg, isError) {
+    const div = document.createElement('div');
+    div.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:${isError ? '#ff4444' : '#999'};font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;`;
     const btn = document.createElement('button');
     btn.textContent = '重新选择文件夹';
     btn.style.cssText = 'color:#f5f5f5;padding:0.6rem 1.5rem;border:1px solid #555;background:none;cursor:pointer;font-size:14px;';
@@ -625,22 +624,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     div.innerHTML = `<span>${msg}</span>`; div.appendChild(btn);
     document.body.appendChild(div);
   }
-  function showError(msg) {
-    const div = document.createElement('div'); div.className = 'scan-error';
-    div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:#ff4444;font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;';
-    const btn = document.createElement('button');
-    btn.textContent = '重新选择文件夹';
-    btn.style.cssText = 'color:#f5f5f5;padding:0.6rem 1.5rem;border:1px solid #555;background:none;cursor:pointer;font-size:14px;';
-    btn.addEventListener('click', () => { div.remove(); pickAndLoad(); });
-    div.innerHTML = `<span>${msg}</span>`; div.appendChild(btn);
-    document.body.appendChild(div);
-  }
+  function showEmpty(msg) { showOverlay(msg, false); }
+  function showError(msg) { showOverlay(msg, true); }
 
   // ========== 侧边栏按钮 ==========
-  document.getElementById('sidebar-add').addEventListener('click', async () => {
-    const selected = await selectFolder();
-    if (selected) { await loadFromDir(selected); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-  });
+  document.getElementById('sidebar-add').addEventListener('click', pickAndLoad);
 
   // ========== 启动 ==========
   const savedDirs = getSavedFolders();
@@ -658,10 +646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else { showEmpty('请选择照片文件夹'); }
   }
 
-  document.getElementById('tb-folder').addEventListener('click', async () => {
-    const selected = await selectFolder();
-    if (selected) { await loadFromDir(selected); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-  });
+  document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
 
   initLightbox();
   initSlideshow();
