@@ -259,27 +259,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       });
 
-      // 胶囊轨道
+      // 胶囊轨道（静态）
       const track = document.createElement('div');
       track.id = 'loading-track';
       Object.assign(track.style, {
         width: '160px', height: '6px',
         borderRadius: '100px',
         background: 'rgba(200,168,124,0.1)',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative',
         zIndex: '1',
       });
-
-      // 内部流光
-      const shimmer = document.createElement('div');
-      shimmer.id = 'loading-shimmer';
-      Object.assign(shimmer.style, {
-        position: 'absolute', top: '0', left: '0',
-        width: '50%', height: '100%',
-        borderRadius: '100px',
-        background: 'linear-gradient(90deg, transparent, rgba(200,168,124,0.55), transparent)',
-      });
-      track.appendChild(shimmer);
 
       // SVG 光环绕胶囊旋转
       const svgNS = 'http://www.w3.org/2000/svg';
@@ -377,19 +366,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('loading-text').textContent = msg;
     loadingShownAt = Date.now();
 
-    // 动画：流光往返 + SVG 光点绕胶囊旋转
+    // 动画：SVG 光点绕胶囊外沿旋转
     if (!loadingAnimFrame) {
-      const shimmer = document.getElementById('loading-shimmer');
       const orbitLight = document.getElementById('loading-orbit-light');
-      let shimmerPos = -60, shimmerDir = 1;
       let orbitOffset = 0;
       const animate = () => {
-        // 流光左右往复
-        shimmerPos += 1.5 * shimmerDir;
-        if (shimmerPos > 60) shimmerDir = -1;
-        if (shimmerPos < -60) shimmerDir = 1;
-        if (shimmer) shimmer.style.transform = `translateX(${shimmerPos}%)`;
-        // 光点绕胶囊外沿
         orbitOffset = (orbitOffset - 0.9) % -458;
         if (orbitLight) orbitLight.setAttribute('stroke-dashoffset', String(Math.round(orbitOffset)));
         loadingAnimFrame = requestAnimationFrame(animate);
@@ -553,7 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
           firstLoadHintShown = true;
           const hint = document.getElementById('loading-hint');
-          if (hint) { hint.textContent = '首次加载需要生成预览图，下次打开将秒开'; hint.style.display = 'block'; }
+          if (hint) { hint.textContent = '正在为您的作品集建立本地缓存，稍后即可流畅浏览'; hint.style.display = 'block'; }
         }
       });
       const thumbMap = await invoke('generate_thumbnails', { paths });
