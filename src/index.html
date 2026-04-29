@@ -90,12 +90,6 @@
         <button class="rating__fav" id="rating-fav" aria-label="收藏"></button>
       </div>
     </div>
-    <!-- 胶片条 -->
-    <div class="lightbox__filmstrip" id="lightbox-filmstrip">
-      <button class="filmstrip__arrow filmstrip__arrow--left" id="filmstrip-left">‹</button>
-      <div class="filmstrip__track" id="filmstrip-track"></div>
-      <button class="filmstrip__arrow filmstrip__arrow--right" id="filmstrip-right">›</button>
-    </div>
     <div class="lightbox__exif" id="lightbox-exif">
       <div class="exif__row exif__row--main">
         <span class="exif__tag exif__tag--camera"></span>
@@ -188,6 +182,26 @@
     </button>
 
   </div><!-- /main-area -->
+
+  <!-- ====== 快捷键面板 ====== -->
+  <div class="shortcuts-overlay" id="shortcuts-overlay">
+    <div class="shortcuts-panel">
+      <h3 class="shortcuts__title">快捷键</h3>
+      <div class="shortcuts__grid">
+        <div class="shortcuts__row"><kbd>←</kbd><kbd>→</kbd><span>上一张 / 下一张</span></div>
+        <div class="shortcuts__row"><kbd>Esc</kbd><span>关闭灯箱 / 幻灯片</span></div>
+        <div class="shortcuts__row"><kbd>Space</kbd><span>暂停 / 播放幻灯片</span></div>
+        <div class="shortcuts__row"><kbd>+</kbd><kbd>−</kbd><span>缩放图片</span></div>
+        <div class="shortcuts__row"><kbd>0</kbd><span>适配窗口</span></div>
+        <div class="shortcuts__row"><kbd>1</kbd><span>原始大小</span></div>
+        <div class="shortcuts__row"><kbd>?</kbd><span>显示 / 隐藏此面板</span></div>
+        <div class="shortcuts__row"><kbd>滚轮</kbd><span>缩放图片</span></div>
+        <div class="shortcuts__row"><kbd>双击</kbd><span>放大 / 还原</span></div>
+        <div class="shortcuts__row"><kbd>拖拽</kbd><span>平移图片</span></div>
+      </div>
+      <p class="shortcuts__hint">按 ? 或 Esc 关闭</p>
+    </div>
+  </div>
 
   <script type="module" src="main.js"></script>
 </body>
