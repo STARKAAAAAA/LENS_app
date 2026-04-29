@@ -666,7 +666,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   function saveToggles(t) { localStorage.setItem(TOGGLE_KEY, JSON.stringify(t)); }
   let featureToggles = loadToggles();
-  let densityToggle = false; // 交替 a/b class
+  let densityToggle = false;
+
+  // ========== 评分数据（全局，必须在 await 之前定义） ==========
+  const RATING_KEY = 'lens-photo-ratings';
+  function loadRatings() {
+    try { return JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
+    catch { return {}; }
+  }
+  function saveRatings(ratings) { localStorage.setItem(RATING_KEY, JSON.stringify(ratings)); }
+  function getPhotoRating(path) {
+    const ratings = loadRatings();
+    return ratings[path] || { stars: 0, fav: false };
+  }
+  function setPhotoRating(path, stars, fav) {
+    const ratings = loadRatings();
+    ratings[path] = { stars: stars ?? getPhotoRating(path).stars, fav: fav ?? getPhotoRating(path).fav };
+    saveRatings(ratings);
+  }
 
   function applyTogglesUI() {
     // 开关按钮
@@ -902,23 +919,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function initHero() { rebuildHero(data.photos); }
 
   // ========== 分类卡片（全部直接加载，无懒加载） ==========
-  // ========== 评分数据（全局） ==========
-  const RATING_KEY = 'lens-photo-ratings';
-  function loadRatings() {
-    try { return JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
-    catch { return {}; }
-  }
-  function saveRatings(ratings) { localStorage.setItem(RATING_KEY, JSON.stringify(ratings)); }
-  function getPhotoRating(path) {
-    const ratings = loadRatings();
-    return ratings[path] || { stars: 0, fav: false };
-  }
-  function setPhotoRating(path, stars, fav) {
-    const ratings = loadRatings();
-    ratings[path] = { stars: stars ?? getPhotoRating(path).stars, fav: fav ?? getPhotoRating(path).fav };
-    saveRatings(ratings);
-  }
-
   function getCategoryAvgRating(cat) {
     const ratings = loadRatings();
     const photos = data.byCategory[cat] || [];
