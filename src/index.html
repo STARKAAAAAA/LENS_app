@@ -79,6 +79,33 @@
       <img class="lightbox__img" src="" alt="">
       <div class="lightbox__title"></div>
       <div class="lightbox__counter"></div>
+      <div class="lightbox__rating" id="lightbox-rating">
+        <div class="rating__stars" id="rating-stars">
+          <button class="rating__star" data-v="1"></button>
+          <button class="rating__star" data-v="2"></button>
+          <button class="rating__star" data-v="3"></button>
+          <button class="rating__star" data-v="4"></button>
+          <button class="rating__star" data-v="5"></button>
+        </div>
+        <button class="rating__fav" id="rating-fav" aria-label="收藏"></button>
+      </div>
+    </div>
+    <div class="lightbox__exif" id="lightbox-exif">
+      <div class="exif__row exif__row--main">
+        <span class="exif__tag exif__tag--camera"></span>
+        <span class="exif__tag exif__tag--lens"></span>
+      </div>
+      <div class="exif__row exif__row--params">
+        <span class="exif__tag exif__tag--aperture"></span>
+        <span class="exif__tag exif__tag--shutter"></span>
+        <span class="exif__tag exif__tag--iso"></span>
+        <span class="exif__tag exif__tag--focal"></span>
+      </div>
+      <div class="exif__row exif__row--meta">
+        <span class="exif__tag exif__tag--date"></span>
+        <span class="exif__tag exif__tag--dims"></span>
+        <span class="exif__tag exif__tag--size"></span>
+      </div>
     </div>
   </div>
 
@@ -108,6 +135,45 @@
   <div class="toolbar" id="toolbar">
     <button class="toolbar__btn" id="tb-folder">文件夹</button>
     <button class="toolbar__btn" id="tb-slideshow">幻灯片</button>
+    <button class="toolbar__btn" id="tb-settings">更多</button>
+  </div>
+
+  <!-- ====== 设置面板 ====== -->
+  <div class="settings-panel" id="settings-panel">
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">EXIF 信息</span>
+      <button class="toggle-switch" data-key="exif" aria-label="EXIF 信息开关"></button>
+    </div>
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">星级评分</span>
+      <button class="toggle-switch" data-key="rating" aria-label="星级评分开关"></button>
+    </div>
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">胶片条</span>
+      <button class="toggle-switch" data-key="filmstrip" aria-label="胶片条开关"></button>
+    </div>
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">快捷键提示</span>
+      <button class="toggle-switch" data-key="shortcuts" aria-label="快捷键提示开关"></button>
+    </div>
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">筛选排序</span>
+      <button class="toggle-switch" data-key="sortFilter" aria-label="筛选排序开关"></button>
+    </div>
+    <div class="settings-panel__divider"></div>
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">缩略图密度</span>
+      <div class="density-btns">
+        <button class="density-btn" data-density="s">小</button>
+        <button class="density-btn density-btn--active" data-density="m">中</button>
+        <button class="density-btn" data-density="l">大</button>
+      </div>
+    </div>
+    <div class="settings-panel__divider"></div>
+    <div class="settings-panel__item">
+      <span class="settings-panel__label">RAW 预览</span>
+      <button class="toggle-switch" data-key="rawScan" aria-label="RAW 预览开关"></button>
+    </div>
   </div>
 
     <!-- 一键回顶部 -->

@@ -11,7 +11,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![generate_thumbnails, get_cache_info, clear_cache])
+        .invoke_handler(tauri::generate_handler![generate_thumbnails, get_cache_info, clear_cache, get_exif_info])
         .register_uri_scheme_protocol("asset", |_app, request| {
             let uri_str = request.uri().to_string();
             let (clean_uri, full_quality) = if uri_str.contains("?full=1") {
@@ -244,6 +244,105 @@ fn clear_cache(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// ========== EXIF 信息提取 ==========
+
+#[derive(serde::Serialize)]
+struct ExifInfo {
+    camera: String,
+    lens: String,
+    aperture: String,
+    shutter: String,
+    iso: String,
+    focal_length: String,
+    date: String,
+    width: u32,
+    height: u32,
+    filesize: u64,
+}
+
+#[tauri::command]
+fn get_exif_info(path: String) -> Result<ExifInfo, String> {
+    let data = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let filesize = data.len() as u64;
+
+    // 获取图片尺寸
+    let (width, height) = match image::load_from_memory(&data) {
+        Ok(img) => img.dimensions(),
+        Err(_) => (0, 0),
+    };
+
+    let mut exif_data = ExifInfo {
+        camera: String::new(),
+        lens: String::new(),
+        aperture: String::new(),
+        shutter: String::new(),
+        iso: String::new(),
+        focal_length: String::new(),
+        date: String::new(),
+        width,
+        height,
+        filesize,
+    };
+
+    let reader = exif::Reader::new();
+    let mut cursor = std::io::Cursor::new(&data);
+    if let Ok(exif) = reader.read_from_container(&mut cursor) {
+        // 相机制造商 + 型号
+        let make = exif.get_field(exif::Tag::Make, exif::In::PRIMARY)
+            .map(|f| f.display_value().to_string().trim().to_string())
+            .unwrap_or_default();
+        let model = exif.get_field(exif::Tag::Model, exif::In::PRIMARY)
+            .map(|f| f.display_value().to_string().trim().to_string())
+            .unwrap_or_default();
+        exif_data.camera = if !make.is_empty() && !model.is_empty() {
+            if model.starts_with(&make) { model }
+            else { format!("{} {}", make, model) }
+        } else { make + &model };
+
+        // 镜头型号
+        exif_data.lens = exif.get_field(exif::Tag::LensModel, exif::In::PRIMARY)
+            .map(|f| f.display_value().to_string().trim().to_string())
+            .unwrap_or_default();
+
+        // 光圈 f-number
+        if let Some(f) = exif.get_field(exif::Tag::FNumber, exif::In::PRIMARY) {
+            if let Some((num, denom)) = get_rational(&f.value) {
+                let v = num as f64 / denom as f64;
+                exif_data.aperture = format!("f/{:.0}", v);
+            }
+        }
+        // 快门速度
+        if let Some(f) = exif.get_field(exif::Tag::ExposureTime, exif::In::PRIMARY) {
+            if let Some((num, denom)) = get_rational(&f.value) {
+                let secs = num as f64 / denom as f64;
+                if secs < 1.0 {
+                    exif_data.shutter = format!("1/{:.0}s", 1.0 / secs);
+                } else {
+                    exif_data.shutter = format!("{:.0}s", secs);
+                }
+            }
+        }
+        // ISO
+        exif_data.iso = exif.get_field(exif::Tag::ISOSpeed, exif::In::PRIMARY)
+            .map(|f| format!("ISO {}", f.display_value()))
+            .unwrap_or_default();
+
+        // 焦距
+        if let Some(f) = exif.get_field(exif::Tag::FocalLength, exif::In::PRIMARY) {
+            if let Some((num, denom)) = get_rational(&f.value) {
+                let v = num as f64 / denom as f64;
+                exif_data.focal_length = format!("{:.0}mm", v);
+            }
+        }
+        // 拍摄日期
+        exif_data.date = exif.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+            .map(|f| f.display_value().to_string().trim().to_string())
+            .unwrap_or_default();
+    }
+
+    Ok(exif_data)
+}
+
 // ========== 原有：大图压缩（画廊用） ==========
 
 fn resize_if_large(data: &[u8]) -> Vec<u8> {
@@ -268,6 +367,16 @@ fn resize_if_large(data: &[u8]) -> Vec<u8> {
             }
         }
         Err(_) => data.to_vec(),
+    }
+}
+
+/// 从 EXIF Value 中提取第一个有理数 (num, denom)
+fn get_rational(v: &exif::Value) -> Option<(u32, u32)> {
+    match v {
+        exif::Value::Rational(ref vec) => {
+            vec.first().map(|r| (r.num, r.denom))
+        }
+        _ => None,
     }
 }
 
