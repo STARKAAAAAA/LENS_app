@@ -247,6 +247,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         background: 'rgba(6,6,5,0.9)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
+        opacity: '0',
+        transition: 'opacity 0.5s ease',
       });
 
       // === 胶囊装载器（SVG 光环绕行） ===
@@ -257,6 +259,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         width: '208px', height: '44px',
         marginBottom: '2.5rem',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        opacity: '0', transform: 'scale(0.92)',
+        transition: 'opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1)',
       });
 
       // 胶囊轨道（静态）
@@ -325,6 +329,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         fontSize: '0.85rem', fontStyle: 'italic', fontWeight: '300',
         letterSpacing: '0.12em', color: 'rgba(220,200,180,0.55)',
         marginBottom: '0.6rem',
+        opacity: '0', transform: 'translateY(10px)',
+        transition: 'opacity 0.6s ease, transform 0.6s ease',
       });
 
       // 首次加载提示（带入场动画）
@@ -344,12 +350,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       quote.id = 'loading-quote';
       Object.assign(quote.style, {
         position: 'absolute', bottom: '14vh', left: '50%',
-        transform: 'translateX(-50%)',
+        transform: 'translateX(-50%) translateY(10px)',
         fontFamily: "Cormorant Garamond, Georgia, serif",
         fontSize: '1rem', fontStyle: 'italic', fontWeight: '300',
         letterSpacing: '0.1em', color: 'rgba(220,200,180,0.45)',
         textAlign: 'center', whiteSpace: 'nowrap',
-        transition: 'opacity 1.2s ease',
+        opacity: '0',
+        transition: 'opacity 0.8s ease, transform 0.8s ease',
         maxWidth: '80vw',
       });
 
@@ -380,24 +387,52 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadingAnimFrame = requestAnimationFrame(animate);
     }
 
-    // 摄影金句轮播
+    // 摄影金句轮播（入场动画完成后开始）
     if (!loadingQuoteInterval) {
       const quoteEl = document.getElementById('loading-quote');
       let quoteIdx = 0;
       quoteEl.textContent = PHOTO_QUOTES[0];
-      quoteEl.style.opacity = '1';
-      loadingQuoteInterval = setInterval(() => {
-        quoteEl.style.opacity = '0';
-        setTimeout(() => {
-          quoteIdx = (quoteIdx + 1) % PHOTO_QUOTES.length;
-          quoteEl.textContent = PHOTO_QUOTES[quoteIdx];
-          quoteEl.style.opacity = '1';
-        }, 1200);
-      }, 4500);
+      // 不等入场动画，直接设为可见（入场动画在 450ms 后才触发）
+      // 1.5s 后切换轮播过渡模式并开始循环
+      setTimeout(() => {
+        quoteEl.style.transition = 'opacity 1.2s ease';
+        loadingQuoteInterval = setInterval(() => {
+          quoteEl.style.opacity = '0';
+          setTimeout(() => {
+            quoteIdx = (quoteIdx + 1) % PHOTO_QUOTES.length;
+            quoteEl.textContent = PHOTO_QUOTES[quoteIdx];
+            quoteEl.style.opacity = '1';
+          }, 1200);
+        }, 4500);
+      }, 1500);
     }
 
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     await new Promise(r => setTimeout(r, 50));
+
+    // 逐层入场动画
+    const capsule = document.getElementById('loading-capsule-wrap');
+    const text = document.getElementById('loading-text');
+    const hint = document.getElementById('loading-hint');
+    const quote = document.getElementById('loading-quote');
+
+    // 1. 胶囊先出现
+    requestAnimationFrame(() => {
+      if (capsule) { capsule.style.opacity = '1'; capsule.style.transform = 'scale(1)'; }
+    });
+
+    // 2. 进度文字延迟 200ms
+    setTimeout(() => {
+      if (text) { text.style.opacity = '1'; text.style.transform = 'translateY(0)'; }
+    }, 200);
+
+    // 3. 提示 / 金句延迟 450ms
+    setTimeout(() => {
+      if (quote) {
+        quote.style.opacity = '1';
+        quote.style.transform = 'translateX(-50%) translateY(0)';
+      }
+    }, 450);
   }
   function updateLoadingScreen(msg) {
     const t = document.getElementById('loading-text');
