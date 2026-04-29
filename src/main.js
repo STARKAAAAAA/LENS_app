@@ -708,15 +708,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const scrollLine = document.querySelector('.hero__scroll-line');
 
     const start = performance.now();
-    const DURATION = 2600;
+    const DURATION = 2400;
 
     function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
     function tick(now) {
       const raw = Math.min((now - start) / DURATION, 1);
 
-      // 遮罩渐隐：0–75%
-      if (reveal) reveal.style.opacity = 1 - easeOut(Math.min(raw / 0.75, 1));
+      // 遮罩渐隐：0–50% 快速露出背景
+      if (reveal) reveal.style.opacity = 1 - easeOut(Math.min(raw / 0.50, 1));
 
       // 标题淡入上移：5–55%
       const tT = Math.max(0, Math.min(1, (raw - 0.05) / 0.50));
@@ -724,23 +724,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (title) {
         title.style.opacity = et;
         title.style.transform = `translateY(${(1 - et) * 40}px) scale(${1.05 - et * 0.05})`;
-        // 装饰线展开
-        const tL = Math.max(0, Math.min(1, (raw - 0.40) / 0.25));
+        const tL = Math.max(0, Math.min(1, (raw - 0.35) / 0.25));
         const el = easeOut(tL);
         title.style.setProperty('--line-scale', el);
         title.style.setProperty('--line-opacity', el);
       }
 
-      // 副标题淡入：30–60%
-      const tS = Math.max(0, Math.min(1, (raw - 0.30) / 0.30));
+      // 副标题淡入：25–55%
+      const tS = Math.max(0, Math.min(1, (raw - 0.25) / 0.30));
       const es = easeOut(tS);
       if (subtitle) {
         subtitle.style.opacity = es;
         subtitle.style.transform = `translateY(${(1 - es) * 20}px)`;
       }
 
-      // 滚动指示器淡入：75–100%
-      const tC = Math.max(0, Math.min(1, (raw - 0.72) / 0.28));
+      // 滚动指示器淡入：65–90%
+      const tC = Math.max(0, Math.min(1, (raw - 0.65) / 0.25));
       if (scroll) scroll.style.opacity = easeOut(tC);
       // 滚动指示线脉冲在动画结束后用 CSS animation，或仅做初始状态
 
