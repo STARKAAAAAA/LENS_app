@@ -327,28 +327,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         marginBottom: '0.6rem',
       });
 
-      // 首次加载提示
+      // 首次加载提示（带入场动画）
       const hint = document.createElement('div');
       hint.id = 'loading-hint';
       Object.assign(hint.style, {
         fontFamily: "Cormorant Garamond, Georgia, serif",
         fontSize: '0.72rem', fontStyle: 'italic', fontWeight: '300',
-        letterSpacing: '0.08em', color: 'rgba(220,200,180,0.3)',
+        letterSpacing: '0.08em', color: 'rgba(220,200,180,0.4)',
         marginBottom: '2.5rem', display: 'none',
+        opacity: '0', transform: 'translateY(8px)',
+        transition: 'opacity 0.8s ease, transform 0.8s ease',
       });
 
-      // 轮播金句
+      // 轮播金句（底部居中，暖金半透明）
       const quote = document.createElement('div');
       quote.id = 'loading-quote';
       Object.assign(quote.style, {
-        position: 'absolute', bottom: '16vh', left: '50%',
+        position: 'absolute', bottom: '14vh', left: '50%',
         transform: 'translateX(-50%)',
         fontFamily: "Cormorant Garamond, Georgia, serif",
-        fontSize: '1.05rem', fontStyle: 'italic', fontWeight: '300',
-        letterSpacing: '0.08em', color: 'rgba(220,200,180,0.3)',
+        fontSize: '1rem', fontStyle: 'italic', fontWeight: '300',
+        letterSpacing: '0.1em', color: 'rgba(220,200,180,0.45)',
         textAlign: 'center', whiteSpace: 'nowrap',
         transition: 'opacity 1.2s ease',
-        maxWidth: '80vw', overflow: 'hidden', textOverflow: 'ellipsis',
+        maxWidth: '80vw',
       });
 
       el.appendChild(capsuleWrap);
@@ -534,7 +536,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
           firstLoadHintShown = true;
           const hint = document.getElementById('loading-hint');
-          if (hint) { hint.textContent = '正在为您的作品集建立本地缓存，稍后即可流畅浏览'; hint.style.display = 'block'; }
+          if (hint) {
+            hint.textContent = '正在为您的作品集建立本地缓存，稍后即可流畅浏览';
+            hint.style.display = 'block';
+            requestAnimationFrame(() => {
+              hint.style.opacity = '1';
+              hint.style.transform = 'translateY(0)';
+            });
+          }
         }
       });
       const thumbMap = await invoke('generate_thumbnails', { paths });
