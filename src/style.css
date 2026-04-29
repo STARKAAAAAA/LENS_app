@@ -1213,21 +1213,21 @@
     transition: opacity 0.35s var(--ease-out), visibility 0s 0s;
   }
   .shortcuts-panel {
-    position: fixed; top: 52px; right: 76px;
+    position: fixed; top: 52px; right: 62px;
     z-index: 3001;
+    width: 194px;
     background: rgba(30,28,26,0.94);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
     border: 0.5px solid rgba(200,168,124,0.18);
-    border-radius: var(--radius);
-    padding: 1.8rem 2.2rem;
-    min-width: 300px;
+    border-radius: var(--radius-pill);
+    padding: 1.4rem 1.6rem;
     box-shadow:
       0 4px 24px rgba(0,0,0,0.5),
       0 0 0 0.5px rgba(200,168,124,0.08) inset;
     transform-origin: top right;
-    opacity: 0; transform: scale(0.92) translateY(-6px);
-    transition: opacity 0.4s var(--ease-out), transform 0.5s var(--ease-spring);
+    opacity: 0; transform: scale(0.5) translateY(-10px);
+    transition: opacity 0.35s var(--ease-out), transform 0.55s var(--ease-spring);
     pointer-events: none;
   }
   .shortcuts-overlay--open .shortcuts-panel {
