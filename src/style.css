@@ -863,6 +863,69 @@
     }
   }
 
+  /* ========== 胶片条 ========== */
+  .lightbox__filmstrip {
+    position: absolute; bottom: 8px; left: 50%; translate: -50% 0;
+    z-index: 10;
+    display: flex; align-items: center; gap: 6px;
+    max-width: 85vw;
+    padding: 8px 10px;
+    background: rgba(10,10,8,0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(200,168,124,0.1);
+    border-radius: var(--radius-sm);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+    pointer-events: none;
+  }
+  .lightbox.active .lightbox__filmstrip.filmstrip--visible {
+    opacity: 1; transform: translateY(0);
+    transition-delay: 0.35s;
+    pointer-events: auto;
+  }
+  .filmstrip__track {
+    display: flex; gap: 4px;
+    overflow-x: auto; scroll-behavior: smooth;
+    scrollbar-width: none;
+    max-width: 72vw;
+  }
+  .filmstrip__track::-webkit-scrollbar { display: none; }
+  .filmstrip__thumb {
+    flex-shrink: 0;
+    width: 48px; height: 36px;
+    border-radius: 4px;
+    overflow: hidden; cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: border-color 0.25s ease, transform 0.2s var(--ease-out);
+  }
+  .filmstrip__thumb:hover {
+    border-color: rgba(200,168,124,0.4);
+    transform: translateY(-2px);
+  }
+  .filmstrip__thumb--active {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 10px rgba(200,168,124,0.35);
+  }
+  .filmstrip__thumb img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .filmstrip__arrow {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; color: rgba(220,200,180,0.4);
+    border-radius: 50%; cursor: pointer;
+    background: rgba(220,200,180,0.06);
+    border: 0.5px solid rgba(220,200,180,0.1);
+    transition: all 0.25s ease;
+  }
+  .filmstrip__arrow:hover {
+    color: var(--accent);
+    background: rgba(220,200,180,0.12);
+    border-color: rgba(200,168,124,0.3);
+  }
+
   /* ========== 灯箱 EXIF 面板 ========== */
   .lightbox__exif {
     position: absolute; bottom: 16px; right: 24px;

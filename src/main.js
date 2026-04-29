@@ -1102,6 +1102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         lbImg.style.opacity = '1';
         loadLightboxExif(item.dataset.path);
         updateRatingUI(item.dataset.path);
+        updateFilmstrip();
         transitioning = false;
       }, 180);
     }
@@ -1117,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.style.overflow = 'hidden';
       loadLightboxExif(item.dataset.path);
       updateRatingUI(item.dataset.path);
+      buildFilmstrip();
       setTimeout(() => transitioning = false, 600);
     }
     function close() { lightbox.classList.remove('active'); document.body.style.overflow = ''; resetZoom(); }
@@ -1162,6 +1164,61 @@ document.addEventListener('DOMContentLoaded', async () => {
       setPhotoRating(currentRatingPath, undefined, !cur.fav);
       updateRatingUI(currentRatingPath);
       if (data.categories.length > 0) refreshCategoryCards();
+    });
+
+    // ========== 胶片条 ==========
+    const filmstripPanel = document.getElementById('lightbox-filmstrip');
+    const filmstripTrack = document.getElementById('filmstrip-track');
+    const filmstripLeft = document.getElementById('filmstrip-left');
+    const filmstripRight = document.getElementById('filmstrip-right');
+    let filmstripBuilt = false;
+
+    function buildFilmstrip() {
+      if (!featureToggles.filmstrip) {
+        filmstripPanel.classList.remove('filmstrip--visible');
+        filmstripBuilt = false;
+        return;
+      }
+      filmstripTrack.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      items.forEach((item, i) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'filmstrip__thumb';
+        if (i === idx) thumb.classList.add('filmstrip__thumb--active');
+        thumb.innerHTML = `<img src="${item.dataset.src}" alt="${item.dataset.title}" decoding="async">`;
+        thumb.addEventListener('click', () => {
+          if (i === idx || transitioning) return;
+          transitioning = true;
+          idx = i;
+          update();
+        });
+        fragment.appendChild(thumb);
+      });
+      filmstripTrack.appendChild(fragment);
+      filmstripPanel.classList.add('filmstrip--visible');
+      filmstripBuilt = true;
+      // 滚动到当前缩略图
+      requestAnimationFrame(() => {
+        const active = filmstripTrack.querySelector('.filmstrip__thumb--active');
+        if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      });
+    }
+
+    function updateFilmstrip() {
+      if (!filmstripBuilt) return;
+      const thumbs = filmstripTrack.querySelectorAll('.filmstrip__thumb');
+      thumbs.forEach((t, i) => t.classList.toggle('filmstrip__thumb--active', i === idx));
+      requestAnimationFrame(() => {
+        const active = filmstripTrack.querySelector('.filmstrip__thumb--active');
+        if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      });
+    }
+
+    filmstripLeft.addEventListener('click', () => {
+      filmstripTrack.scrollBy({ left: -160, behavior: 'smooth' });
+    });
+    filmstripRight.addEventListener('click', () => {
+      filmstripTrack.scrollBy({ left: 160, behavior: 'smooth' });
     });
 
     // EXIF 面板
