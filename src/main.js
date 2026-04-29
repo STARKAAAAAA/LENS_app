@@ -758,6 +758,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     else { showEmpty('请选择照片文件夹'); }
   }
 
+  // 启动完成后显示工具栏
+  document.getElementById('toolbar').classList.add('toolbar--visible');
+
   document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
 
   initLightbox();
@@ -769,17 +772,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ========== 快捷键面板 ==========
   const shortcutsOverlay = document.getElementById('shortcuts-overlay');
   const shortcutsBtn = document.getElementById('tb-shortcuts');
-  function toggleShortcuts() {
-    const open = shortcutsOverlay.classList.toggle('shortcuts-overlay--open');
-    document.body.style.overflow = open ? 'hidden' : '';
+  const shortcutsPanel = shortcutsOverlay.querySelector('.shortcuts-panel');
+  let shortcutsClosing = false;
+
+  function openShortcuts() {
+    shortcutsOverlay.classList.add('shortcuts-overlay--open');
+    shortcutsPanel.classList.remove('shortcuts-panel--out');
+    document.body.style.overflow = 'hidden';
   }
-  shortcutsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleShortcuts();
-  });
-  shortcutsOverlay.addEventListener('click', (e) => {
-    if (e.target === shortcutsOverlay) toggleShortcuts();
-  });
+  function closeShortcuts() {
+    if (shortcutsClosing) return;
+    shortcutsClosing = true;
+    shortcutsPanel.classList.add('shortcuts-panel--out');
+    shortcutsOverlay.style.transition = 'opacity 0.25s var(--ease-out), visibility 0s 0.25s';
+    setTimeout(() => {
+      shortcutsOverlay.classList.remove('shortcuts-overlay--open');
+      shortcutsOverlay.style.transition = '';
+      shortcutsClosing = false;
+      document.body.style.overflow = '';
+    }, 300);
+  }
+  function toggleShortcuts() {
+    if (shortcutsOverlay.classList.contains('shortcuts-overlay--open')) {
+      closeShortcuts();
+    } else {
+      openShortcuts();
+    }
+  }
   document.addEventListener('keydown', (e) => {
     if (e.key === '?' && featureToggles.shortcuts) {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
