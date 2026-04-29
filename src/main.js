@@ -902,6 +902,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   function initHero() { rebuildHero(data.photos); }
 
   // ========== 分类卡片（全部直接加载，无懒加载） ==========
+  // ========== 评分数据（全局） ==========
+  const RATING_KEY = 'lens-photo-ratings';
+  function loadRatings() {
+    try { return JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
+    catch { return {}; }
+  }
+  function saveRatings(ratings) { localStorage.setItem(RATING_KEY, JSON.stringify(ratings)); }
+  function getPhotoRating(path) {
+    const ratings = loadRatings();
+    return ratings[path] || { stars: 0, fav: false };
+  }
+  function setPhotoRating(path, stars, fav) {
+    const ratings = loadRatings();
+    ratings[path] = { stars: stars ?? getPhotoRating(path).stars, fav: fav ?? getPhotoRating(path).fav };
+    saveRatings(ratings);
+  }
+
   function getCategoryAvgRating(cat) {
     const ratings = loadRatings();
     const photos = data.byCategory[cat] || [];
@@ -1118,23 +1135,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function close() { lightbox.classList.remove('active'); document.body.style.overflow = ''; resetZoom(); }
     function prev() { if (!transitioning) { transitioning = true; idx = (idx - 1 + items.length) % items.length; update(); } }
     function next() { if (!transitioning) { transitioning = true; idx = (idx + 1) % items.length; update(); } }
-
-    // ========== 评分数据（全局访问） ==========
-    const RATING_KEY = 'lens-photo-ratings';
-    function loadRatings() {
-      try { return JSON.parse(localStorage.getItem(RATING_KEY)) || {}; }
-      catch { return {}; }
-    }
-    function saveRatings(ratings) { localStorage.setItem(RATING_KEY, JSON.stringify(ratings)); }
-    function getPhotoRating(path) {
-      const ratings = loadRatings();
-      return ratings[path] || { stars: 0, fav: false };
-    }
-    function setPhotoRating(path, stars, fav) {
-      const ratings = loadRatings();
-      ratings[path] = { stars: stars ?? getPhotoRating(path).stars, fav: fav ?? getPhotoRating(path).fav };
-      saveRatings(ratings);
-    }
 
     // ========== 评分 UI（灯箱内） ==========
     const ratingStars = document.getElementById('rating-stars');
