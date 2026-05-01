@@ -128,6 +128,8 @@ function setInputMode(mode) {
   }
 }
 
+let _prev = { l: false, r: false, u: false, d: false };
+
 // ========== 主入口 ==========
 export function initGamepad() {
   if (_gpAnimFrame) return;
@@ -138,8 +140,6 @@ export function initGamepad() {
   document.addEventListener('mousemove', () => {
     if (_inputMode === 'gamepad') setInputMode('mouse');
   }, { passive: true });
-
-  let _prev = { l: false, r: false, u: false, d: false };
 
   function poll() {
     const gamepads = navigator.getGamepads();
