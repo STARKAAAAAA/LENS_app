@@ -85,26 +85,24 @@ function moveFocus(dir, mode) {
     card.classList.add(cls);
     card.addEventListener('animationend', () => card.classList.remove(cls), { once: true });
 
-    // 光泽从移动方向扫入
-    const shineFrom = {
-      left: { x: 80, y: 50 }, right: { x: 20, y: 50 },
-      up: { x: 50, y: 80 }, down: { x: 50, y: 20 },
+    // 光泽从中心向移动方向扫出
+    const shineTo = {
+      left: { x: 15, y: 50 }, right: { x: 85, y: 50 },
+      up: { x: 50, y: 15 }, down: { x: 50, y: 85 },
     }[dir] || { x: 50, y: 50 };
     let t = 0;
-    card.style.setProperty('--shine-x', shineFrom.x + '%');
-    card.style.setProperty('--shine-y', shineFrom.y + '%');
     card.classList.add('card--tilt-active');
     function sweep() {
-      t += 0.06;
+      t += 0.045;
       if (t >= 1) {
         card.classList.remove('card--tilt-active');
         card.style.setProperty('--shine-x', '50%');
         card.style.setProperty('--shine-y', '50%');
         return;
       }
-      const ease = 1 - Math.pow(1 - t, 3);
-      card.style.setProperty('--shine-x', (shineFrom.x + (50 - shineFrom.x) * ease) + '%');
-      card.style.setProperty('--shine-y', (shineFrom.y + (50 - shineFrom.y) * ease) + '%');
+      const ease = 1 - Math.pow(1 - t, 2);
+      card.style.setProperty('--shine-x', (50 + (shineTo.x - 50) * ease) + '%');
+      card.style.setProperty('--shine-y', (50 + (shineTo.y - 50) * ease) + '%');
       requestAnimationFrame(sweep);
     }
     requestAnimationFrame(sweep);

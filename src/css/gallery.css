@@ -484,10 +484,12 @@
     & .gallery__item-overlay { opacity: 1; }
     & .gallery__item-title { opacity: 1; translate: 0 0; }
 
-    /* 图片暗化但不模糊 */
-    & img,
+    /* 图片暗化+模糊，模拟鼠标悬浮 */
+    & img {
+      filter: brightness(0.6) blur(3px);
+    }
     & .category-card__img {
-      filter: brightness(0.55);
+      filter: brightness(0.55) blur(6px);
     }
   }
 }
