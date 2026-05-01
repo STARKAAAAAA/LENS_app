@@ -1069,8 +1069,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     title.classList.add('hero__title--corner');
   }
 
-  function initHero() { rebuildHero(data.photos); }
-
   // ========== 分类卡片（全部直接加载，无懒加载） ==========
   function getCategoryAvgRating(cat) {
     const ratings = loadRatings();

@@ -272,11 +272,8 @@ fn get_exif_info(path: String) -> Result<ExifInfo, String> {
     let data = std::fs::read(&path).map_err(|e| e.to_string())?;
     let filesize = data.len() as u64;
 
-    // 获取图片尺寸
-    let (width, height) = match image::load_from_memory(&data) {
-        Ok(img) => img.dimensions(),
-        Err(_) => (0, 0),
-    };
+    let mut width: u32 = 0;
+    let mut height: u32 = 0;
 
     let mut exif_data = ExifInfo {
         camera: String::new(),
@@ -345,7 +342,24 @@ fn get_exif_info(path: String) -> Result<ExifInfo, String> {
         exif_data.date = exif.get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
             .map(|f| f.display_value().to_string().trim().to_string())
             .unwrap_or_default();
+
+        // 从 EXIF 获取尺寸（避免完整解码大图）
+        let w = exif.get_field(exif::Tag::PixelXDimension, exif::In::PRIMARY)
+            .and_then(|f| match &f.value { exif::Value::Long(v) => v.first().copied(), _ => None });
+        let h = exif.get_field(exif::Tag::PixelYDimension, exif::In::PRIMARY)
+            .and_then(|f| match &f.value { exif::Value::Long(v) => v.first().copied(), _ => None });
+        width = w.unwrap_or(0);
+        height = h.unwrap_or(0);
     }
+
+    // EXIF 没有尺寸信息时回退到完整解码
+    if width == 0 || height == 0 {
+        if let Ok(img) = image::load_from_memory(&data) {
+            (width, height) = img.dimensions();
+        }
+    }
+    exif_data.width = width;
+    exif_data.height = height;
 
     Ok(exif_data)
 }
