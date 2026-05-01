@@ -57,7 +57,7 @@ function countCols(selector) {
   return set.size || 1;
 }
 
-function moveFocus(dir, mode) {
+function moveFocus(dir, mode, useGlow) {
   if (focusElements.length === 0) { updateFocus(mode); if (focusElements.length === 0) return; }
   let stepH = 1; // 水平步长（同行/同列内的相邻）
   let stepV = 1; // 垂直步长（跨行/跨列）
@@ -79,36 +79,13 @@ function moveFocus(dir, mode) {
   }
   updateFocus(mode);
 
-  const card = focusElements[focusIndex];
-  if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
-
-  // 光晕从旧卡中心飞向新卡中心（复用光点逻辑，换为大光晕）
-  if (focusElements[prevIdx]) {
-    const pr = focusElements[prevIdx].getBoundingClientRect();
-    const cr = card.getBoundingClientRect();
-    const glow = document.createElement('div');
-    glow.style.cssText = `
-      position:fixed;left:${pr.left + pr.width/2}px;top:${pr.top + pr.height/2}px;
-      z-index:99998;pointer-events:none;
-      width:120px;height:120px;margin-left:-60px;margin-top:-60px;
-      border-radius:50%;
-      background:radial-gradient(circle,
-        rgba(255,245,235,0.25) 0%,
-        rgba(255,220,180,0.10) 40%,
-        transparent 70%
-      );
-      transition:left 0.35s var(--ease-out),top 0.35s var(--ease-out),opacity 0.3s;
-      opacity:0.8;
-    `;
-    document.body.appendChild(glow);
-    requestAnimationFrame(() => {
-      glow.style.left = (cr.left + cr.width/2) + 'px';
-      glow.style.top = (cr.top + cr.height/2) + 'px';
-    });
-    setTimeout(() => {
-      glow.style.opacity = '0';
-      setTimeout(() => glow.remove(), 350);
-    }, 400);
+  // 仅方向键触发光晕（卡片::before，跟鼠标悬浮一样大）
+  if (useGlow && prevIdx !== focusIndex) {
+    const card = focusElements[focusIndex];
+    if (card) {
+      card.classList.add('card--tilt-active');
+      setTimeout(() => card.classList.remove('card--tilt-active'), 500);
+    }
   }
 }
 
@@ -222,10 +199,12 @@ export function initGamepad() {
     const dx = Math.abs(lx) < DEAD && !active.buttons[map.LEFT]?.pressed && !active.buttons[map.RIGHT]?.pressed ? 0 : rawX;
     const dy = Math.abs(ly) < DEAD && !active.buttons[map.UP]?.pressed && !active.buttons[map.DOWN]?.pressed ? 0 : rawY;
 
-    if (dx < 0 && _prevDX >= 0) moveFocus('left', mode);
-    if (dx > 0 && _prevDX <= 0) moveFocus('right', mode);
-    if (dy < 0 && _prevDY >= 0) moveFocus('up', mode);
-    if (dy > 0 && _prevDY <= 0) moveFocus('down', mode);
+    const isDpad = active.buttons[map.LEFT]?.pressed || active.buttons[map.RIGHT]?.pressed || active.buttons[map.UP]?.pressed || active.buttons[map.DOWN]?.pressed;
+
+    if (dx < 0 && _prevDX >= 0) moveFocus('left', mode, isDpad);
+    if (dx > 0 && _prevDX <= 0) moveFocus('right', mode, isDpad);
+    if (dy < 0 && _prevDY >= 0) moveFocus('up', mode, isDpad);
+    if (dy > 0 && _prevDY <= 0) moveFocus('down', mode, isDpad);
 
     _prevDX = dx;
     _prevDY = dy;
