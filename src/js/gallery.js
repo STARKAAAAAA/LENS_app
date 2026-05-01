@@ -378,8 +378,8 @@ export async function openCategory(cat, ctx) {
 // ========== Apple TV-style 3D card tilt & shine ==========
 
 const CARD_FLOAT = {
-  lift: 5,
-  scale: 1.005,
+  lift: 3,
+  scale: 1.003,
 };
 
 let _tiltInitialized = false;
