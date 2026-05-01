@@ -49,25 +49,24 @@ function updateFocus(mode) {
 function getGridCols() {
   const cards = document.querySelectorAll('.category-card');
   const container = document.getElementById('categories');
-  if (!container || cards.length < 2) return 1;
+  if (!container) { _dbg = 'nocat'; return 1; }
+  if (cards.length < 2) { _dbg = `n${cards.length}`; return 1; }
 
-  // 方案A: 卡片 offsetLeft 去重（同一列共享相同 offsetLeft）
-  const leftSet = new Set();
-  for (const c of cards) leftSet.add(c.offsetLeft);
-  if (leftSet.size > 1) {
-    _dbg = `A:${leftSet.size}`;
-    return leftSet.size;
-  }
+  // 方案A: 卡片 offsetLeft 去重
+  const lefts = Array.from(cards).map(c => c.offsetLeft);
+  const leftSet = new Set(lefts);
+  _dbg = `A:${leftSet.size} [${lefts.slice(0,4).join(',')}]`;
+  if (leftSet.size > 1) return leftSet.size;
 
   // 方案B: 容器宽 / 卡片宽
   const cw = cards[0].offsetWidth;
   const tw = container.clientWidth;
   const cols = Math.floor(tw / cw);
-  _dbg = `B:tw${tw}/cw${cw}=${cols}`;
+  _dbg = `B:${tw}/${cw}=${cols}`;
   return Math.max(1, cols);
 }
 
-let _dbg = '';
+let _dbg = '?';
 
 let _cols = 0;
 
