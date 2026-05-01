@@ -377,9 +377,7 @@ export async function openCategory(cat, ctx) {
 
 // ========== Apple TV-style 3D card tilt & shine ==========
 
-const TILT_CONFIG = {
-  maxTilt: 1,
-  perspective: 2000,
+const CARD_FLOAT = {
   lift: 5,
   scale: 1.005,
 };
@@ -405,16 +403,11 @@ export function initCardTilt() {
     const cx = rect.left + halfW, cy = rect.top + halfH;
     const nx = Math.max(-1, Math.min(1, (clientX - cx) / halfW));
     const ny = Math.max(-1, Math.min(1, (clientY - cy) / halfH));
-    const { maxTilt, perspective, lift, scale } = TILT_CONFIG;
-    const ry = nx * maxTilt;
-    const rx = -ny * maxTilt;
+    const { lift, scale } = CARD_FLOAT;
     const tx = nx * lift;
     const ty = ny * lift;
     card.style.transform =
-      `perspective(${perspective}px) ` +
-      `rotateX(${rx}deg) rotateY(${ry}deg) ` +
-      `translateX(${tx}px) translateY(${ty}px) ` +
-      `scale3d(${scale}, ${scale}, 1)`;
+      `translateX(${tx}px) translateY(${ty}px) scale3d(${scale}, ${scale}, 1)`;
     card.style.setProperty('--shine-x', ((clientX - rect.left) / rect.width) * 100 + '%');
     card.style.setProperty('--shine-y', ((clientY - rect.top) / rect.height) * 100 + '%');
   }
