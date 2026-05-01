@@ -4,6 +4,9 @@ node_modules/
 # Build
 dist/
 src-tauri/target/
+release/
+*.exe
+*.msi
 
 # IDE
 .vscode/
@@ -20,3 +23,19 @@ __pycache__/
 # Generated
 generate_icons.py
 error.log
+
+# Claude
+.claude/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Archive
+*.zip
+*.rar
+*.7z
+
+# Env
+.env
+.env.local
