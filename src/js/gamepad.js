@@ -47,19 +47,27 @@ function updateFocus(mode) {
 }
 
 function getGridCols() {
-  // 数第一行有几张卡：top 值相同的即为同行
   const cards = document.querySelectorAll('.category-card');
-  if (cards.length < 2) return 1;
-  const top0 = cards[0].getBoundingClientRect().top;
-  let cols = 0;
-  for (const card of cards) {
-    if (Math.abs(card.getBoundingClientRect().top - top0) <= 1) cols++;
-    else break;
+  const container = document.getElementById('categories');
+  if (!container || cards.length < 2) return 1;
+
+  // 方案A: 卡片 offsetLeft 去重（同一列共享相同 offsetLeft）
+  const leftSet = new Set();
+  for (const c of cards) leftSet.add(c.offsetLeft);
+  if (leftSet.size > 1) {
+    _dbg = `A:${leftSet.size}`;
+    return leftSet.size;
   }
-  // 如果全部同一行，列数=卡片总数（或容器CSS grid列数兜底）
-  if (cols === cards.length && cols > 1) return cols;
+
+  // 方案B: 容器宽 / 卡片宽
+  const cw = cards[0].offsetWidth;
+  const tw = container.clientWidth;
+  const cols = Math.floor(tw / cw);
+  _dbg = `B:tw${tw}/cw${cw}=${cols}`;
   return Math.max(1, cols);
 }
+
+let _dbg = '';
 
 let _cols = 0;
 
@@ -202,7 +210,7 @@ export function initGamepad() {
       if (mode === 'browse' || mode === 'gallery') { moveFocus('down', mode); moved = 4; }
     }
 
-    dot.textContent = `←${cur.l?'█':'·'} ↑${cur.u?'█':'·'} ↓${cur.d?'█':'·'} →${cur.r?'█':'·'} #${focusIndex}/${focusElements.length} c${_cols||'?'} ${moved?'M'+moved:''}`;
+    dot.textContent = `←${cur.l?'█':'·'} ↑${cur.u?'█':'·'} ↓${cur.d?'█':'·'} →${cur.r?'█':'·'} #${focusIndex}/${focusElements.length} ${_dbg||'c'+(_cols||'?')} ${moved?'M'+moved:''}`;
 
     _prev = cur;
 
