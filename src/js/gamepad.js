@@ -40,11 +40,23 @@ function updateFocus(mode) {
   focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
+function getGridCols() {
+  if (focusElements.length < 2) return 1;
+  // 用两张相邻卡片的 offsetTop 是否相同判断是否在同一行，从而推算列数
+  const top0 = focusElements[0].getBoundingClientRect().top;
+  let cols = 1;
+  for (let i = 1; i < focusElements.length; i++) {
+    if (Math.abs(focusElements[i].getBoundingClientRect().top - top0) > 2) break;
+    cols = i + 1;
+  }
+  if (cols === focusElements.length) cols = 1; // 全部同一行：单列或首行恰好满
+  return cols || 1;
+}
+
 function moveFocus(direction, mode) {
   if (focusElements.length === 0) { updateFocus(mode); return; }
   if (mode === 'browse') {
-    const style = getComputedStyle(document.getElementById('categories'));
-    const cols = style.gridTemplateColumns.split(' ').length || 1;
+    const cols = getGridCols();
     if (direction === 'left')  focusIndex = Math.max(0, focusIndex - 1);
     if (direction === 'right') focusIndex = Math.min(focusElements.length - 1, focusIndex + 1);
     if (direction === 'up')    focusIndex = Math.max(0, focusIndex - cols);
@@ -104,27 +116,34 @@ export function initGamepad() {
     }
   }, { passive: true });
 
-  function injectCardFloat(lx, ly) {
-    const cards = document.querySelectorAll('.category-card, .gallery__item');
-    if (cards.length === 0) return;
-    const lift = 5;
-    const tx = lx * lift;
-    const ty = ly * lift;
-    cards.forEach(card => {
-      card.classList.add('card--tilt-active');
-      card.style.transform = `translateX(${tx}px) translateY(${ty}px) scale3d(1.005, 1.005, 1)`;
-      card.style.setProperty('--shine-x', (50 + lx * 30) + '%');
-      card.style.setProperty('--shine-y', (50 + ly * 30) + '%');
-    });
+  let _floatCard = null;
+
+  function injectCardFloat(lx, ly, mode) {
+    // 只对当前焦点卡片施加浮游效果，不是所有卡片
+    if (mode === 'browse' || mode === 'gallery') {
+      const card = focusElements[focusIndex];
+      if (card && card !== _floatCard) {
+        releaseCardFloat();
+        _floatCard = card;
+      }
+      if (card) {
+        const lift = 5;
+        card.classList.add('card--tilt-active');
+        card.style.transform = `translateX(${lx * lift}px) translateY(${ly * lift}px) scale3d(1.005, 1.005, 1)`;
+        card.style.setProperty('--shine-x', (50 + lx * 30) + '%');
+        card.style.setProperty('--shine-y', (50 + ly * 30) + '%');
+      }
+    }
   }
 
   function releaseCardFloat() {
-    document.querySelectorAll('.card--tilt-active').forEach(card => {
-      card.classList.remove('card--tilt-active');
-      card.style.transform = '';
-      card.style.setProperty('--shine-x', '50%');
-      card.style.setProperty('--shine-y', '50%');
-    });
+    if (_floatCard) {
+      _floatCard.classList.remove('card--tilt-active');
+      _floatCard.style.transform = '';
+      _floatCard.style.setProperty('--shine-x', '50%');
+      _floatCard.style.setProperty('--shine-y', '50%');
+      _floatCard = null;
+    }
   }
 
   function poll() {
@@ -163,7 +182,7 @@ export function initGamepad() {
     // --- 左摇杆 → 卡片浮游 (browse/gallery) ---
     const shouldFloat = (mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08);
     if (shouldFloat) {
-      injectCardFloat(lx, ly);
+      injectCardFloat(lx, ly, mode);
       _floatActive = true;
     } else if (_floatActive) {
       releaseCardFloat();
