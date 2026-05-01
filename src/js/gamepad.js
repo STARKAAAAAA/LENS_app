@@ -14,14 +14,16 @@ const BUTTONS = {
   switch: { A:0, B:1, X:2, Y:3, LB:4, RB:5, LT:6, RT:7, BACK:8, START:9, LS:10, RS:11, UP:12, DOWN:13, LEFT:14, RIGHT:15 },
 };
 
+// --- 状态 ---
 let focusIndex = 0;
 let focusElements = [];
 let _gpAnimFrame = null;
 let _inputMode = 'mouse';
 let _lastMode = null;
 let _floatCard = null;
+let _moveCooldown = 0; // 方向移动冷却计时器
 
-// --- 模式检测 ---
+// --- 模式 ---
 function getMode() {
   if (document.getElementById('lightbox')?.classList.contains('active')) return 'lightbox';
   if (document.getElementById('slideshow')?.classList.contains('active')) return 'slideshow';
@@ -31,7 +33,7 @@ function getMode() {
   return 'browse';
 }
 
-// --- 虚拟焦点 ---
+// --- 焦点 ---
 function updateFocus(mode) {
   focusElements.forEach(el => el.classList.remove('card--focused'));
   focusElements = [];
@@ -48,33 +50,15 @@ function updateFocus(mode) {
 
 function getGridCols() {
   const cards = document.querySelectorAll('.category-card');
-  const container = document.getElementById('categories');
-  if (!container) { _dbg = 'nocat'; return 1; }
-  if (cards.length < 2) { _dbg = `n${cards.length}`; return 1; }
-
-  // 方案A: 卡片 offsetLeft 去重
-  const lefts = Array.from(cards).map(c => c.offsetLeft);
-  const leftSet = new Set(lefts);
-  _dbg = `A:${leftSet.size} [${lefts.slice(0,4).join(',')}]`;
-  if (leftSet.size > 1) return leftSet.size;
-
-  // 方案B: 容器宽 / 卡片宽
-  const cw = cards[0].offsetWidth;
-  const tw = container.clientWidth;
-  const cols = Math.floor(tw / cw);
-  _dbg = `B:${tw}/${cw}=${cols}`;
-  return Math.max(1, cols);
+  if (cards.length < 2) return 1;
+  const set = new Set();
+  for (const c of cards) set.add(c.offsetLeft);
+  return set.size || 1;
 }
-
-let _dbg = '?';
-
-let _cols = 0;
 
 function moveFocus(dir, mode) {
   if (focusElements.length === 0) updateFocus(mode);
-  // 不 return —— 继续计算列数和移动（修复鼠标→手柄切换后首次不触发）
   const cols = mode === 'browse' ? getGridCols() : 1;
-  _cols = cols;
   switch (dir) {
     case 'left':  focusIndex = Math.max(0, focusIndex - 1); break;
     case 'right': focusIndex = Math.min(focusElements.length - 1, focusIndex + 1); break;
@@ -84,17 +68,31 @@ function moveFocus(dir, mode) {
   updateFocus(mode);
 }
 
-// --- 按钮去抖 ---
-function createDebouncer() {
-  const state = {};
-  return (key, pressed) => {
-    if (pressed && !state[key]) { state[key] = true; return true; }
-    if (!pressed) { state[key] = false; }
-    return false;
+// --- 去抖（按钮用） ---
+function db(fn) {
+  let state = false;
+  return (pressed) => {
+    if (pressed && !state) { state = true; fn(); }
+    if (!pressed) state = false;
   };
 }
 
-// --- 卡片浮游 ---
+// --- 输入模式 ---
+function setInputMode(mode) {
+  if (_inputMode === mode) return;
+  _inputMode = mode;
+  if (mode === 'gamepad') {
+    document.body.classList.add('gamepad-active');
+    updateFocus(getMode());
+  } else {
+    document.body.classList.remove('gamepad-active');
+    focusElements.forEach(el => el.classList.remove('card--focused'));
+    focusElements = [];
+    focusIndex = 0;
+  }
+}
+
+// --- 浮游 ---
 function injectCardFloat(card, lx, ly) {
   const lift = 5;
   card.classList.add('card--tilt-active');
@@ -113,32 +111,42 @@ function releaseCardFloat() {
   }
 }
 
-// --- 输入模式切换 ---
-function setInputMode(mode) {
-  if (_inputMode === mode) return;
-  _inputMode = mode;
-  if (mode === 'gamepad') {
-    document.body.classList.add('gamepad-active');
-    _prev = { l: false, r: false, u: false, d: false };
-    updateFocus(getMode()); // 预先填充焦点，避免moveFocus首帧populate后return
-  } else {
-    document.body.classList.remove('gamepad-active');
-    focusElements.forEach(el => el.classList.remove('card--focused'));
-    focusElements = [];
-    focusIndex = 0;
-    releaseCardFloat();
-  }
-}
-
-let _prev = { l: false, r: false, u: false, d: false };
-
-// ========== 主入口 ==========
+// ========== 入口 ==========
 export function initGamepad() {
   if (_gpAnimFrame) return;
 
-  const db = createDebouncer();
+  const btnA = db(() => {
+    const m = getMode();
+    if (m === 'browse' || m === 'gallery') focusElements[focusIndex]?.click();
+    if (m === 'settings') document.querySelector('.toggle-switch')?.click();
+    if (m === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
+  });
+  const btnB = db(() => {
+    const m = getMode();
+    if (m === 'lightbox')  document.querySelector('.lightbox__close')?.click();
+    if (m === 'slideshow') document.getElementById('sl-exit')?.click();
+    if (m === 'gallery')   document.getElementById('gallery-back')?.click();
+    if (m === 'settings')  document.getElementById('settings-panel')?.classList.remove('settings-panel--open');
+    if (m === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
+  });
+  const btnX = db(() => { if (getMode() === 'lightbox') document.getElementById('rating-fav')?.click(); });
+  const btnY = db(() => { document.getElementById('tb-slideshow')?.click(); });
+  const btnLB = db(() => {
+    const m = getMode();
+    if (m === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
+    if (m === 'slideshow') document.getElementById('sl-prev')?.click();
+  });
+  const btnRB = db(() => {
+    const m = getMode();
+    if (m === 'lightbox')  document.querySelector('.lightbox__next')?.click();
+    if (m === 'slideshow') document.getElementById('sl-next')?.click();
+  });
+  const btnLT = db(() => { if (getMode() === 'lightbox') document.querySelector('.rating__star[data-v="1"]')?.click(); });
+  const btnRT = db(() => { if (getMode() === 'lightbox') document.querySelector('.rating__star[data-v="5"]')?.click(); });
+  const btnLS = db(() => { if (getMode() === 'slideshow') document.getElementById('sl-pause')?.click(); });
+  const btnStart = db(() => { document.getElementById('tb-settings')?.click(); });
+  const btnBack = db(() => { document.getElementById('tb-shortcuts')?.click(); });
 
-  // 鼠标移动 → 切回鼠标模式
   document.addEventListener('mousemove', () => {
     if (_inputMode === 'gamepad') setInputMode('mouse');
   }, { passive: true });
@@ -146,79 +154,38 @@ export function initGamepad() {
   function poll() {
     const gamepads = navigator.getGamepads();
     let active = null;
-    for (const gp of gamepads) {
-      if (gp?.connected) { active = gp; break; }
-    }
-
-    if (!active) {
-      _gpAnimFrame = requestAnimationFrame(poll);
-      return;
-    }
+    for (const gp of gamepads) { if (gp?.connected) { active = gp; break; } }
+    if (!active) { _gpAnimFrame = requestAnimationFrame(poll); return; }
 
     const map = BUTTONS[detectLayout(active)];
     const mode = getMode();
+    const lx = active.axes[0] || 0;
+    const ly = active.axes[1] || 0;
+    const ry = active.axes[3] || 0;
 
-    // 兼容不同手柄轴映射：飞智等第三方手柄可能轴位置不同
-    const allAxes = active.axes;
-    const lx = (allAxes[0] || 0) || (allAxes[2] || 0);  // X: 轴0或2
-    const ly = (allAxes[1] || 0) || (allAxes[3] || 0);  // Y: 轴1或3
-    const ry = allAxes[3] || allAxes[5] || 0;
-
-    // D-pad（数字方向键）
-    const dL = active.buttons[map.LEFT]?.pressed || active.buttons[14]?.pressed || false;
-    const dR = active.buttons[map.RIGHT]?.pressed || active.buttons[15]?.pressed || false;
-    const dU = active.buttons[map.UP]?.pressed || active.buttons[12]?.pressed || false;
-    const dD = active.buttons[map.DOWN]?.pressed || active.buttons[13]?.pressed || false;
-
-    // 检测手柄输入 → 切换模式
-    const hasInput = Math.abs(lx) > 0.15 || Math.abs(ly) > 0.15 || dL || dR || dU || dD || active.buttons.some(b => b?.pressed);
-    if (hasInput && _inputMode !== 'gamepad') setInputMode('gamepad');
-
-    // ==== 方向移动：边缘检测，低阈值 ====
-    const T = 0.25;
-    const cur = {
-      l: dL || lx < -T,
-      r: dR || lx > T,
-      u: dU || ly < -T,
-      d: dD || ly > T,
-    };
-    // 方向指示器（确保检测生效）
-    let dot = document.getElementById('gp-dir');
-    if (!dot) {
-      dot = document.createElement('div');
-      dot.id = 'gp-dir';
-      dot.style.cssText = 'position:fixed;bottom:40px;right:40px;z-index:99999;font:12px monospace;color:rgba(200,168,124,0.6);background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:4px;pointer-events:none;';
-      document.body.appendChild(dot);
-    }
-    let moved = 0;
-    if (cur.l && !_prev.l) {
-      if (mode === 'browse' || mode === 'gallery') { moveFocus('left', mode); moved = 1; }
-      if (mode === 'lightbox' || mode === 'slideshow') {
-        if (mode === 'lightbox') { document.querySelector('.lightbox__prev')?.click(); moved = 1; }
-        if (mode === 'slideshow') { document.getElementById('sl-prev')?.click(); moved = 1; }
-      }
-    }
-    if (cur.r && !_prev.r) {
-      if (mode === 'browse' || mode === 'gallery') { moveFocus('right', mode); moved = 2; }
-      if (mode === 'lightbox' || mode === 'slideshow') {
-        if (mode === 'lightbox') { document.querySelector('.lightbox__next')?.click(); moved = 2; }
-        if (mode === 'slideshow') { document.getElementById('sl-next')?.click(); moved = 2; }
-      }
-    }
-    if (cur.u && !_prev.u) {
-      if (mode === 'browse' || mode === 'gallery') { moveFocus('up', mode); moved = 3; }
-    }
-    if (cur.d && !_prev.d) {
-      if (mode === 'browse' || mode === 'gallery') { moveFocus('down', mode); moved = 4; }
+    // 输入检测 → 切换模式
+    if ((Math.abs(lx) > 0.15 || Math.abs(ly) > 0.15 || active.buttons.some(b => b?.pressed)) && _inputMode !== 'gamepad') {
+      setInputMode('gamepad');
     }
 
-    dot.textContent = `←${cur.l?'█':'·'} ↑${cur.u?'█':'·'} ↓${cur.d?'█':'·'} →${cur.r?'█':'·'} #${focusIndex}/${focusElements.length} ${_dbg||'c'+(_cols||'?')} ${moved?'M'+moved:''}`;
+    // ==== 方向移动：冷却计时器，150ms触发一次，可按住连续移动 ====
+    const T = 0.4;
+    const dirX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
+    const dirY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
+    const dx = Math.sign(dirX); // -1, 0, 1
+    const dy = Math.sign(dirY);
 
-    _prev = cur;
+    if ((dx !== 0 || dy !== 0) && _moveCooldown <= 0) {
+      if (dx < 0) moveFocus('left', mode);
+      if (dx > 0) moveFocus('right', mode);
+      if (dy < 0) moveFocus('up', mode);
+      if (dy > 0) moveFocus('down', mode);
+      _moveCooldown = 8; // 8帧 ≈ 130ms at 60fps
+    }
+    if (_moveCooldown > 0) _moveCooldown--;
 
     // ==== 卡片浮游 ====
-    const shouldFloat = (mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08);
-    if (shouldFloat) {
+    if ((mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08)) {
       const card = focusElements[focusIndex];
       if (card && card !== _floatCard) { releaseCardFloat(); _floatCard = card; }
       if (card) injectCardFloat(card, lx, ly);
@@ -226,55 +193,25 @@ export function initGamepad() {
       releaseCardFloat();
     }
 
-    // ==== 动作按钮 ====
-    if (db('a', active.buttons[map.A]?.pressed)) {
-      if (mode === 'browse' || mode === 'gallery') focusElements[focusIndex]?.click();
-      if (mode === 'settings') document.querySelector('.toggle-switch')?.click();
-      if (mode === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
-    }
-    if (db('b', active.buttons[map.B]?.pressed)) {
-      if (mode === 'lightbox')  document.querySelector('.lightbox__close')?.click();
-      if (mode === 'slideshow') document.getElementById('sl-exit')?.click();
-      if (mode === 'gallery')   document.getElementById('gallery-back')?.click();
-      if (mode === 'settings')  document.getElementById('settings-panel')?.classList.remove('settings-panel--open');
-      if (mode === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
-    }
-    if (db('x', active.buttons[map.X]?.pressed)) {
-      if (mode === 'lightbox') document.getElementById('rating-fav')?.click();
-    }
-    if (db('y', active.buttons[map.Y]?.pressed)) {
-      document.getElementById('tb-slideshow')?.click();
-    }
-    if (db('lb', active.buttons[map.LB]?.pressed)) {
-      if (mode === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
-      if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
-    }
-    if (db('rb', active.buttons[map.RB]?.pressed)) {
-      if (mode === 'lightbox')  document.querySelector('.lightbox__next')?.click();
-      if (mode === 'slideshow') document.getElementById('sl-next')?.click();
-    }
-    if (db('lt', active.buttons[map.LT]?.pressed)) {
-      if (mode === 'lightbox') document.querySelector('.rating__star[data-v="1"]')?.click();
-    }
-    if (db('rt', active.buttons[map.RT]?.pressed)) {
-      if (mode === 'lightbox') document.querySelector('.rating__star[data-v="5"]')?.click();
-    }
-    if (db('ls', active.buttons[map.LS]?.pressed)) {
-      if (mode === 'slideshow') document.getElementById('sl-pause')?.click();
-    }
-    if (db('start', active.buttons[map.START]?.pressed)) {
-      document.getElementById('tb-settings')?.click();
-    }
-    if (db('back', active.buttons[map.BACK]?.pressed)) {
-      document.getElementById('tb-shortcuts')?.click();
-    }
+    // ==== 按钮 ====
+    btnA(active.buttons[map.A]?.pressed);
+    btnB(active.buttons[map.B]?.pressed);
+    btnX(active.buttons[map.X]?.pressed);
+    btnY(active.buttons[map.Y]?.pressed);
+    btnLB(active.buttons[map.LB]?.pressed);
+    btnRB(active.buttons[map.RB]?.pressed);
+    btnLT(active.buttons[map.LT]?.pressed);
+    btnRT(active.buttons[map.RT]?.pressed);
+    btnLS(active.buttons[map.LS]?.pressed);
+    btnStart(active.buttons[map.START]?.pressed);
+    btnBack(active.buttons[map.BACK]?.pressed);
 
     // ==== 右摇杆缩放 ====
     if (mode === 'lightbox' && Math.abs(ry) > 0.15) {
       document.getElementById('lightbox')?.dispatchEvent(new WheelEvent('wheel', { deltaY: -ry * 50, bubbles: true }));
     }
 
-    // ==== 模式变化刷新焦点 ====
+    // ==== 模式变化 → 刷新焦点 ====
     if (_lastMode !== mode) {
       _lastMode = mode;
       focusIndex = 0;
@@ -284,13 +221,10 @@ export function initGamepad() {
     _gpAnimFrame = requestAnimationFrame(poll);
   }
 
-  window.addEventListener('gamepadconnected', (e) => {
+  window.addEventListener('gamepadconnected', () => {
     if (!_gpAnimFrame) _gpAnimFrame = requestAnimationFrame(poll);
   });
-
-  window.addEventListener('gamepaddisconnected', () => {
-    setInputMode('mouse');
-  });
+  window.addEventListener('gamepaddisconnected', () => setInputMode('mouse'));
 
   _gpAnimFrame = requestAnimationFrame(poll);
 }
