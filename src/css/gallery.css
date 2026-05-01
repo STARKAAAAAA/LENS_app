@@ -87,7 +87,7 @@
     /* 暗色叠加层（替代 filter，性能更好） */
     &::after {
       content: '';
-      position: absolute; inset: 0;
+      position: absolute; inset: -1px;
       background: rgba(0,0,0,0.35);
       border-radius: inherit;
       pointer-events: none;
@@ -351,7 +351,7 @@
     }
 
     & .gallery__item-overlay {
-      position: absolute; inset: 0;
+      position: absolute; inset: -1px;
       background:
         linear-gradient(to top,
           rgba(0,0,0,0.7) 0%,
@@ -408,7 +408,7 @@
   .gallery__item::before {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: -1px;
     z-index: 4;
     pointer-events: none;
     border-radius: inherit;
