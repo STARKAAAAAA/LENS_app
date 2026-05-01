@@ -57,7 +57,7 @@ function countCols(selector) {
   return set.size || 1;
 }
 
-function moveFocus(dir, mode, useGlow) {
+function moveFocus(dir, mode) {
   if (focusElements.length === 0) { updateFocus(mode); if (focusElements.length === 0) return; }
   let stepH = 1; // 水平步长（同行/同列内的相邻）
   let stepV = 1; // 垂直步长（跨行/跨列）
@@ -79,8 +79,8 @@ function moveFocus(dir, mode, useGlow) {
   }
   updateFocus(mode);
 
-  // 仅方向键触发光晕（卡片::before，跟鼠标悬浮一样大）
-  if (useGlow && prevIdx !== focusIndex) {
+  // 触发光晕（卡片::before，跟鼠标悬浮一样大）
+  if (prevIdx !== focusIndex) {
     const card = focusElements[focusIndex];
     if (card) {
       card.classList.add('card--tilt-active');
@@ -199,12 +199,10 @@ export function initGamepad() {
     const dx = Math.abs(lx) < DEAD && !active.buttons[map.LEFT]?.pressed && !active.buttons[map.RIGHT]?.pressed ? 0 : rawX;
     const dy = Math.abs(ly) < DEAD && !active.buttons[map.UP]?.pressed && !active.buttons[map.DOWN]?.pressed ? 0 : rawY;
 
-    const isDpad = active.buttons[map.LEFT]?.pressed || active.buttons[map.RIGHT]?.pressed || active.buttons[map.UP]?.pressed || active.buttons[map.DOWN]?.pressed;
-
-    if (dx < 0 && _prevDX >= 0) moveFocus('left', mode, isDpad);
-    if (dx > 0 && _prevDX <= 0) moveFocus('right', mode, isDpad);
-    if (dy < 0 && _prevDY >= 0) moveFocus('up', mode, isDpad);
-    if (dy > 0 && _prevDY <= 0) moveFocus('down', mode, isDpad);
+    if (dx < 0 && _prevDX >= 0) moveFocus('left', mode);
+    if (dx > 0 && _prevDX <= 0) moveFocus('right', mode);
+    if (dy < 0 && _prevDY >= 0) moveFocus('up', mode);
+    if (dy > 0 && _prevDY <= 0) moveFocus('down', mode);
 
     _prevDX = dx;
     _prevDY = dy;
