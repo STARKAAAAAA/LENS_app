@@ -47,18 +47,18 @@ function updateFocus(mode) {
 }
 
 function getGridCols() {
-  const container = document.getElementById('categories');
-  if (!container) return 1;
-  // 直接用浏览器解析后的 grid-template-columns 列数
-  // (repeat(auto-fill,...) 会被展开为实际 track 值)
-  const tracks = getComputedStyle(container).gridTemplateColumns;
-  const cols = tracks.split(' ').length;
-  if (cols > 1) return cols;
-  // 兜底：容器宽/卡片宽
-  const card = container.querySelector('.category-card');
-  if (!card) return 1;
-  const gap = parseFloat(getComputedStyle(container).gap) || 16;
-  return Math.max(1, Math.floor((container.clientWidth + gap) / (card.offsetWidth + gap)));
+  // 数第一行有几张卡：top 值相同的即为同行
+  const cards = document.querySelectorAll('.category-card');
+  if (cards.length < 2) return 1;
+  const top0 = cards[0].getBoundingClientRect().top;
+  let cols = 0;
+  for (const card of cards) {
+    if (Math.abs(card.getBoundingClientRect().top - top0) <= 1) cols++;
+    else break;
+  }
+  // 如果全部同一行，列数=卡片总数（或容器CSS grid列数兜底）
+  if (cols === cards.length && cols > 1) return cols;
+  return Math.max(1, cols);
 }
 
 let _cols = 0;
