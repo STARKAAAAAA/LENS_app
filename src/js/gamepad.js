@@ -192,10 +192,23 @@ export function initGamepad() {
     const rx = active.axes[2] || 0;
     const ry = active.axes[3] || 0;
 
-    // DEBUG: 每秒输出一次轴数据，帮助定位左右失效问题
+    // 屏幕调试面板（每2秒刷新）
     if (!active._debugTime || Date.now() - active._debugTime > 2000) {
       active._debugTime = Date.now();
-      console.log(`[LENS] gamepad mode:${mode} layout:${layout} axes:[${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}] dpad btns:[UP:${active.buttons[map.UP]?.pressed},DOWN:${active.buttons[map.DOWN]?.pressed},LEFT:${active.buttons[map.LEFT]?.pressed},RIGHT:${active.buttons[map.RIGHT]?.pressed}] cols:${_lastCols||'?'}`);
+      let dbg = document.getElementById('gp-debug');
+      if (!dbg) {
+        dbg = document.createElement('div');
+        dbg.id = 'gp-debug';
+        dbg.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;font:11px monospace;color:#0f0;background:rgba(0,0,0,0.85);padding:6px 10px;border-radius:6px;pointer-events:none;line-height:1.4;';
+        document.body.appendChild(dbg);
+      }
+      dbg.textContent = `AXES: [${lx.toFixed(2)} ${ly.toFixed(2)} ${rx.toFixed(2)} ${ry.toFixed(2)}] | DPAD: ←${active.buttons[map.LEFT]?.pressed||0} ↑${active.buttons[map.UP]?.pressed||0} ↓${active.buttons[map.DOWN]?.pressed||0} →${active.buttons[map.RIGHT]?.pressed||0} | COLS:${_lastCols} FOCUS:${focusIndex}/${focusElements.length} MODE:${mode}`;
+    }
+
+    // 检测到按 BACK+START 同时按住 → 关闭调试面板
+    if (active.buttons[map.BACK]?.pressed && active.buttons[map.START]?.pressed) {
+      const dbg = document.getElementById('gp-debug');
+      if (dbg) { dbg.remove(); }
     }
 
     // D-pad
