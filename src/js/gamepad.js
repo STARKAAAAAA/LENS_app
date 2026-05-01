@@ -42,15 +42,15 @@ function updateFocus(mode) {
 
 function getGridCols() {
   if (focusElements.length < 2) return 1;
-  // 用两张相邻卡片的 offsetTop 是否相同判断是否在同一行，从而推算列数
-  const top0 = focusElements[0].getBoundingClientRect().top;
-  let cols = 1;
-  for (let i = 1; i < focusElements.length; i++) {
-    if (Math.abs(focusElements[i].getBoundingClientRect().top - top0) > 2) break;
-    cols = i + 1;
-  }
-  if (cols === focusElements.length) cols = 1; // 全部同一行：单列或首行恰好满
-  return cols || 1;
+  const container = document.getElementById('categories');
+  if (!container) return 1;
+  const card = focusElements[0];
+  if (!card) return 1;
+  const cardW = card.offsetWidth;
+  const containerW = container.clientWidth;
+  const gap = parseFloat(getComputedStyle(container).gap) || 16;
+  const cols = Math.max(1, Math.floor((containerW + gap) / (cardW + gap)));
+  return cols;
 }
 
 function moveFocus(direction, mode) {
