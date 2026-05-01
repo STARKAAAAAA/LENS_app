@@ -45,7 +45,7 @@ function updateFocus(mode) {
   if (focusElements.length === 0) { focusIndex = 0; return; }
   focusIndex = Math.min(focusIndex, focusElements.length - 1);
   focusElements[focusIndex]?.classList.add('card--focused');
-  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 // 计数列数：offsetLeft 去重
@@ -82,23 +82,27 @@ function moveFocus(dir, mode) {
   const card = focusElements[focusIndex];
   if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
 
-  // 光晕从移动方向扫入中心
+  // 光晕从移动方向扫入中心（rAF 驱动）
   const from = {
     left: { x: 80, y: 50 }, right: { x: 20, y: 50 },
     up: { x: 50, y: 80 }, down: { x: 50, y: 20 },
   }[dir] || { x: 50, y: 50 };
-  // 设置起始位置（方向侧）
-  card.style.setProperty('--shine-x', from.x + '%');
-  card.style.setProperty('--shine-y', from.y + '%');
   card.classList.add('card--tilt-active');
-  // 下一帧动画到中心，CSS transition 自动过渡
-  requestAnimationFrame(() => {
-    card.style.setProperty('--shine-x', '50%');
-    card.style.setProperty('--shine-y', '50%');
-  });
-  setTimeout(() => {
-    card.classList.remove('card--tilt-active');
-  }, 600);
+  let frame = 0;
+  const totalFrames = 30; // ~0.5s at 60fps
+  function animateShine() {
+    frame++;
+    const p = Math.min(frame / totalFrames, 1);
+    const e = 1 - Math.pow(1 - p, 3); // ease-out
+    card.style.setProperty('--shine-x', (from.x + (50 - from.x) * e) + '%');
+    card.style.setProperty('--shine-y', (from.y + (50 - from.y) * e) + '%');
+    if (p < 1) {
+      requestAnimationFrame(animateShine);
+    } else {
+      setTimeout(() => card.classList.remove('card--tilt-active'), 200);
+    }
+  }
+  requestAnimationFrame(animateShine);
 }
 
 // --- 去抖（按钮用） ---
