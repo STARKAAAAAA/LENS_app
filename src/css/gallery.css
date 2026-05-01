@@ -107,6 +107,7 @@
 
     & .category-card__img {
       width: 100%; height: 100%; object-fit: cover;
+      border-radius: inherit;
       transition: transform 1.8s var(--ease-out);
     }
 
@@ -341,6 +342,7 @@
 
     & img {
       width: 100%; height: auto; display: block;
+      border-radius: inherit;
       transition: transform 1.4s var(--ease-out);
     }
 
@@ -422,13 +424,6 @@
 
   .card--tilt-active::before {
     opacity: 1;
-  }
-
-  /* 浮游时遮罩层外扩1px防止边缘漏光 */
-  .card--tilt-active .gallery__item-overlay,
-  .card--tilt-active::after,
-  .card--tilt-active .category-card__label {
-    inset: -1px;
   }
 
   /* 密度切换：遮罩转场 */
