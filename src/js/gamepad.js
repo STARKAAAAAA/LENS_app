@@ -82,27 +82,34 @@ function moveFocus(dir, mode) {
   const card = focusElements[focusIndex];
   if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
 
-  // 光晕从移动方向扫入中心（rAF 驱动）
-  const from = {
-    left: { x: 80, y: 50 }, right: { x: 20, y: 50 },
-    up: { x: 50, y: 80 }, down: { x: 50, y: 20 },
-  }[dir] || { x: 50, y: 50 };
-  card.classList.add('card--tilt-active');
-  let frame = 0;
-  const totalFrames = 30; // ~0.5s at 60fps
-  function animateShine() {
-    frame++;
-    const p = Math.min(frame / totalFrames, 1);
-    const e = 1 - Math.pow(1 - p, 3); // ease-out
-    card.style.setProperty('--shine-x', (from.x + (50 - from.x) * e) + '%');
-    card.style.setProperty('--shine-y', (from.y + (50 - from.y) * e) + '%');
-    if (p < 1) {
-      requestAnimationFrame(animateShine);
-    } else {
-      setTimeout(() => card.classList.remove('card--tilt-active'), 200);
-    }
+  // 光晕从旧卡中心飞向新卡中心（复用光点逻辑，换为大光晕）
+  if (focusElements[prevIdx]) {
+    const pr = focusElements[prevIdx].getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    const glow = document.createElement('div');
+    glow.style.cssText = `
+      position:fixed;left:${pr.left + pr.width/2}px;top:${pr.top + pr.height/2}px;
+      z-index:99998;pointer-events:none;
+      width:120px;height:120px;margin-left:-60px;margin-top:-60px;
+      border-radius:50%;
+      background:radial-gradient(circle,
+        rgba(255,245,235,0.25) 0%,
+        rgba(255,220,180,0.10) 40%,
+        transparent 70%
+      );
+      transition:left 0.35s var(--ease-out),top 0.35s var(--ease-out),opacity 0.3s;
+      opacity:0.8;
+    `;
+    document.body.appendChild(glow);
+    requestAnimationFrame(() => {
+      glow.style.left = (cr.left + cr.width/2) + 'px';
+      glow.style.top = (cr.top + cr.height/2) + 'px';
+    });
+    setTimeout(() => {
+      glow.style.opacity = '0';
+      setTimeout(() => glow.remove(), 350);
+    }, 400);
   }
-  requestAnimationFrame(animateShine);
 }
 
 // --- 去抖（按钮用） ---
