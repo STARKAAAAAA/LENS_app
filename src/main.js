@@ -12,6 +12,7 @@ import { renderSidebar, addSavedFolder, removeSavedFolder, createCacheSection, u
 import { buildCategoryCardsDOM, buildGalleryGridDOM, renderGalleryDropdowns, refreshCategoryCards, openCategory, getSortedFilteredPhotos, initCardTilt } from './js/gallery.js';
 import { initLightbox, initSlideshow, loadRatings } from './js/lightbox.js';
 import { initSettingsPanel, initShortcutsPanel } from './js/panels.js';
+import { initGamepad } from './js/gamepad.js';
 
 // ===== App =====
 document.addEventListener('DOMContentLoaded', async () => {
@@ -412,6 +413,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initParallax();
   initScrollReveal();
   initCardTilt();
+  initGamepad();
   updateCacheDisplay();
 
   // ---- UI visibility after startup ----

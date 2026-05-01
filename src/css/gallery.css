@@ -477,4 +477,19 @@
       transform: translateY(0);
     }
   }
+
+  /* ========== 手柄虚拟焦点 ========== */
+  .card--focused {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    z-index: 6;
+  }
+}
+
+body.gamepad-active {
+  cursor: none;
+
+  .card--tilt-active {
+    cursor: none;
+  }
 }
