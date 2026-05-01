@@ -168,21 +168,18 @@ export function initGamepad() {
       setInputMode('gamepad');
     }
 
-    // ==== 方向移动：冷却计时器，150ms触发一次，可按住连续移动 ====
-    const T = 0.4;
-    const dirX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
-    const dirY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
-    const dx = Math.sign(dirX); // -1, 0, 1
-    const dy = Math.sign(dirY);
-
-    if ((dx !== 0 || dy !== 0) && _moveCooldown <= 0) {
+    // ==== 方向移动：每隔6帧触发一次（按住可连续移动） ====
+    _moveCooldown--;
+    if (_moveCooldown <= 0) {
+      const T = 0.35;
+      const dx = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
+      const dy = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
       if (dx < 0) moveFocus('left', mode);
-      if (dx > 0) moveFocus('right', mode);
+      else if (dx > 0) moveFocus('right', mode);
       if (dy < 0) moveFocus('up', mode);
-      if (dy > 0) moveFocus('down', mode);
-      _moveCooldown = 8; // 8帧 ≈ 130ms at 60fps
+      else if (dy > 0) moveFocus('down', mode);
+      if (dx || dy) _moveCooldown = 6;
     }
-    if (_moveCooldown > 0) _moveCooldown--;
 
     // ==== 卡片浮游 ====
     if ((mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08)) {
