@@ -1,0 +1,52 @@
+/* 可动画的网格尺寸变量 */
+@property --thumb-card-size {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 280px;
+}
+
+@layer base {
+  :root {
+    /* 暖黑底色 */
+    --bg: #0a0a08;
+    --bg-deep: #060605;
+    /* 暖金强调色 */
+    --accent: #c8a87c;
+    --accent-dim: rgba(200, 168, 124, 0.15);
+    --accent-glow: rgba(200, 168, 124, 0.06);
+    /* 暖白文字层级 */
+    --text: #e8e4e0;
+    --text-2: #9a948e;
+    --text-3: #5a5450;
+    /* 毛玻璃 — 微暖色调 */
+    --glass-bg: rgba(220, 200, 180, 0.06);
+    --glass-bg-hover: rgba(220, 200, 180, 0.12);
+    --glass-border: rgba(220, 200, 180, 0.10);
+    --glass-border-bright: rgba(220, 200, 180, 0.20);
+    /* 动画 & 圆角 */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --radius: 20px;
+    --radius-sm: 14px;
+    --radius-pill: 100px;
+    /* 网格 */
+    --thumb-card-size: 280px;
+    /* 字体 */
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'Cormorant', Georgia, serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar { display: none; }
+  html { scrollbar-width: none; }
+}

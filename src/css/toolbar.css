@@ -1,0 +1,49 @@
+@layer components {
+  /* ========== 毛玻璃工具栏 ========== */
+  .toolbar {
+    position: fixed; top: 48px; right: 16px; z-index: 100;
+    display: flex; gap: 2px;
+    padding: 5px;
+    background: rgba(220,200,180,0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(220,200,180,0.10);
+    border-radius: var(--radius-pill);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.5s var(--ease-out);
+  }
+  .toolbar--visible { opacity: 1; }
+
+  .toolbar__btn {
+    font-family: var(--font-display);
+    font-size: 0.72rem; font-weight: 400; font-style: italic;
+    letter-spacing: 0.1em; color: rgba(220,200,180,0.45);
+    padding: 7px 20px;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.35s var(--ease-out);
+    opacity: 0; transform: translateX(28px);
+    max-width: 200px;
+    white-space: nowrap;
+  }
+  .toolbar--visible .toolbar__btn {
+    animation: btnSlideIn 0.55s var(--ease-spring) forwards;
+  }
+  .toolbar--visible .toolbar__btn:nth-last-child(1) { animation-delay: 0s; }
+  .toolbar--visible .toolbar__btn:nth-last-child(2) { animation-delay: 0.07s; }
+  .toolbar--visible .toolbar__btn:nth-last-child(3) { animation-delay: 0.14s; }
+  .toolbar--visible .toolbar__btn:nth-last-child(4) { animation-delay: 0.21s; }
+
+  @keyframes btnSlideIn {
+    from { opacity: 0; transform: translateX(28px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .toolbar__btn:hover {
+    color: var(--text);
+    background: rgba(220,200,180,0.10);
+  }
+}

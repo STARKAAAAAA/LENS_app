@@ -1,0 +1,7 @@
+@layer reset {
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; font-size: 16px; }
+  img { display: block; max-width: 100%; }
+  button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
+  a { text-decoration: none; color: inherit; }
+}

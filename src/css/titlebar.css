@@ -1,0 +1,64 @@
+@layer components {
+  /* ====== 自定义标题栏 ====== */
+  .titlebar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 36px;
+    z-index: 9999;
+    -webkit-app-region: drag;
+  }
+  .titlebar--visible {
+    animation: titlebarSlideIn 0.55s var(--ease-out) both;
+  }
+
+  .titlebar__controls {
+    position: fixed;
+    top: 8px; right: 8px;
+    z-index: 10001;
+    display: flex; gap: 0;
+    padding: 3px;
+    background: rgba(220,200,180,0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(220,200,180,0.10);
+    border-radius: 10px;
+    -webkit-app-region: no-drag;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .titlebar__controls.titlebar--visible {
+    animation: titlebarSlideIn 0.55s var(--ease-out) both;
+  }
+
+  .titlebar__btn {
+    width: 32px; height: 26px;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(200,168,124,0.50);
+    background: transparent;
+    border: none;
+    transition: all 0.3s var(--ease-out);
+  }
+  .titlebar__btn:first-child {
+    border-radius: 7px 0 0 7px;
+  }
+  .titlebar__btn:last-child {
+    border-radius: 0 7px 7px 0;
+  }
+  .titlebar__btn:hover {
+    color: var(--accent);
+    background: rgba(220,200,180,0.12);
+  }
+  .titlebar__btn--close:hover {
+    color: #e87070;
+    background: rgba(232,112,112,0.18);
+  }
+
+  /* ====== 标题栏动画 ====== */
+  @keyframes titlebarSlideIn {
+    0% { opacity: 0; transform: translateY(-8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+}
