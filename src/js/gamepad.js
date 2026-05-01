@@ -82,9 +82,11 @@ function moveFocus(dir, mode) {
   const card = focusElements[focusIndex];
   if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
 
-  // 微动弹跳（新卡片）
-  card.classList.add('card--nudge-' + dir);
-  card.addEventListener('animationend', function h() { card.classList.remove('card--nudge-' + dir); card.removeEventListener('animationend', h); }, { once: true });
+  // 微动弹跳（仅browse模式，gallery的CSS columns不适合transform）
+  if (mode === 'browse') {
+    card.classList.add('card--nudge-' + dir);
+    card.addEventListener('animationend', function h() { card.classList.remove('card--nudge-' + dir); card.removeEventListener('animationend', h); }, { once: true });
+  }
 
   // 光点从旧卡中心飞向新卡中心
   if (prev) {
@@ -100,8 +102,8 @@ function moveFocus(dir, mode) {
       position:fixed;left:${fx}px;top:${fy}px;z-index:99999;
       width:16px;height:16px;margin-left:-8px;margin-top:-8px;
       border-radius:50%;pointer-events:none;
-      background:radial-gradient(circle,rgba(255,245,235,0.9) 0%,rgba(255,220,180,0.4) 30%,transparent 70%);
-      box-shadow:0 0 24px rgba(255,220,180,0.5),0 0 60px rgba(255,200,150,0.25);
+      background:radial-gradient(circle,rgba(255,255,255,0.7) 0%,rgba(255,245,235,0.2) 40%,transparent 70%);
+      box-shadow:0 0 20px rgba(255,245,235,0.35),0 0 50px rgba(255,220,180,0.18);
       transition:left 0.35s var(--ease-out),top 0.35s var(--ease-out),opacity 0.2s;
     `;
     document.body.appendChild(dot);
@@ -220,10 +222,14 @@ export function initGamepad() {
       setInputMode('gamepad');
     }
 
-    // ==== 方向移动：上升沿触发（0→非0跳变），推一次移一格 ====
-    const T = 0.35;
-    const dx = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
-    const dy = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
+    // ==== 方向移动：上升沿触发 ====
+    const T = 0.3;
+    const DEAD = 0.15;
+    const rawX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
+    const rawY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
+    // 死区归零：摇杆回到中心附近自动重置边缘检测
+    const dx = Math.abs(lx) < DEAD && !active.buttons[map.LEFT]?.pressed && !active.buttons[map.RIGHT]?.pressed ? 0 : rawX;
+    const dy = Math.abs(ly) < DEAD && !active.buttons[map.UP]?.pressed && !active.buttons[map.DOWN]?.pressed ? 0 : rawY;
 
     if (dx < 0 && _prevDX >= 0) moveFocus('left', mode);
     if (dx > 0 && _prevDX <= 0) moveFocus('right', mode);
