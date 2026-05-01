@@ -21,7 +21,7 @@ let _gpAnimFrame = null;
 let _inputMode = 'mouse';
 let _lastMode = null;
 let _floatCard = null;
-let _moveCooldown = 0; // 方向移动冷却计时器
+let _prevDX = 0, _prevDY = 0; // 上一帧方向值，用于上升沿检测
 
 // --- 模式 ---
 function getMode() {
@@ -83,6 +83,7 @@ function setInputMode(mode) {
   _inputMode = mode;
   if (mode === 'gamepad') {
     document.body.classList.add('gamepad-active');
+    _prevDX = _prevDY = 0;
     updateFocus(getMode());
   } else {
     document.body.classList.remove('gamepad-active');
@@ -168,18 +169,18 @@ export function initGamepad() {
       setInputMode('gamepad');
     }
 
-    // ==== 方向移动：每隔6帧触发一次（按住可连续移动） ====
-    _moveCooldown--;
-    if (_moveCooldown <= 0) {
-      const T = 0.35;
-      const dx = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
-      const dy = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
-      if (dx < 0) moveFocus('left', mode);
-      else if (dx > 0) moveFocus('right', mode);
-      if (dy < 0) moveFocus('up', mode);
-      else if (dy > 0) moveFocus('down', mode);
-      if (dx || dy) _moveCooldown = 6;
-    }
+    // ==== 方向移动：上升沿触发（0→非0跳变），推一次移一格 ====
+    const T = 0.35;
+    const dx = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
+    const dy = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
+
+    if (dx < 0 && _prevDX >= 0) moveFocus('left', mode);
+    if (dx > 0 && _prevDX <= 0) moveFocus('right', mode);
+    if (dy < 0 && _prevDY >= 0) moveFocus('up', mode);
+    if (dy > 0 && _prevDY <= 0) moveFocus('down', mode);
+
+    _prevDX = dx;
+    _prevDY = dy;
 
     // ==== 卡片浮游 ====
     if ((mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08)) {
