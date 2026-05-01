@@ -149,7 +149,7 @@ async fn generate_thumbnails(
         }
 
         map.into_inner().unwrap()
-    }).await.map_err(|e| e.to_string())
+    }).await.map_err(|e| format!("thumbnail generation failed: {e}"))
 }
 
 /// djb2 哈希 — 确定性与平台无关
@@ -165,7 +165,10 @@ fn djb2(s: &str) -> String {
 fn generate_one(original: &str, dest: &PathBuf) {
     let data = match std::fs::read(original) {
         Ok(d) => d,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!("[LENS] thumbnail read failed: {original} — {e}");
+            return;
+        }
     };
 
     // 尝试 turbojpeg 解码（SIMD 加速，比 image crate 快 2-3x）
@@ -178,6 +181,7 @@ fn generate_one(original: &str, dest: &PathBuf) {
         let (w, h) = rgb.dimensions();
         (w, h, rgb.into_raw())
     } else {
+        eprintln!("[LENS] thumbnail decode failed: {original}");
         return;
     };
 
