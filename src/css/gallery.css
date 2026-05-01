@@ -472,16 +472,36 @@
 
   /* ========== 手柄虚拟焦点 ========== */
   .card--focused {
-    outline: 2px solid var(--accent);
-    outline-offset: 4px;
+    outline: 1px solid rgba(200, 168, 124, 0.35);
+    outline-offset: 3px;
     z-index: 6;
 
+    /* 显示hover遮罩层 */
+    & .category-card__info { opacity: 1; }
+    & .category-card__name { translate: 0 0; }
+    & .category-card__count { translate: 0 0; }
+    & .category-card__label { opacity: 0; }
+    & .gallery__item-overlay { opacity: 1; }
+    & .gallery__item-title { opacity: 1; translate: 0 0; }
+
+    /* 图片暗化但不模糊 */
     & img,
     & .category-card__img {
-      filter: brightness(0.55) blur(6px);
+      filter: brightness(0.55);
     }
   }
 }
+
+/* 焦点移动微动动画 */
+.card--nudge-left  { animation: nudgeLeft 0.25s var(--ease-out); }
+.card--nudge-right { animation: nudgeRight 0.25s var(--ease-out); }
+.card--nudge-up    { animation: nudgeUp 0.25s var(--ease-out); }
+.card--nudge-down  { animation: nudgeDown 0.25s var(--ease-out); }
+
+@keyframes nudgeLeft  { 50% { translate: -6px 0; } }
+@keyframes nudgeRight { 50% { translate: 6px 0; } }
+@keyframes nudgeUp    { 50% { translate: 0 -6px; } }
+@keyframes nudgeDown  { 50% { translate: 0 6px; } }
 
 body.gamepad-active {
   cursor: none;

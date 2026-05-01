@@ -77,6 +77,13 @@ function moveFocus(dir, mode) {
     case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
   }
   updateFocus(mode);
+  // 移动方向微动
+  const card = focusElements[focusIndex];
+  if (card) {
+    const cls = `card--nudge-${dir}`;
+    card.classList.add(cls);
+    card.addEventListener('animationend', () => card.classList.remove(cls), { once: true });
+  }
 }
 
 // --- 去抖（按钮用） ---
