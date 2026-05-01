@@ -1,0 +1,210 @@
+@layer components {
+  /* ========== 设置面板 ========== */
+  .settings-panel {
+    position: fixed; top: 90px; right: 16px; z-index: 105;
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 220px;
+    padding: 6px;
+    background: rgba(30,28,26,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 0.5px solid rgba(200,168,124,0.15);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,168,124,0.04) inset;
+    opacity: 0; visibility: hidden;
+    transform: translateY(-8px) scale(0.96);
+    transition: opacity 0.25s var(--ease-out), transform 0.3s var(--ease-out), visibility 0s 0.3s;
+    pointer-events: none;
+  }
+  .settings-panel--open {
+    opacity: 1; visibility: visible;
+    transform: translateY(0) scale(1);
+    transition: opacity 0.25s var(--ease-out), transform 0.3s var(--ease-spring), visibility 0s 0s;
+    pointer-events: auto;
+  }
+  .settings-panel__item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: 10px;
+    transition: background 0.25s ease;
+  }
+  .settings-panel__item:hover {
+    background: rgba(200,168,124,0.06);
+  }
+  .settings-panel__label {
+    font-family: var(--font-body);
+    font-size: 0.78rem; font-weight: 400;
+    color: var(--text-2);
+    letter-spacing: 0.04em;
+  }
+  .settings-panel__divider {
+    height: 1px;
+    margin: 2px 10px;
+    background: rgba(200,168,124,0.08);
+  }
+  .settings-panel__item--col {
+    flex-direction: column; align-items: flex-start; gap: 8px;
+  }
+  .cache-dir-row {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+  }
+  .cache-dir-path {
+    flex: 1; min-width: 0;
+    font-family: var(--font-body);
+    font-size: 0.65rem; color: var(--text-3);
+    letter-spacing: 0.03em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px; padding: 4px 8px;
+  }
+  .cache-dir-btn {
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 0.7rem; font-style: italic; letter-spacing: 0.06em;
+    color: var(--text-2);
+    background: rgba(200,168,124,0.08);
+    border: 0.5px solid rgba(200,168,124,0.12);
+    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+    transition: all 0.3s var(--ease-out);
+  }
+  .cache-dir-btn:hover {
+    color: var(--text);
+    background: rgba(200,168,124,0.14);
+    border-color: rgba(200,168,124,0.22);
+  }
+
+  /* === 自定义开关 === */
+  .toggle-switch {
+    width: 40px; height: 22px; padding: 0; margin: 0;
+    border-radius: 11px;
+    background: rgba(200,168,124,0.12);
+    border: 0.5px solid rgba(200,168,124,0.15);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(220,200,180,0.5);
+    transition: transform 0.3s var(--ease-out), background 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+  }
+  .toggle-switch--on {
+    background: rgba(200,168,124,0.35);
+    border-color: rgba(200,168,124,0.4);
+  }
+  .toggle-switch--on::after {
+    transform: translateX(18px);
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(200,168,124,0.5);
+  }
+
+  /* === 密度按钮组 === */
+  .density-btns {
+    display: flex; gap: 2px;
+    padding: 2px;
+    background: rgba(200,168,124,0.06);
+    border-radius: 8px;
+  }
+  .density-btn {
+    font-family: var(--font-body);
+    font-size: 0.7rem; font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s var(--ease-out);
+    min-width: 28px; text-align: center;
+  }
+  .density-btn:hover {
+    color: var(--text-2);
+    background: rgba(200,168,124,0.08);
+  }
+  .density-btn--active {
+    color: var(--accent);
+    background: rgba(200,168,124,0.14);
+    font-weight: 500;
+  }
+
+  /* ========== 快捷键面板（液态玻璃弹出） ========== */
+  .shortcuts-overlay {
+    position: fixed; inset: 0; z-index: 3000;
+    background: rgba(6,6,5,0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.35s var(--ease-out), visibility 0s 0.35s;
+  }
+  .shortcuts-overlay--open {
+    opacity: 1; visibility: visible;
+    transition: opacity 0.35s var(--ease-out), visibility 0s 0s;
+  }
+  .shortcuts-panel {
+    position: fixed; top: 48px; right: 16px;
+    z-index: 3001;
+    min-width: 280px;
+    background: rgba(30,28,26,0.94);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 0.5px solid rgba(200,168,124,0.18);
+    border-radius: var(--radius);
+    padding: 1.8rem 2.2rem;
+    box-shadow:
+      0 4px 24px rgba(0,0,0,0.5),
+      0 0 0 0.5px rgba(200,168,124,0.08) inset;
+    transform-origin: top right;
+    opacity: 0; transform: scale(0.92) translateY(-6px);
+    transition: opacity 0.35s var(--ease-out), transform 0.55s var(--ease-spring);
+    pointer-events: none;
+  }
+  .shortcuts-overlay--open .shortcuts-panel {
+    opacity: 1; transform: scale(1) translateY(0);
+    pointer-events: auto;
+  }
+  .shortcuts-panel--out {
+    animation: panelDissolve 0.35s var(--ease-out) both;
+  }
+  @keyframes panelDissolve {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to { opacity: 0; transform: scale(0.92) translateY(-6px); }
+  }
+  .shortcuts__title {
+    font-family: var(--font-display);
+    font-size: 1.1rem; font-weight: 300; font-style: italic;
+    letter-spacing: 0.12em; color: var(--text);
+    text-align: center; margin-bottom: 1.2rem;
+  }
+  .shortcuts__grid {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .shortcuts__row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .shortcuts__row kbd {
+    font-family: var(--font-body);
+    font-size: 0.66rem; font-weight: 500; letter-spacing: 0.04em;
+    color: var(--accent);
+    background: rgba(200,168,124,0.1);
+    border: 0.5px solid rgba(200,168,124,0.2);
+    border-radius: 5px;
+    padding: 2px 8px; min-width: 24px; text-align: center;
+    white-space: nowrap;
+  }
+  .shortcuts__row span {
+    font-family: var(--font-body);
+    font-size: 0.76rem; color: var(--text-2);
+    letter-spacing: 0.04em;
+    flex: 1; text-align: right;
+  }
+  .shortcuts__hint {
+    font-family: var(--font-body);
+    font-size: 0.62rem; color: var(--text-3);
+    letter-spacing: 0.06em;
+    text-align: center; margin-top: 1rem;
+  }
+}

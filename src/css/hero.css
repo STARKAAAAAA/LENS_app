@@ -1,0 +1,117 @@
+@layer components {
+  /* ========== Hero ========== */
+  .hero {
+    position: relative;
+    width: 100%; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+
+    & .hero__slides {
+      position: absolute; inset: -30px;
+
+      &.hero__slides--out .hero__slide {
+        opacity: 0 !important;
+        transition: opacity 0.35s var(--ease-out) !important;
+      }
+    }
+
+    & .hero__slide {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      opacity: 0;
+      transition: opacity 3s ease;
+
+      &.active { opacity: 1; }
+    }
+
+    & .hero__overlay {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 35%, transparent 0%, rgba(6,6,5,0.35) 55%, rgba(6,6,5,0.82) 100%),
+        linear-gradient(to bottom, rgba(6,6,5,0.25) 0%, transparent 25%, transparent 65%, var(--bg) 100%);
+    }
+
+    & .hero__content {
+      position: relative; z-index: 2; text-align: center;
+      transition: opacity 0.6s var(--ease-out);
+
+      &.hero__content--corner { opacity: 0; pointer-events: none; }
+    }
+
+    & .hero__title {
+      font-family: var(--font-display);
+      font-size: clamp(5rem, 15vw, 14rem);
+      font-weight: 300;
+      letter-spacing: 0.4em; text-indent: 0.4em;
+      text-transform: uppercase; line-height: 1;
+      color: transparent;
+      background: linear-gradient(180deg,
+        rgba(255,245,235,1) 0%,
+        rgba(220,200,175,0.85) 40%,
+        rgba(180,155,130,0.25) 100%);
+      -webkit-background-clip: text; background-clip: text;
+      opacity: 0; transform: translateY(40px); scale: 1.05;
+      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
+      will-change: transform, opacity;
+
+      &::after {
+        content: '';
+        display: block;
+        width: 100px; height: 1px;
+        margin: 1.6rem auto 0;
+        background: linear-gradient(90deg, transparent, rgba(220,200,180,0.35), rgba(220,200,180,0.35), transparent);
+        opacity: var(--line-opacity, 0);
+        transform: scaleX(var(--line-scale, 0));
+        will-change: transform, opacity;
+      }
+
+      &.hero__title--corner {
+        opacity: 0 !important; pointer-events: none;
+        transition: opacity 0.5s ease;
+        &::after { opacity: 0; transition: opacity 0.3s ease; }
+      }
+    }
+
+    & .hero__subtitle {
+      font-family: var(--font-display);
+      font-size: clamp(0.8rem, 1.4vw, 1rem);
+      font-weight: 300; font-style: italic;
+      letter-spacing: 0.35em; text-indent: 0.35em;
+      color: rgba(220,200,180,0.3);
+      text-transform: none;
+      margin-top: 2em;
+      opacity: 0; transform: translateY(20px);
+    }
+
+    /* 毛玻璃滚动胶囊 */
+    & .hero__scroll {
+      position: absolute; bottom: 2.5rem; left: 50%; z-index: 2;
+      transform: translateX(-50%);
+      opacity: 0;
+      width: 30px; height: 52px;
+      border-radius: 15px;
+      background: rgba(220,200,180,0.06);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 0.5px solid rgba(220,200,180,0.12);
+      display: flex; align-items: flex-end; justify-content: center;
+      padding-bottom: 10px;
+      transition: all 0.5s var(--ease-out);
+      will-change: transform, opacity;
+
+      & .hero__scroll-line {
+        display: block; width: 1px; height: 18px;
+        border-radius: 1px;
+        background: rgba(220,200,180,0.4);
+        transform-origin: top;
+        position: relative; z-index: 1;
+      }
+
+      &:hover {
+        background: rgba(220,200,180,0.12);
+        border-color: rgba(220,200,180,0.22);
+        box-shadow: 0 0 30px rgba(220,200,180,0.04);
+      }
+    }
+  }
+}

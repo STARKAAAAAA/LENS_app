@@ -1,0 +1,29 @@
+/* ========== 响应式 ========== */
+@layer utilities {
+  @media (max-width: 1024px) {
+    .categories { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .gallery__grid { columns: 2; }
+    .portfolio { padding: 7rem 2rem 5rem; }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { width: 200px; left: 6px; top: 10px; bottom: 10px; }
+    #dir-label { max-width: 35vw; }
+    .portfolio { padding: 5rem 1.5rem 3rem; }
+  }
+
+  @media (max-width: 640px) {
+    .sidebar { width: 180px; left: 4px; top: 6px; bottom: 6px; border-radius: 16px; }
+    .sidebar.sidebar--open { transform: translateX(0); }
+    #dir-label { max-width: 30vw; font-size: 0.6rem; }
+    .portfolio { padding: 5rem 1rem 3rem; }
+    .categories { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .category-card { aspect-ratio: 1 / 1.2; border-radius: 16px; }
+    .gallery__grid { columns: 1; }
+    .hero__title { letter-spacing: 0.25em; text-indent: 0.25em; }
+    .hero__subtitle { letter-spacing: 0.35em; text-indent: 0.35em; }
+    .lightbox__prev { left: 0.5rem; }
+    .lightbox__next { right: 0.5rem; }
+    .toolbar { top: 38px; right: 4px; }
+  }
+}
