@@ -9,7 +9,7 @@ import { initTitlebar } from './js/titlebar.js';
 import { loadToggles, saveToggles, migrateToggles, applyTogglesUI } from './js/toggles.js';
 import { showLoadingScreen, updateLoadingScreen, hideLoadingScreen, playStartupSequence } from './js/loading.js';
 import { renderSidebar, addSavedFolder, removeSavedFolder, createCacheSection, updateCacheDisplay } from './js/sidebar.js';
-import { buildCategoryCardsDOM, buildGalleryGridDOM, renderGalleryDropdowns, refreshCategoryCards, openCategory, getSortedFilteredPhotos } from './js/gallery.js';
+import { buildCategoryCardsDOM, buildGalleryGridDOM, renderGalleryDropdowns, refreshCategoryCards, openCategory, getSortedFilteredPhotos, initCardTilt } from './js/gallery.js';
 import { initLightbox, initSlideshow, loadRatings } from './js/lightbox.js';
 import { initSettingsPanel, initShortcutsPanel } from './js/panels.js';
 
@@ -411,6 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSlideshow({ getPhotos: () => state.data.photos });
   initParallax();
   initScrollReveal();
+  initCardTilt();
   updateCacheDisplay();
 
   // ---- UI visibility after startup ----

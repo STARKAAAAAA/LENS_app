@@ -374,3 +374,86 @@ export async function openCategory(cat, ctx) {
   state.categoryTransitioning = false;
   window.scrollTo({ top: galleryEl.offsetTop - 40, behavior: 'smooth' });
 }
+
+// ========== Apple TV-style 3D card tilt & shine ==========
+
+const TILT_CONFIG = {
+  maxTilt: 8,
+  perspective: 900,
+  lift: 4,
+  scale: 1.015,
+};
+
+let _tiltInitialized = false;
+
+export function initCardTilt() {
+  if (_tiltInitialized) return;
+  if (!window.matchMedia('(hover: hover)').matches) return;
+
+  const containers = [
+    document.getElementById('categories'),
+    document.getElementById('gallery-grid'),
+  ].filter(Boolean);
+  if (containers.length === 0) return;
+
+  let ticking = false;
+  let pendingCard = null, pendingClientX = 0, pendingClientY = 0;
+
+  function applyTilt(card, clientX, clientY) {
+    const rect = card.getBoundingClientRect();
+    const halfW = rect.width / 2, halfH = rect.height / 2;
+    const cx = rect.left + halfW, cy = rect.top + halfH;
+    const nx = Math.max(-1, Math.min(1, (clientX - cx) / halfW));
+    const ny = Math.max(-1, Math.min(1, (clientY - cy) / halfH));
+    const { maxTilt, perspective, lift, scale } = TILT_CONFIG;
+    const ry = nx * maxTilt;
+    const rx = -ny * maxTilt;
+    const tx = nx * lift;
+    const ty = ny * lift;
+    card.style.transform =
+      `perspective(${perspective}px) ` +
+      `rotateX(${rx}deg) rotateY(${ry}deg) ` +
+      `translateX(${tx}px) translateY(${ty}px) ` +
+      `scale3d(${scale}, ${scale}, 1)`;
+    card.style.setProperty('--shine-x', ((clientX - rect.left) / rect.width) * 100 + '%');
+    card.style.setProperty('--shine-y', ((clientY - rect.top) / rect.height) * 100 + '%');
+  }
+
+  function onMouseMove(e) {
+    const card = e.target.closest('.category-card, .gallery__item');
+    if (!card || !card.classList.contains('card--tilt-active')) return;
+    pendingCard = card; pendingClientX = e.clientX; pendingClientY = e.clientY;
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        if (pendingCard) applyTilt(pendingCard, pendingClientX, pendingClientY);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }
+
+  function onMouseOver(e) {
+    const card = e.target.closest('.category-card, .gallery__item');
+    if (!card) return;
+    if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+    card.classList.add('card--tilt-active');
+    applyTilt(card, e.clientX, e.clientY);
+  }
+
+  function onMouseOut(e) {
+    const card = e.target.closest('.category-card, .gallery__item');
+    if (!card) return;
+    if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+    card.classList.remove('card--tilt-active');
+    card.style.transform = '';
+    card.style.setProperty('--shine-x', '50%');
+    card.style.setProperty('--shine-y', '50%');
+  }
+
+  containers.forEach(c => {
+    c.addEventListener('mousemove', onMouseMove, { passive: true });
+    c.addEventListener('mouseover', onMouseOver, { passive: true });
+    c.addEventListener('mouseout', onMouseOut, { passive: true });
+  });
+  _tiltInitialized = true;
+}

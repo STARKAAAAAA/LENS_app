@@ -4,7 +4,7 @@
     padding: 8rem 3rem 6rem;
     max-width: 1500px; margin: 0 auto;
     position: relative; z-index: 1;
-    contain: layout style paint;
+    contain: layout style;
 
     &::before {
       content: '';
@@ -63,6 +63,7 @@
     grid-template-columns: repeat(auto-fill, minmax(var(--thumb-card-size, 280px), 1fr));
     gap: 16px;
     position: relative; z-index: 2;
+    perspective: 1200px;
     opacity: 1;
     transition: opacity 0.35s var(--ease-out);
 
@@ -76,6 +77,7 @@
     aspect-ratio: 4 / 5;
     overflow: hidden; cursor: pointer;
     border-radius: var(--radius);
+    transform-style: preserve-3d;
     background: rgba(220,200,180,0.015);
     border: 0.5px solid rgba(220,200,180,0.05);
     transition:
@@ -330,13 +332,15 @@
   .gallery__grid {
     position: relative; overflow: hidden;
     columns: 3; column-gap: 10px;
-
+    perspective: 1000px;
   }
 
   .gallery__item {
     break-inside: avoid; margin-bottom: 10px;
     position: relative; overflow: hidden; cursor: pointer;
     border-radius: var(--radius-sm);
+    transition: transform 0.6s var(--ease-out);
+    transform-style: preserve-3d;
     animation: itemIn 0.8s var(--ease-out) both;
 
     & img {
@@ -377,9 +381,51 @@
 
   }
 
+  /* 3D tilt active -- disables transform transition for instant tracking */
+  .category-card.card--tilt-active {
+    transition: box-shadow 0.6s ease, border-color 0.5s ease;
+    will-change: transform;
+    z-index: 5;
+  }
+
+  .gallery__item.card--tilt-active {
+    transition: none;
+    will-change: transform;
+    z-index: 5;
+  }
+
+  /* Reduce inner image zoom during tilt to avoid double-scaling */
+  .gallery__item.card--tilt-active:hover img {
+    transform: scale(1.02);
+    transition: transform 0.6s var(--ease-out);
+  }
+
   @keyframes itemIn {
     from { opacity: 0; translate: 0 24px; }
     to { opacity: 1; translate: 0 0; }
+  }
+
+  /* ========== 3D Tilt Shine Overlay ========== */
+  .category-card::before,
+  .gallery__item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(
+      circle at var(--shine-x, 50%) var(--shine-y, 50%),
+      rgba(255, 245, 235, 0.18) 0%,
+      rgba(255, 245, 235, 0.06) 30%,
+      transparent 60%
+    );
+  }
+
+  .card--tilt-active::before {
+    opacity: 1;
   }
 
   /* 密度切换：遮罩转场 */
