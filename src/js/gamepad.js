@@ -45,6 +45,7 @@ function updateFocus(mode) {
   if (focusElements.length === 0) { focusIndex = 0; return; }
   focusIndex = Math.min(focusIndex, focusElements.length - 1);
   focusElements[focusIndex]?.classList.add('card--focused');
+  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 }
 
 // 计数列数：offsetLeft 去重
@@ -81,11 +82,23 @@ function moveFocus(dir, mode) {
   const card = focusElements[focusIndex];
   if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
 
-  // 移动到新卡片后短暂触发光晕（模仿鼠标悬浮的::before光泽）
+  // 光晕从移动方向扫入中心
+  const from = {
+    left: { x: 80, y: 50 }, right: { x: 20, y: 50 },
+    up: { x: 50, y: 80 }, down: { x: 50, y: 20 },
+  }[dir] || { x: 50, y: 50 };
+  // 设置起始位置（方向侧）
+  card.style.setProperty('--shine-x', from.x + '%');
+  card.style.setProperty('--shine-y', from.y + '%');
   card.classList.add('card--tilt-active');
+  // 下一帧动画到中心，CSS transition 自动过渡
+  requestAnimationFrame(() => {
+    card.style.setProperty('--shine-x', '50%');
+    card.style.setProperty('--shine-y', '50%');
+  });
   setTimeout(() => {
     card.classList.remove('card--tilt-active');
-  }, 500);
+  }, 600);
 }
 
 // --- 去抖（按钮用） ---
