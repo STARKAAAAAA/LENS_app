@@ -70,6 +70,7 @@ function moveFocus(dir, mode) {
     stepH = Math.max(1, Math.round(focusElements.length / countCols('.gallery__item')));
     stepV = 1;
   }
+  const prevIdx = focusIndex;
   switch (dir) {
     case 'left':  focusIndex = Math.max(0, focusIndex - stepH); break;
     case 'right': focusIndex = Math.min(focusElements.length - 1, focusIndex + stepH); break;
@@ -77,36 +78,57 @@ function moveFocus(dir, mode) {
     case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
   }
   updateFocus(mode);
-  // 移动方向微动 + 光效扫入
-  const card = focusElements[focusIndex];
-  if (card) {
-    // 方向微动弹跳
-    const cls = `card--nudge-${dir}`;
-    card.classList.add(cls);
-    card.addEventListener('animationend', () => card.classList.remove(cls), { once: true });
 
-    // 光泽从中心向移动方向扫出
-    const shineTo = {
-      left: { x: 15, y: 50 }, right: { x: 85, y: 50 },
-      up: { x: 50, y: 15 }, down: { x: 50, y: 85 },
-    }[dir] || { x: 50, y: 50 };
-    let t = 0;
-    card.classList.add('card--tilt-active');
-    function sweep() {
-      t += 0.045;
-      if (t >= 1) {
-        card.classList.remove('card--tilt-active');
-        card.style.setProperty('--shine-x', '50%');
-        card.style.setProperty('--shine-y', '50%');
-        return;
-      }
-      const ease = 1 - Math.pow(1 - t, 2);
-      card.style.setProperty('--shine-x', (50 + (shineTo.x - 50) * ease) + '%');
-      card.style.setProperty('--shine-y', (50 + (shineTo.y - 50) * ease) + '%');
-      requestAnimationFrame(sweep);
-    }
-    requestAnimationFrame(sweep);
+  // 旧卡片：光效从中心向移动方向推出
+  const prev = focusElements[prevIdx];
+  if (prev && prevIdx !== focusIndex) {
+    prev.classList.add('card--nudge-' + dir);
+    prev.addEventListener('animationend', function h() { prev.classList.remove('card--nudge-' + dir); prev.removeEventListener('animationend', h); }, { once: true });
+    sweepShine(prev, dir, 'out');
   }
+
+  // 新卡片：光效从移动方向扫入中心 + 微动弹入
+  const card = focusElements[focusIndex];
+  if (card && prevIdx !== focusIndex) {
+    card.classList.add('card--nudge-' + dir);
+    card.addEventListener('animationend', function h() { card.classList.remove('card--nudge-' + dir); card.removeEventListener('animationend', h); }, { once: true });
+    sweepShine(card, dir, 'in');
+  }
+}
+
+// 光效扫动：out=中心→方向推出，in=方向→中心扫入
+function sweepShine(card, dir, mode) {
+  const targets = {
+    left: [15, 50], right: [85, 50], up: [50, 15], down: [50, 85],
+  };
+  const [tx, ty] = targets[dir] || [50, 50];
+  let t = 0;
+  card.classList.add('card--tilt-active');
+
+  function frame() {
+    t += 0.025; // 更慢，凸显质感
+    if (t >= 1) {
+      card.classList.remove('card--tilt-active');
+      card.style.setProperty('--shine-x', '50%');
+      card.style.setProperty('--shine-y', '50%');
+      return;
+    }
+    const e = 1 - Math.pow(1 - t, 3);
+    let sx, sy;
+    if (mode === 'out') {
+      // 中心 → 方向推出
+      sx = 50 + (tx - 50) * e;
+      sy = 50 + (ty - 50) * e;
+    } else {
+      // 方向 → 中心扫入
+      sx = tx + (50 - tx) * e;
+      sy = ty + (50 - ty) * e;
+    }
+    card.style.setProperty('--shine-x', sx + '%');
+    card.style.setProperty('--shine-y', sy + '%');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 }
 
 // --- 去抖（按钮用） ---
