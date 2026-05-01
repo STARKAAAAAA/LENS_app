@@ -77,12 +77,37 @@ function moveFocus(dir, mode) {
     case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
   }
   updateFocus(mode);
-  // 移动方向微动
+  // 移动方向微动 + 光效扫入
   const card = focusElements[focusIndex];
   if (card) {
+    // 方向微动弹跳
     const cls = `card--nudge-${dir}`;
     card.classList.add(cls);
     card.addEventListener('animationend', () => card.classList.remove(cls), { once: true });
+
+    // 光泽从移动方向扫入
+    const shineFrom = {
+      left: { x: 80, y: 50 }, right: { x: 20, y: 50 },
+      up: { x: 50, y: 80 }, down: { x: 50, y: 20 },
+    }[dir] || { x: 50, y: 50 };
+    let t = 0;
+    card.style.setProperty('--shine-x', shineFrom.x + '%');
+    card.style.setProperty('--shine-y', shineFrom.y + '%');
+    card.classList.add('card--tilt-active');
+    function sweep() {
+      t += 0.06;
+      if (t >= 1) {
+        card.classList.remove('card--tilt-active');
+        card.style.setProperty('--shine-x', '50%');
+        card.style.setProperty('--shine-y', '50%');
+        return;
+      }
+      const ease = 1 - Math.pow(1 - t, 3);
+      card.style.setProperty('--shine-x', (shineFrom.x + (50 - shineFrom.x) * ease) + '%');
+      card.style.setProperty('--shine-y', (shineFrom.y + (50 - shineFrom.y) * ease) + '%');
+      requestAnimationFrame(sweep);
+    }
+    requestAnimationFrame(sweep);
   }
 }
 

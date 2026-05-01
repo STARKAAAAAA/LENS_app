@@ -472,8 +472,8 @@
 
   /* ========== 手柄虚拟焦点 ========== */
   .card--focused {
-    outline: 1px solid rgba(200, 168, 124, 0.35);
-    outline-offset: 3px;
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
     z-index: 6;
 
     /* 显示hover遮罩层 */
