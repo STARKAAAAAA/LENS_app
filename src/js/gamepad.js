@@ -45,7 +45,7 @@ function updateFocus(mode) {
   if (focusElements.length === 0) { focusIndex = 0; return; }
   focusIndex = Math.min(focusIndex, focusElements.length - 1);
   focusElements[focusIndex]?.classList.add('card--focused');
-  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 }
 
 // 计数列数：offsetLeft 去重

@@ -412,9 +412,9 @@
     transition: opacity 0.35s ease;
     background: radial-gradient(
       circle at var(--shine-x, 50%) var(--shine-y, 50%),
-      rgba(255, 245, 235, 0.06) 0%,
-      rgba(255, 245, 235, 0.02) 25%,
-      transparent 50%
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 245, 235, 0.12) 35%,
+      transparent 65%
     );
   }
 
