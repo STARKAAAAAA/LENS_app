@@ -83,6 +83,27 @@ function createDebouncer() {
   };
 }
 
+// 摇杆/方向键持续按住时自动重复（模拟键盘长按）
+function createRepeater(initialDelay, repeatDelay) {
+  const timers = {};
+  return (key, pressed, action) => {
+    if (pressed) {
+      if (!timers[key]) {
+        action();
+        timers[key] = setTimeout(() => {
+          timers[key] = setInterval(action, repeatDelay);
+        }, initialDelay);
+      }
+    } else {
+      if (timers[key]) {
+        clearTimeout(timers[key]);
+        clearInterval(timers[key]);
+        delete timers[key];
+      }
+    }
+  };
+}
+
 let _gpAnimFrame = null;
 let _gpActive = false;
 let _inputMode = 'mouse';
@@ -108,6 +129,7 @@ export function initGamepad() {
   _gpActive = true;
 
   const debounce = createDebouncer();
+  const repeat = createRepeater(400, 150);
 
   // 鼠标移动 → 切回鼠标模式
   document.addEventListener('mousemove', () => {
@@ -190,23 +212,33 @@ export function initGamepad() {
     }
 
     // --- 方向移动焦点 (browse/gallery) / 灯箱导航 ---
+    // 摇杆/方向键：用 repeat 实现持续按住自动连发
     const moveThreshold = 0.5;
-    if (debounce('l', dX < 0 || lx < -moveThreshold)) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('left', mode);
-      if (mode === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
-      if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
-    }
-    if (debounce('r', dX > 0 || lx > moveThreshold)) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('right', mode);
-      if (mode === 'lightbox')  document.querySelector('.lightbox__next')?.click();
-      if (mode === 'slideshow') document.getElementById('sl-next')?.click();
-    }
-    if (debounce('u', dY < 0 || ly < -moveThreshold)) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('up', mode);
-    }
-    if (debounce('d', dY > 0 || ly > moveThreshold)) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('down', mode);
-    }
+    const pressedL = dX < 0 || lx < -moveThreshold;
+    const pressedR = dX > 0 || lx > moveThreshold;
+    const pressedU = dY < 0 || ly < -moveThreshold;
+    const pressedD = dY > 0 || ly > moveThreshold;
+
+    const moveAction = (dir) => {
+      if (dir === 'left') {
+        if (mode === 'browse' || mode === 'gallery') moveFocus('left', mode);
+        if (mode === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
+        if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
+      } else if (dir === 'right') {
+        if (mode === 'browse' || mode === 'gallery') moveFocus('right', mode);
+        if (mode === 'lightbox')  document.querySelector('.lightbox__next')?.click();
+        if (mode === 'slideshow') document.getElementById('sl-next')?.click();
+      } else if (dir === 'up') {
+        if (mode === 'browse' || mode === 'gallery') moveFocus('up', mode);
+      } else if (dir === 'down') {
+        if (mode === 'browse' || mode === 'gallery') moveFocus('down', mode);
+      }
+    };
+
+    repeat('l', pressedL, () => moveAction('left'));
+    repeat('r', pressedR, () => moveAction('right'));
+    repeat('u', pressedU, () => moveAction('up'));
+    repeat('d', pressedD, () => moveAction('down'));
 
     // --- A: 确认 ---
     if (debounce('a', active.buttons[map.A]?.pressed)) {
