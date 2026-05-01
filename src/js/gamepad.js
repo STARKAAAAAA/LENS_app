@@ -138,28 +138,41 @@ export function initGamepad() {
 
     const map = BUTTONS[detectLayout(active)];
     const mode = getMode();
-    const lx = active.axes[0] || 0;
-    const ly = active.axes[1] || 0;
-    const ry = active.axes[3] || 0;
+
+    // 兼容不同手柄轴映射：飞智等第三方手柄可能轴位置不同
+    const allAxes = active.axes;
+    const lx = (allAxes[0] || 0) || (allAxes[2] || 0);  // X: 轴0或2
+    const ly = (allAxes[1] || 0) || (allAxes[3] || 0);  // Y: 轴1或3
+    const ry = allAxes[3] || allAxes[5] || 0;
 
     // D-pad（数字方向键）
-    const dL = active.buttons[map.LEFT]?.pressed || false;
-    const dR = active.buttons[map.RIGHT]?.pressed || false;
-    const dU = active.buttons[map.UP]?.pressed || false;
-    const dD = active.buttons[map.DOWN]?.pressed || false;
+    const dL = active.buttons[map.LEFT]?.pressed || active.buttons[14]?.pressed || false;
+    const dR = active.buttons[map.RIGHT]?.pressed || active.buttons[15]?.pressed || false;
+    const dU = active.buttons[map.UP]?.pressed || active.buttons[12]?.pressed || false;
+    const dD = active.buttons[map.DOWN]?.pressed || active.buttons[13]?.pressed || false;
 
     // 检测手柄输入 → 切换模式
     const hasInput = Math.abs(lx) > 0.15 || Math.abs(ly) > 0.15 || dL || dR || dU || dD || active.buttons.some(b => b?.pressed);
     if (hasInput && _inputMode !== 'gamepad') setInputMode('gamepad');
 
-    // ==== 方向移动：边缘检测（按键/摇杆从不触发→触发的一瞬间才执行） ====
-    const T = 0.4;
+    // ==== 方向移动：边缘检测，低阈值 ====
+    const T = 0.25;
     const cur = {
       l: dL || lx < -T,
       r: dR || lx > T,
       u: dU || ly < -T,
       d: dD || ly > T,
     };
+    // 方向指示器（确保检测生效）
+    let dot = document.getElementById('gp-dir');
+    if (!dot) {
+      dot = document.createElement('div');
+      dot.id = 'gp-dir';
+      dot.style.cssText = 'position:fixed;bottom:40px;right:40px;z-index:99999;font:12px monospace;color:rgba(200,168,124,0.6);background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:4px;pointer-events:none;';
+      document.body.appendChild(dot);
+    }
+    dot.textContent = `←${cur.l?'█':'·'} ↑${cur.u?'█':'·'} ↓${cur.d?'█':'·'} →${cur.r?'█':'·'} [${focusIndex}]`;
+
     if (cur.l && !_prev.l) {
       if (mode === 'browse' || mode === 'gallery') moveFocus('left', mode);
       if (mode === 'lightbox' || mode === 'slideshow') {
