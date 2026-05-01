@@ -1,99 +1,12 @@
-import { readDir } from '@tauri-apps/plugin-fs';
-import { join } from '@tauri-apps/api/path';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 
-const CONFIG_KEY = 'lens-photo-dir';
-const SAVED_KEY = 'lens-saved-folders';
-
-// ========== 配置管理 ==========
-function loadDir() { return localStorage.getItem(CONFIG_KEY) || ''; }
-function saveDir(dir) { localStorage.setItem(CONFIG_KEY, dir); }
-function getSavedFolders() {
-  try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; }
-  catch { return []; }
-}
-function saveFolders(dirs) { localStorage.setItem(SAVED_KEY, JSON.stringify(dirs)); }
-
-// ========== 选择文件夹 ==========
-async function selectFolder() {
-  const selected = await open({ directory: true, multiple: false, title: '选择照片文件夹' });
-  return selected || null;
-}
-
-// ========== 扫描照片 ==========
-async function scanPhotos(baseDir) {
-  const photos = [];
-  async function walk(dir) {
-    let entries;
-    try { entries = await readDir(dir); }
-    catch (e) { console.error(`读取失败: ${dir}`, e); throw e; }
-    for (const entry of entries) {
-      const fullPath = await join(dir, entry.name);
-      if (entry.isDirectory) { await walk(fullPath); }
-      else if (entry.name.toLowerCase().endsWith('.jpg')) {
-        const rel = fullPath.replace(baseDir + '\\', '').replace(baseDir + '/', '');
-        const parts = rel.split(/[\\/]/);
-        const topFolder = parts[0];
-        const category = cleanCategory(topFolder);
-        const title = cleanTitle(entry.name);
-        photos.push({ src: convertFileSrc(fullPath), path: fullPath, category, title, folder: topFolder });
-      }
-    }
-  }
-  await walk(baseDir);
-  photos.sort((a, b) => a.folder.localeCompare(b.folder, undefined, { numeric: true }));
-  const categories = [...new Set(photos.map(p => p.category))];
-  const byCategory = {};
-  photos.forEach(p => {
-    if (!byCategory[p.category]) byCategory[p.category] = [];
-    byCategory[p.category].push(p);
-  });
-  return { categories, photos, byCategory };
-}
-
-function cleanCategory(dirname) {
-  const m = dirname.match(/^\d{4}\s+\d{1,2}\s+\d{1,2}\s*(.*)/);
-  return (m && m[1]) ? m[1].trim() : dirname.trim();
-}
-function cleanTitle(filename) {
-  let name = filename.replace(/\.[^.]+$/, '');
-  name = name.replace(/-DxO_DeepPRIME\s*XD2?s?/g, '');
-  name = name.replace(/-CR3_DxO_DeepPRIMEXD/g, '');
-  return name.trim();
-}
-
-// ========== 图片预加载工具 ==========
-function preloadImages(imgs, onProgress) {
-  let loaded = 0;
-  const total = imgs.length;
-  return Promise.all(imgs.map(img => {
-    return new Promise(resolve => {
-      if (img.complete) { loaded++; if (onProgress) onProgress(loaded, total); resolve(); return; }
-      img.onload = () => { loaded++; if (onProgress) onProgress(loaded, total); resolve(); };
-      img.onerror = () => { loaded++; if (onProgress) onProgress(loaded, total); resolve(); };
-    });
-  }));
-}
-
-// ========== 自定义标题栏控制 ==========
-function initTitlebar() {
-  try {
-    const appWindow = getCurrentWindow();
-    document.getElementById('tb-minimize')?.addEventListener('click', () => appWindow.minimize());
-    document.getElementById('tb-maximize')?.addEventListener('click', () => appWindow.toggleMaximize());
-    document.getElementById('tb-close')?.addEventListener('click', () => appWindow.close());
-    const titlebar = document.getElementById('titlebar');
-    if (titlebar) {
-      titlebar.addEventListener('dblclick', (e) => {
-        if (e.target.closest('.titlebar__btn')) return;
-        appWindow.toggleMaximize();
-      });
-    }
-  } catch (e) { console.warn('initTitlebar error:', e); }
-}
+import { preloadImages, formatBytes } from './js/utils.js';
+import { CONFIG_KEY, loadDir, saveDir, getSavedFolders, saveFolders } from './js/config.js';
+import { selectFolder, scanPhotos } from './js/scanner.js';
+import { initTitlebar } from './js/titlebar.js';
+import { loadToggles, saveToggles, migrateToggles, applyTogglesUI } from './js/toggles.js';
 
 // ========== App ==========
 document.addEventListener('DOMContentLoaded', async () => {
@@ -491,11 +404,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ========== 缓存管理 ==========
-  function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1048576).toFixed(1) + ' MB';
-  }
 
   function createCacheSection() {
     if (document.getElementById('cache-section')) return;
@@ -686,84 +594,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ========== 设置面板（在 await 之前定义） ==========
-  const TOGGLE_KEY = 'lens-feature-toggles';
-  const DEFAULT_TOGGLES = {
-    exif: true, rating: true,
-    shortcuts: true, sortFilter: true,
-    sortMethod: 'name', filterMode: 'all',
-    density: 'm',
-    cacheDir: 'E:\\LENS\\thumbnails',
-  };
-  function loadToggles() {
-    try { return { ...DEFAULT_TOGGLES, ...JSON.parse(localStorage.getItem(TOGGLE_KEY)) }; }
-    catch { return { ...DEFAULT_TOGGLES }; }
-  }
-  function saveToggles(t) { localStorage.setItem(TOGGLE_KEY, JSON.stringify(t)); }
   let featureToggles = loadToggles();
-
-  // v1.5+ 迁移：确保评分、筛选排序默认开启
-  const TOGGLE_VERSION_KEY = 'lens-toggle-version';
-  if (localStorage.getItem(TOGGLE_VERSION_KEY) !== '1.5.0') {
-    featureToggles.rating = true;
-    featureToggles.sortFilter = true;
-    featureToggles.sortMethod = featureToggles.sortMethod || 'name';
-    featureToggles.filterMode = featureToggles.filterMode || 'all';
-    saveToggles(featureToggles);
-    localStorage.setItem(TOGGLE_VERSION_KEY, '1.5.0');
-  }
-
-  function applyTogglesUI() {
-    document.querySelectorAll('.toggle-switch').forEach(btn => {
-      const key = btn.dataset.key;
-      const on = featureToggles[key];
-      btn.classList.toggle('toggle-switch--on', on);
-    });
-    // 快捷键 "?" 按钮显隐动画
-    const shortcutsBtn2 = document.getElementById('tb-shortcuts');
-    if (shortcutsBtn2) {
-      if (featureToggles.shortcuts) {
-        shortcutsBtn2.style.opacity = '1';
-        shortcutsBtn2.style.maxWidth = '200px';
-        shortcutsBtn2.style.paddingLeft = '';
-        shortcutsBtn2.style.paddingRight = '';
-        shortcutsBtn2.style.pointerEvents = 'auto';
-        shortcutsBtn2.style.filter = 'blur(0)';
-        shortcutsBtn2.style.WebkitFilter = 'blur(0)';
-      } else {
-        shortcutsBtn2.style.opacity = '0';
-        shortcutsBtn2.style.maxWidth = '0';
-        shortcutsBtn2.style.paddingLeft = '0';
-        shortcutsBtn2.style.paddingRight = '0';
-        shortcutsBtn2.style.pointerEvents = 'none';
-        shortcutsBtn2.style.overflow = 'hidden';
-        shortcutsBtn2.style.margin = '0';
-        shortcutsBtn2.style.border = '0';
-        shortcutsBtn2.style.filter = 'blur(8px)';
-        shortcutsBtn2.style.WebkitFilter = 'blur(8px)';
-      }
-    }
-    document.querySelectorAll('.density-btn').forEach(b => {
-      b.classList.toggle('density-btn--active', b.dataset.density === featureToggles.density);
-    });
-    const sizes = { s: '200px', m: '280px', l: '360px' };
-    const size = sizes[featureToggles.density] || '280px';
-    document.documentElement.style.setProperty('--thumb-card-size', size);
-    const cats = document.getElementById('categories');
-    const gGrid = document.getElementById('gallery-grid');
-    const cols = { s: 4, m: 3, l: 2 };
-    if (cats) cats.style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}, 1fr))`;
-    if (gGrid) gGrid.style.columns = cols[featureToggles.density] || 3;
-    [cats, gGrid].forEach(el => {
-      if (!el) return;
-      const sweep = document.createElement('div');
-      sweep.className = 'density-sweep';
-      el.appendChild(sweep);
-      requestAnimationFrame(() => {
-        sweep.classList.add('density-sweep--run');
-        sweep.addEventListener('animationend', () => sweep.remove());
-      });
-    });
-  }
+  migrateToggles(featureToggles);
 
   const settingsBtn = document.getElementById('tb-settings');
   const settingsPanel = document.getElementById('settings-panel');
@@ -793,7 +625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       featureToggles[key] = !featureToggles[key];
       saveToggles(featureToggles);
       sw.classList.toggle('toggle-switch--on', featureToggles[key]);
-      applyTogglesUI();
+      applyTogglesUI(featureToggles);
       if (key === 'sortFilter') {
         if (featureToggles.sortFilter && currentCategory) {
           renderGalleryDropdowns();
@@ -822,7 +654,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (db) {
       featureToggles.density = db.dataset.density;
       saveToggles(featureToggles);
-      applyTogglesUI();
+      applyTogglesUI(featureToggles);
       return;
     }
     const cacheBtn = e.target.closest('#cache-dir-btn');
@@ -851,7 +683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  applyTogglesUI();
+  applyTogglesUI(featureToggles);
 
   const savedDirs = getSavedFolders();
   if (photoDir) {
