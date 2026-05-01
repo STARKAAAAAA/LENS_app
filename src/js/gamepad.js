@@ -118,6 +118,7 @@ function setInputMode(mode) {
   _inputMode = mode;
   if (mode === 'gamepad') {
     document.body.classList.add('gamepad-active');
+    _prev = { l: false, r: false, u: false, d: false }; // 重置边缘检测
   } else {
     document.body.classList.remove('gamepad-active');
     focusElements.forEach(el => el.classList.remove('card--focused'));
