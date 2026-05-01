@@ -57,7 +57,7 @@ function countCols(selector) {
 }
 
 function moveFocus(dir, mode) {
-  if (focusElements.length === 0) updateFocus(mode);
+  if (focusElements.length === 0) { updateFocus(mode); if (focusElements.length === 0) return; }
   let stepH = 1; // 水平步长（同行/同列内的相邻）
   let stepV = 1; // 垂直步长（跨行/跨列）
   if (mode === 'browse') {
@@ -78,47 +78,14 @@ function moveFocus(dir, mode) {
   }
   updateFocus(mode);
 
-  const prev = focusElements[prevIdx];
   const card = focusElements[focusIndex];
   if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
 
-  // 微动弹跳（仅browse模式，gallery的CSS columns不适合transform）
-  if (mode === 'browse') {
-    card.classList.add('card--nudge-' + dir);
-    card.addEventListener('animationend', function h() { card.classList.remove('card--nudge-' + dir); card.removeEventListener('animationend', h); }, { once: true });
-  }
-
-  // 光点从旧卡中心飞向新卡中心
-  if (prev) {
-    const pr = prev.getBoundingClientRect();
-    const cr = card.getBoundingClientRect();
-    const fx = pr.left + pr.width / 2;
-    const fy = pr.top + pr.height / 2;
-    const tx = cr.left + cr.width / 2;
-    const ty = cr.top + cr.height / 2;
-
-    const dot = document.createElement('div');
-    dot.style.cssText = `
-      position:fixed;left:${fx}px;top:${fy}px;z-index:99999;
-      width:16px;height:16px;margin-left:-8px;margin-top:-8px;
-      border-radius:50%;pointer-events:none;
-      background:radial-gradient(circle,rgba(255,255,255,0.7) 0%,rgba(255,245,235,0.2) 40%,transparent 70%);
-      box-shadow:0 0 20px rgba(255,245,235,0.35),0 0 50px rgba(255,220,180,0.18);
-      transition:left 0.35s var(--ease-out),top 0.35s var(--ease-out),opacity 0.2s;
-    `;
-    document.body.appendChild(dot);
-
-    requestAnimationFrame(() => {
-      dot.style.left = tx + 'px';
-      dot.style.top = ty + 'px';
-      dot.style.opacity = '1';
-    });
-
-    setTimeout(() => {
-      dot.style.opacity = '0';
-      setTimeout(() => dot.remove(), 250);
-    }, 400);
-  }
+  // 移动到新卡片后短暂触发光晕（模仿鼠标悬浮的::before光泽）
+  card.classList.add('card--tilt-active');
+  setTimeout(() => {
+    card.classList.remove('card--tilt-active');
+  }, 500);
 }
 
 // --- 去抖（按钮用） ---
