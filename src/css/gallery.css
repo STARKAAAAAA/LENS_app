@@ -500,10 +500,10 @@
 .card--nudge-up    { animation: nudgeUp 0.25s var(--ease-out); }
 .card--nudge-down  { animation: nudgeDown 0.25s var(--ease-out); }
 
-@keyframes nudgeLeft  { 50% { translate: -6px 0; } }
-@keyframes nudgeRight { 50% { translate: 6px 0; } }
-@keyframes nudgeUp    { 50% { translate: 0 -6px; } }
-@keyframes nudgeDown  { 50% { translate: 0 6px; } }
+@keyframes nudgeLeft  { 50% { transform: translateX(-4px); } }
+@keyframes nudgeRight { 50% { transform: translateX(4px); } }
+@keyframes nudgeUp    { 50% { transform: translateY(-4px); } }
+@keyframes nudgeDown  { 50% { transform: translateY(4px); } }
 
 body.gamepad-active {
   cursor: none;

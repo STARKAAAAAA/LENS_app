@@ -45,7 +45,6 @@ function updateFocus(mode) {
   if (focusElements.length === 0) { focusIndex = 0; return; }
   focusIndex = Math.min(focusIndex, focusElements.length - 1);
   focusElements[focusIndex]?.classList.add('card--focused');
-  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 }
 
 // 计数列数：offsetLeft 去重
@@ -79,56 +78,45 @@ function moveFocus(dir, mode) {
   }
   updateFocus(mode);
 
-  // 旧卡片：光效从中心向移动方向推出
   const prev = focusElements[prevIdx];
-  if (prev && prevIdx !== focusIndex) {
-    prev.classList.add('card--nudge-' + dir);
-    prev.addEventListener('animationend', function h() { prev.classList.remove('card--nudge-' + dir); prev.removeEventListener('animationend', h); }, { once: true });
-    sweepShine(prev, dir, 'out');
-  }
-
-  // 新卡片：光效从移动方向扫入中心 + 微动弹入
   const card = focusElements[focusIndex];
-  if (card && prevIdx !== focusIndex) {
-    card.classList.add('card--nudge-' + dir);
-    card.addEventListener('animationend', function h() { card.classList.remove('card--nudge-' + dir); card.removeEventListener('animationend', h); }, { once: true });
-    sweepShine(card, dir, 'in');
-  }
-}
+  if (!card || prevIdx === focusIndex) { updateFocus(mode); return; }
 
-// 光效扫动：out=中心→方向推出，in=方向→中心扫入
-function sweepShine(card, dir, mode) {
-  const targets = {
-    left: [15, 50], right: [85, 50], up: [50, 15], down: [50, 85],
-  };
-  const [tx, ty] = targets[dir] || [50, 50];
-  let t = 0;
-  card.classList.add('card--tilt-active');
+  // 微动弹跳（新卡片）
+  card.classList.add('card--nudge-' + dir);
+  card.addEventListener('animationend', function h() { card.classList.remove('card--nudge-' + dir); card.removeEventListener('animationend', h); }, { once: true });
 
-  function frame() {
-    t += 0.025; // 更慢，凸显质感
-    if (t >= 1) {
-      card.classList.remove('card--tilt-active');
-      card.style.setProperty('--shine-x', '50%');
-      card.style.setProperty('--shine-y', '50%');
-      return;
-    }
-    const e = 1 - Math.pow(1 - t, 3);
-    let sx, sy;
-    if (mode === 'out') {
-      // 中心 → 方向推出
-      sx = 50 + (tx - 50) * e;
-      sy = 50 + (ty - 50) * e;
-    } else {
-      // 方向 → 中心扫入
-      sx = tx + (50 - tx) * e;
-      sy = ty + (50 - ty) * e;
-    }
-    card.style.setProperty('--shine-x', sx + '%');
-    card.style.setProperty('--shine-y', sy + '%');
-    requestAnimationFrame(frame);
+  // 光点从旧卡中心飞向新卡中心
+  if (prev) {
+    const pr = prev.getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    const fx = pr.left + pr.width / 2;
+    const fy = pr.top + pr.height / 2;
+    const tx = cr.left + cr.width / 2;
+    const ty = cr.top + cr.height / 2;
+
+    const dot = document.createElement('div');
+    dot.style.cssText = `
+      position:fixed;left:${fx}px;top:${fy}px;z-index:99999;
+      width:16px;height:16px;margin-left:-8px;margin-top:-8px;
+      border-radius:50%;pointer-events:none;
+      background:radial-gradient(circle,rgba(255,245,235,0.9) 0%,rgba(255,220,180,0.4) 30%,transparent 70%);
+      box-shadow:0 0 24px rgba(255,220,180,0.5),0 0 60px rgba(255,200,150,0.25);
+      transition:left 0.35s var(--ease-out),top 0.35s var(--ease-out),opacity 0.2s;
+    `;
+    document.body.appendChild(dot);
+
+    requestAnimationFrame(() => {
+      dot.style.left = tx + 'px';
+      dot.style.top = ty + 'px';
+      dot.style.opacity = '1';
+    });
+
+    setTimeout(() => {
+      dot.style.opacity = '0';
+      setTimeout(() => dot.remove(), 250);
+    }, 400);
   }
-  requestAnimationFrame(frame);
 }
 
 // --- 去抖（按钮用） ---
