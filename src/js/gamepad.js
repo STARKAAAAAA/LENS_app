@@ -73,8 +73,9 @@ function createDebouncer() {
 
 let _gpAnimFrame = null;
 let _gpActive = false;
-let _inputMode = 'mouse'; // 'mouse' | 'gamepad'
-let _mouseTimer = null;
+let _inputMode = 'mouse';
+let _lastMode = null;
+let _floatActive = false;
 
 function setInputMode(mode) {
   if (_inputMode === mode) return;
@@ -160,25 +161,39 @@ export function initGamepad() {
     }
 
     // --- 左摇杆 → 卡片浮游 (browse/gallery) ---
-    if ((mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08)) {
+    const shouldFloat = (mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08);
+    if (shouldFloat) {
       injectCardFloat(lx, ly);
-    } else if ((mode === 'browse' || mode === 'gallery') && Math.abs(lx) <= 0.08 && Math.abs(ly) <= 0.08) {
+      _floatActive = true;
+    } else if (_floatActive) {
       releaseCardFloat();
+      _floatActive = false;
     }
 
-    // --- 方向移动焦点 ---
+    // --- 方向移动焦点 (browse/gallery) / 灯箱导航 ---
     const moveThreshold = 0.5;
-    if (debounce('l', dX < 0 || lx < -moveThreshold)) moveFocus('left', mode);
-    if (debounce('r', dX > 0 || lx > moveThreshold))  moveFocus('right', mode);
-    if (debounce('u', dY < 0 || ly < -moveThreshold)) moveFocus('up', mode);
-    if (debounce('d', dY > 0 || ly > moveThreshold))  moveFocus('down', mode);
+    if (debounce('l', dX < 0 || lx < -moveThreshold)) {
+      if (mode === 'browse' || mode === 'gallery') moveFocus('left', mode);
+      if (mode === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
+      if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
+    }
+    if (debounce('r', dX > 0 || lx > moveThreshold)) {
+      if (mode === 'browse' || mode === 'gallery') moveFocus('right', mode);
+      if (mode === 'lightbox')  document.querySelector('.lightbox__next')?.click();
+      if (mode === 'slideshow') document.getElementById('sl-next')?.click();
+    }
+    if (debounce('u', dY < 0 || ly < -moveThreshold)) {
+      if (mode === 'browse' || mode === 'gallery') moveFocus('up', mode);
+    }
+    if (debounce('d', dY > 0 || ly > moveThreshold)) {
+      if (mode === 'browse' || mode === 'gallery') moveFocus('down', mode);
+    }
 
     // --- A: 确认 ---
     if (debounce('a', active.buttons[map.A]?.pressed)) {
       if (mode === 'browse' || mode === 'gallery') activateFocus(mode);
       if (mode === 'settings') {
-        const focused = document.querySelector('.settings-panel__item:nth-child(1) .toggle-switch');
-        focused?.click();
+        document.querySelector('.settings-panel__item:nth-child(1) .toggle-switch')?.click();
       }
       if (mode === 'shortcuts') {
         document.getElementById('shortcuts-overlay')?.click();
@@ -201,10 +216,12 @@ export function initGamepad() {
 
     // --- Y: 幻灯片 ---
     if (debounce('y', active.buttons[map.Y]?.pressed)) {
-      if (mode === 'browse' || mode === 'gallery') document.getElementById('tb-slideshow')?.click();
+      if (mode === 'browse' || mode === 'gallery' || mode === 'lightbox') {
+        document.getElementById('tb-slideshow')?.click();
+      }
     }
 
-    // --- LB/RB: 上一张/下一张 ---
+    // --- LB/RB: 上一张/下一张 (保留，与 D-pad 双路径) ---
     if (debounce('lb', active.buttons[map.LB]?.pressed)) {
       if (mode === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
       if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
@@ -214,12 +231,17 @@ export function initGamepad() {
       if (mode === 'slideshow') document.getElementById('sl-next')?.click();
     }
 
-    // --- LT/RT: 灯箱评分增减 ---
+    // --- LT: 评分降低 / RT: 评分升高 ---
     if (debounce('lt', active.buttons[map.LT]?.pressed)) {
       if (mode === 'lightbox') document.querySelector('.rating__star[data-v="1"]')?.click();
     }
     if (debounce('rt', active.buttons[map.RT]?.pressed)) {
       if (mode === 'lightbox') document.querySelector('.rating__star[data-v="5"]')?.click();
+    }
+
+    // --- LS: 幻灯片暂停/继续 ---
+    if (debounce('ls', active.buttons[map.LS]?.pressed)) {
+      if (mode === 'slideshow') document.getElementById('sl-pause')?.click();
     }
 
     // --- START: 设置 ---
@@ -232,7 +254,7 @@ export function initGamepad() {
       document.getElementById('tb-shortcuts')?.click();
     }
 
-    // --- LS/RS: 灯箱/幻灯片缩放 ---
+    // --- 右摇杆 → 缩放 ---
     if (mode === 'lightbox' && Math.abs(ry) > 0.1) {
       document.getElementById('lightbox')?.dispatchEvent(
         new WheelEvent('wheel', { deltaY: -ry * 40, bubbles: true })
@@ -243,8 +265,12 @@ export function initGamepad() {
       if (Math.abs(ry) > 0.5) btn?.click();
     }
 
-    // --- 模式切换时刷新焦点 ---
-    updateFocus(mode);
+    // --- 模式变化时刷新焦点列表 ---
+    if (_lastMode !== mode) {
+      _lastMode = mode;
+      focusIndex = 0;
+      updateFocus(mode);
+    }
 
     _gpAnimFrame = requestAnimationFrame(poll);
   }
