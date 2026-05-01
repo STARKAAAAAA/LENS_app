@@ -122,6 +122,8 @@ export function initGamepad() {
     if (_inputMode === 'gamepad') setInputMode('mouse');
   }, { passive: true });
 
+  let _prev = { l: false, r: false, u: false, d: false };
+
   function poll() {
     const gamepads = navigator.getGamepads();
     let active = null;
@@ -150,28 +152,35 @@ export function initGamepad() {
     const hasInput = Math.abs(lx) > 0.15 || Math.abs(ly) > 0.15 || dL || dR || dU || dD || active.buttons.some(b => b?.pressed);
     if (hasInput && _inputMode !== 'gamepad') setInputMode('gamepad');
 
-    // ==== 方向移动：摇杆 0.4 阈值 + 方向键 ====
+    // ==== 方向移动：边缘检测（按键/摇杆从不触发→触发的一瞬间才执行） ====
     const T = 0.4;
-    if (db('ml', dL || lx < -T)) {
+    const cur = {
+      l: dL || lx < -T,
+      r: dR || lx > T,
+      u: dU || ly < -T,
+      d: dD || ly > T,
+    };
+    if (cur.l && !_prev.l) {
       if (mode === 'browse' || mode === 'gallery') moveFocus('left', mode);
       if (mode === 'lightbox' || mode === 'slideshow') {
         if (mode === 'lightbox') document.querySelector('.lightbox__prev')?.click();
         if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
       }
     }
-    if (db('mr', dR || lx > T)) {
+    if (cur.r && !_prev.r) {
       if (mode === 'browse' || mode === 'gallery') moveFocus('right', mode);
       if (mode === 'lightbox' || mode === 'slideshow') {
         if (mode === 'lightbox') document.querySelector('.lightbox__next')?.click();
         if (mode === 'slideshow') document.getElementById('sl-next')?.click();
       }
     }
-    if (db('mu', dU || ly < -T)) {
+    if (cur.u && !_prev.u) {
       if (mode === 'browse' || mode === 'gallery') moveFocus('up', mode);
     }
-    if (db('md', dD || ly > T)) {
+    if (cur.d && !_prev.d) {
       if (mode === 'browse' || mode === 'gallery') moveFocus('down', mode);
     }
+    _prev = cur;
 
     // ==== 卡片浮游 ====
     const shouldFloat = (mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08);
