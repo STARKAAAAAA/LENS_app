@@ -48,22 +48,33 @@ function updateFocus(mode) {
   focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-function getGridCols() {
-  const cards = document.querySelectorAll('.category-card');
-  if (cards.length < 2) return 1;
+// 计数列数：offsetLeft 去重
+function countCols(selector) {
+  const els = document.querySelectorAll(selector);
+  if (els.length < 2) return 1;
   const set = new Set();
-  for (const c of cards) set.add(c.offsetLeft);
+  for (const el of els) set.add(el.offsetLeft);
   return set.size || 1;
 }
 
 function moveFocus(dir, mode) {
   if (focusElements.length === 0) updateFocus(mode);
-  const cols = mode === 'browse' ? getGridCols() : 1;
+  let stepH = 1; // 水平步长（同行/同列内的相邻）
+  let stepV = 1; // 垂直步长（跨行/跨列）
+  if (mode === 'browse') {
+    // CSS Grid 行优先排列：左右同行(±1) 上下跨行(±cols)
+    stepH = 1;
+    stepV = countCols('.category-card');
+  } else if (mode === 'gallery') {
+    // CSS Columns 列优先排列：上下同列(±1) 左右跨列(±itemsPerCol)
+    stepH = Math.max(1, Math.round(focusElements.length / countCols('.gallery__item')));
+    stepV = 1;
+  }
   switch (dir) {
-    case 'left':  focusIndex = Math.max(0, focusIndex - 1); break;
-    case 'right': focusIndex = Math.min(focusElements.length - 1, focusIndex + 1); break;
-    case 'up':    focusIndex = Math.max(0, focusIndex - cols); break;
-    case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + cols); break;
+    case 'left':  focusIndex = Math.max(0, focusIndex - stepH); break;
+    case 'right': focusIndex = Math.min(focusElements.length - 1, focusIndex + stepH); break;
+    case 'up':    focusIndex = Math.max(0, focusIndex - stepV); break;
+    case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
   }
   updateFocus(mode);
 }
