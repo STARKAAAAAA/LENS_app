@@ -380,20 +380,12 @@
     z-index: 5;
     border-color: transparent;
     background: transparent;
-
-    & .category-card__img {
-      filter: brightness(0.55) blur(6px);
-    }
   }
 
   .gallery__item.card--tilt-active {
     transition: none;
     will-change: transform;
     z-index: 5;
-
-    & img {
-      filter: brightness(0.6) blur(3px);
-    }
   }
 
   /* Reduce inner image zoom during tilt to avoid double-scaling */
@@ -483,6 +475,11 @@
     outline: 2px solid var(--accent);
     outline-offset: 4px;
     z-index: 6;
+
+    & img,
+    & .category-card__img {
+      filter: brightness(0.55) blur(6px);
+    }
   }
 }
 

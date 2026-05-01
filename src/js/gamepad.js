@@ -57,6 +57,7 @@ function moveFocus(direction, mode) {
   if (focusElements.length === 0) { updateFocus(mode); return; }
   if (mode === 'browse') {
     const cols = getGridCols();
+    _lastCols = cols;
     if (direction === 'left')  focusIndex = Math.max(0, focusIndex - 1);
     if (direction === 'right') focusIndex = Math.min(focusElements.length - 1, focusIndex + 1);
     if (direction === 'up')    focusIndex = Math.max(0, focusIndex - cols);
@@ -109,6 +110,7 @@ let _gpActive = false;
 let _inputMode = 'mouse';
 let _lastMode = null;
 let _floatActive = false;
+let _lastCols = 0;
 
 function setInputMode(mode) {
   if (_inputMode === mode) return;
@@ -189,6 +191,12 @@ export function initGamepad() {
     const ly = active.axes[1] || 0;
     const rx = active.axes[2] || 0;
     const ry = active.axes[3] || 0;
+
+    // DEBUG: 每秒输出一次轴数据，帮助定位左右失效问题
+    if (!active._debugTime || Date.now() - active._debugTime > 2000) {
+      active._debugTime = Date.now();
+      console.log(`[LENS] gamepad mode:${mode} layout:${layout} axes:[${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}] dpad btns:[UP:${active.buttons[map.UP]?.pressed},DOWN:${active.buttons[map.DOWN]?.pressed},LEFT:${active.buttons[map.LEFT]?.pressed},RIGHT:${active.buttons[map.RIGHT]?.pressed}] cols:${_lastCols||'?'}`);
+    }
 
     // D-pad
     const dX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
