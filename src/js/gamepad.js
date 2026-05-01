@@ -47,10 +47,16 @@ function updateFocus(mode) {
 }
 
 function getGridCols() {
-  if (focusElements.length < 2) return 1;
   const container = document.getElementById('categories');
-  const card = focusElements[0];
-  if (!container || !card) return 1;
+  if (!container) return 1;
+  // 直接用浏览器解析后的 grid-template-columns 列数
+  // (repeat(auto-fill,...) 会被展开为实际 track 值)
+  const tracks = getComputedStyle(container).gridTemplateColumns;
+  const cols = tracks.split(' ').length;
+  if (cols > 1) return cols;
+  // 兜底：容器宽/卡片宽
+  const card = container.querySelector('.category-card');
+  if (!card) return 1;
   const gap = parseFloat(getComputedStyle(container).gap) || 16;
   return Math.max(1, Math.floor((container.clientWidth + gap) / (card.offsetWidth + gap)));
 }
