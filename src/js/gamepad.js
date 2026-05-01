@@ -55,9 +55,12 @@ function getGridCols() {
   return Math.max(1, Math.floor((container.clientWidth + gap) / (card.offsetWidth + gap)));
 }
 
+let _cols = 0;
+
 function moveFocus(dir, mode) {
   if (focusElements.length === 0) { updateFocus(mode); return; }
   const cols = mode === 'browse' ? getGridCols() : 1;
+  _cols = cols;
   switch (dir) {
     case 'left':  focusIndex = Math.max(0, focusIndex - 1); break;
     case 'right': focusIndex = Math.min(focusElements.length - 1, focusIndex + 1); break;
@@ -171,28 +174,30 @@ export function initGamepad() {
       dot.style.cssText = 'position:fixed;bottom:40px;right:40px;z-index:99999;font:12px monospace;color:rgba(200,168,124,0.6);background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:4px;pointer-events:none;';
       document.body.appendChild(dot);
     }
-    dot.textContent = `←${cur.l?'█':'·'} ↑${cur.u?'█':'·'} ↓${cur.d?'█':'·'} →${cur.r?'█':'·'} [${focusIndex}]`;
-
+    let moved = 0;
     if (cur.l && !_prev.l) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('left', mode);
+      if (mode === 'browse' || mode === 'gallery') { moveFocus('left', mode); moved = 1; }
       if (mode === 'lightbox' || mode === 'slideshow') {
-        if (mode === 'lightbox') document.querySelector('.lightbox__prev')?.click();
-        if (mode === 'slideshow') document.getElementById('sl-prev')?.click();
+        if (mode === 'lightbox') { document.querySelector('.lightbox__prev')?.click(); moved = 1; }
+        if (mode === 'slideshow') { document.getElementById('sl-prev')?.click(); moved = 1; }
       }
     }
     if (cur.r && !_prev.r) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('right', mode);
+      if (mode === 'browse' || mode === 'gallery') { moveFocus('right', mode); moved = 2; }
       if (mode === 'lightbox' || mode === 'slideshow') {
-        if (mode === 'lightbox') document.querySelector('.lightbox__next')?.click();
-        if (mode === 'slideshow') document.getElementById('sl-next')?.click();
+        if (mode === 'lightbox') { document.querySelector('.lightbox__next')?.click(); moved = 2; }
+        if (mode === 'slideshow') { document.getElementById('sl-next')?.click(); moved = 2; }
       }
     }
     if (cur.u && !_prev.u) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('up', mode);
+      if (mode === 'browse' || mode === 'gallery') { moveFocus('up', mode); moved = 3; }
     }
     if (cur.d && !_prev.d) {
-      if (mode === 'browse' || mode === 'gallery') moveFocus('down', mode);
+      if (mode === 'browse' || mode === 'gallery') { moveFocus('down', mode); moved = 4; }
     }
+
+    dot.textContent = `←${cur.l?'█':'·'} ↑${cur.u?'█':'·'} ↓${cur.d?'█':'·'} →${cur.r?'█':'·'} #${focusIndex}/${focusElements.length} c${_cols||'?'} ${moved?'M'+moved:''}`;
+
     _prev = cur;
 
     // ==== 卡片浮游 ====
