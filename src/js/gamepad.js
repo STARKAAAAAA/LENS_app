@@ -79,12 +79,22 @@ function moveFocus(dir, mode) {
   }
   updateFocus(mode);
 
-  // 触发光晕（卡片::before，跟鼠标悬浮一样大）
+  // 光晕从移动方向扫入中心（rAF驱动 --shine-x/y）
   if (prevIdx !== focusIndex) {
     const card = focusElements[focusIndex];
     if (card) {
+      const from = { left:[80,50], right:[20,50], up:[50,80], down:[50,20] }[dir] || [50,50];
       card.classList.add('card--tilt-active');
-      setTimeout(() => card.classList.remove('card--tilt-active'), 500);
+      let t = 0;
+      function sweep() {
+        t += 0.04;
+        if (t >= 1) { card.classList.remove('card--tilt-active'); return; }
+        const e = 1 - Math.pow(1 - t, 2);
+        card.style.setProperty('--shine-x', (from[0] + (50 - from[0]) * e) + '%');
+        card.style.setProperty('--shine-y', (from[1] + (50 - from[1]) * e) + '%');
+        requestAnimationFrame(sweep);
+      }
+      requestAnimationFrame(sweep);
     }
   }
 }
