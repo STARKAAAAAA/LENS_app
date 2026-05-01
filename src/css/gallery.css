@@ -396,7 +396,7 @@
 
   /* Reduce inner image zoom during tilt to avoid double-scaling */
   .gallery__item.card--tilt-active:hover img {
-    transform: scale(1.02);
+    transform: scale(1.01);
     transition: transform 0.6s var(--ease-out);
   }
 
@@ -418,9 +418,9 @@
     transition: opacity 0.35s ease;
     background: radial-gradient(
       circle at var(--shine-x, 50%) var(--shine-y, 50%),
-      rgba(255, 245, 235, 0.18) 0%,
-      rgba(255, 245, 235, 0.06) 30%,
-      transparent 60%
+      rgba(255, 245, 235, 0.10) 0%,
+      rgba(255, 245, 235, 0.03) 30%,
+      transparent 55%
     );
   }
 
