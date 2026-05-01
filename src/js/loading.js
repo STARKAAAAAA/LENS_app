@@ -1,0 +1,324 @@
+// ========== 加载画面系统 ==========
+
+export const PHOTO_QUOTES = [
+  '摄影是光的诗歌，影是时间的印记',
+  '每一帧光影，皆是时间的切片',
+  '相机是双眼的延伸，镜头是心灵的窗',
+  '按下快门的瞬间，永恒被凝固',
+  '好的照片不在于看见什么，而在于如何看见',
+  '光影之间，藏着一个世界',
+  '最美的画面，往往在等待中出现',
+  '摄影教会我们，用心去观察世界',
+];
+
+let loadingAnimFrame = null;
+let loadingQuoteInterval = null;
+let loadingShownAt = 0;
+let loadingScreenDoneResolve = null;
+
+export async function showLoadingScreen(msg, { onFirstShow } = {}) {
+  let el = document.getElementById('loading-screen');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-screen';
+    Object.assign(el.style, {
+      position: 'fixed', inset: '0', zIndex: '99999',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(6,6,5,0.9)',
+      backdropFilter: 'blur(40px)',
+      WebkitBackdropFilter: 'blur(40px)',
+      opacity: '0',
+      transition: 'opacity 0.5s ease',
+    });
+
+    // === 胶囊装载器（SVG 光环绕行） ===
+    const capsuleWrap = document.createElement('div');
+    capsuleWrap.id = 'loading-capsule-wrap';
+    Object.assign(capsuleWrap.style, {
+      position: 'relative',
+      width: '208px', height: '44px',
+      marginBottom: '2.5rem',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      opacity: '0', transform: 'scale(0.92)',
+      transition: 'opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1)',
+    });
+
+    // 胶囊轨道（静态）
+    const track = document.createElement('div');
+    track.id = 'loading-track';
+    Object.assign(track.style, {
+      width: '160px', height: '6px',
+      borderRadius: '100px',
+      background: 'rgba(200,168,124,0.1)',
+      position: 'relative',
+      zIndex: '1',
+    });
+
+    // SVG 光环绕胶囊旋转
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.id = 'loading-orbit-svg';
+    svg.setAttribute('width', '208');
+    svg.setAttribute('height', '44');
+    svg.setAttribute('viewBox', '0 0 208 44');
+    svg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;';
+
+    // 发光滤镜
+    const defs = document.createElementNS(svgNS, 'defs');
+    const filter = document.createElementNS(svgNS, 'filter');
+    filter.id = 'orbit-glow-filter';
+    filter.innerHTML = '<feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>';
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+
+    // 绕行轨道（暗淡底轨）
+    const trackPath = document.createElementNS(svgNS, 'rect');
+    trackPath.setAttribute('x', '16'); trackPath.setAttribute('y', '11');
+    trackPath.setAttribute('width', '176'); trackPath.setAttribute('height', '22');
+    trackPath.setAttribute('rx', '11'); trackPath.setAttribute('ry', '11');
+    trackPath.setAttribute('fill', 'none');
+    trackPath.setAttribute('stroke', 'rgba(200,168,124,0.08)');
+    trackPath.setAttribute('stroke-width', '1');
+    svg.appendChild(trackPath);
+
+    // 绕行光点（stroke-dashoffset 动画，光点沿胶囊外沿绕行）
+    const orbitLight = document.createElementNS(svgNS, 'rect');
+    orbitLight.id = 'loading-orbit-light';
+    orbitLight.setAttribute('x', '16'); orbitLight.setAttribute('y', '11');
+    orbitLight.setAttribute('width', '176'); orbitLight.setAttribute('height', '22');
+    orbitLight.setAttribute('rx', '11'); orbitLight.setAttribute('ry', '11');
+    orbitLight.setAttribute('fill', 'none');
+    orbitLight.setAttribute('stroke', 'rgba(200,168,124,0.55)');
+    orbitLight.setAttribute('stroke-width', '1.5');
+    orbitLight.setAttribute('stroke-dasharray', '28 430');
+    orbitLight.setAttribute('stroke-dashoffset', '0');
+    orbitLight.setAttribute('filter', 'url(#orbit-glow-filter)');
+    orbitLight.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(orbitLight);
+
+    capsuleWrap.appendChild(svg);
+    capsuleWrap.appendChild(track);
+
+    // 进度文字
+    const text = document.createElement('div');
+    text.id = 'loading-text';
+    Object.assign(text.style, {
+      fontFamily: "Cormorant Garamond, Georgia, serif",
+      fontSize: '0.85rem', fontStyle: 'italic', fontWeight: '300',
+      letterSpacing: '0.12em', color: 'rgba(220,200,180,0.55)',
+      marginBottom: '0.6rem',
+      opacity: '0', transform: 'translateY(10px)',
+      transition: 'opacity 0.6s ease, transform 0.6s ease',
+    });
+
+    // 首次加载提示（带入场动画）
+    const hint = document.createElement('div');
+    hint.id = 'loading-hint';
+    Object.assign(hint.style, {
+      fontFamily: "Cormorant Garamond, Georgia, serif",
+      fontSize: '0.72rem', fontStyle: 'italic', fontWeight: '300',
+      letterSpacing: '0.08em', color: 'rgba(220,200,180,0.4)',
+      marginBottom: '2.5rem', display: 'none',
+      opacity: '0', transform: 'translateY(8px)',
+      transition: 'opacity 0.8s ease, transform 0.8s ease',
+    });
+
+    // 轮播金句（底部居中，暖金半透明）
+    const quote = document.createElement('div');
+    quote.id = 'loading-quote';
+    Object.assign(quote.style, {
+      position: 'absolute', bottom: '14vh', left: '50%',
+      transform: 'translateX(-50%) translateY(10px)',
+      fontFamily: "Cormorant Garamond, Georgia, serif",
+      fontSize: '1rem', fontStyle: 'italic', fontWeight: '300',
+      letterSpacing: '0.1em', color: 'rgba(220,200,180,0.45)',
+      textAlign: 'center', whiteSpace: 'nowrap',
+      opacity: '0',
+      transition: 'opacity 0.8s ease, transform 0.8s ease',
+      maxWidth: '80vw',
+    });
+
+    el.appendChild(capsuleWrap);
+    el.appendChild(text);
+    el.appendChild(hint);
+    el.appendChild(quote);
+    document.body.appendChild(el);
+
+    // 首次创建时回调（例如创建侧边栏缓存区）
+    if (onFirstShow) onFirstShow();
+  }
+
+  el.style.display = 'flex';
+  el.style.opacity = '1';
+  document.getElementById('loading-text').textContent = msg;
+  loadingShownAt = Date.now();
+
+  // 动画：SVG 光点绕胶囊外沿旋转
+  if (!loadingAnimFrame) {
+    const orbitLight = document.getElementById('loading-orbit-light');
+    let orbitOffset = 0;
+    const animate = () => {
+      orbitOffset = (orbitOffset - 0.9) % -458;
+      if (orbitLight) orbitLight.setAttribute('stroke-dashoffset', String(Math.round(orbitOffset)));
+      loadingAnimFrame = requestAnimationFrame(animate);
+    };
+    loadingAnimFrame = requestAnimationFrame(animate);
+  }
+
+  // 摄影金句轮播（入场动画完成后开始）
+  if (!loadingQuoteInterval) {
+    const quoteEl = document.getElementById('loading-quote');
+    let quoteIdx = 0;
+    quoteEl.textContent = PHOTO_QUOTES[0];
+    // 不等入场动画，直接设为可见（入场动画在 450ms 后才触发）
+    // 1.5s 后切换轮播过渡模式并开始循环
+    setTimeout(() => {
+      quoteEl.style.transition = 'opacity 1.2s ease';
+      loadingQuoteInterval = setInterval(() => {
+        quoteEl.style.opacity = '0';
+        setTimeout(() => {
+          quoteIdx = (quoteIdx + 1) % PHOTO_QUOTES.length;
+          quoteEl.textContent = PHOTO_QUOTES[quoteIdx];
+          quoteEl.style.opacity = '1';
+        }, 1200);
+      }, 4500);
+    }, 1500);
+  }
+
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise(r => setTimeout(r, 50));
+
+  // 逐层入场动画
+  const capsule = document.getElementById('loading-capsule-wrap');
+  const text = document.getElementById('loading-text');
+  const hint = document.getElementById('loading-hint');
+  const quote = document.getElementById('loading-quote');
+
+  // 1. 胶囊先出现
+  requestAnimationFrame(() => {
+    if (capsule) { capsule.style.opacity = '1'; capsule.style.transform = 'scale(1)'; }
+  });
+
+  // 2. 进度文字延迟 200ms
+  setTimeout(() => {
+    if (text) { text.style.opacity = '1'; text.style.transform = 'translateY(0)'; }
+  }, 200);
+
+  // 3. 金句延迟 450ms
+  setTimeout(() => {
+    if (quote) {
+      quote.style.opacity = '1';
+      quote.style.transform = 'translateX(-50%) translateY(0)';
+    }
+  }, 450);
+}
+
+export function updateLoadingScreen(msg) {
+  const t = document.getElementById('loading-text');
+  if (t) t.textContent = msg;
+}
+
+export function hideLoadingScreen() {
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  const elapsed = Date.now() - loadingShownAt;
+  const delay = Math.max(0, 600 - elapsed);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.4s ease';
+    setTimeout(() => {
+      if (el.parentNode) el.remove();
+      if (loadingAnimFrame) { cancelAnimationFrame(loadingAnimFrame); loadingAnimFrame = null; }
+      if (loadingQuoteInterval) { clearInterval(loadingQuoteInterval); loadingQuoteInterval = null; }
+      if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
+    }, 400);
+  }, delay);
+  return new Promise(r => { loadingScreenDoneResolve = r; });
+}
+
+// ========== 启动动画：单个 rAF 循环同步驱动所有元素 ==========
+export function playStartupSequence({ onDone } = {}) {
+  const reveal = document.querySelector('.hero__reveal');
+  const title = document.querySelector('.hero__title');
+  const subtitle = document.querySelector('.hero__subtitle');
+  const scroll = document.querySelector('.hero__scroll');
+
+  const start = performance.now();
+  const DURATION = 2400;
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function tick(now) {
+    const raw = Math.min((now - start) / DURATION, 1);
+
+    // 遮罩渐隐：0–50% 快速露出背景
+    if (reveal) reveal.style.opacity = 1 - easeOut(Math.min(raw / 0.50, 1));
+
+    // 标题淡入上移：5–55%
+    const tT = Math.max(0, Math.min(1, (raw - 0.05) / 0.50));
+    const et = easeOut(tT);
+    if (title) {
+      title.style.opacity = et;
+      title.style.transform = `translateY(${(1 - et) * 40}px) scale(${1.05 - et * 0.05})`;
+      const tL = Math.max(0, Math.min(1, (raw - 0.35) / 0.25));
+      const el = easeOut(tL);
+      title.style.setProperty('--line-scale', el);
+      title.style.setProperty('--line-opacity', el);
+    }
+
+    // 副标题淡入：25–55%
+    const tS = Math.max(0, Math.min(1, (raw - 0.25) / 0.30));
+    const es = easeOut(tS);
+    if (subtitle) {
+      subtitle.style.opacity = es;
+      subtitle.style.transform = `translateY(${(1 - es) * 20}px)`;
+    }
+
+    if (raw < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      moveTitleToCorner();
+      if (onDone) onDone();
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+export function moveTitleToCorner() {
+  const title = document.querySelector('.hero__title');
+  const content = document.querySelector('.hero__content');
+  const scroll = document.querySelector('.hero__scroll');
+  if (!title || title.classList.contains('hero__title--corner')) return;
+  if (scroll) scroll.style.opacity = '1';
+  if (content) content.classList.add('hero__content--corner');
+
+  const lensGlow = document.createElement('div'); lensGlow.id = 'lens-glow';
+  Object.assign(lensGlow.style, {
+    position:'fixed',zIndex:'9997',left:'6px',top:'2px',width:'110px',height:'44px',
+    borderRadius:'16px',background:'rgba(200,180,160,0.04)',
+    backdropFilter:'blur(40px)',WebkitBackdropFilter:'blur(40px)',
+    border:'0.5px solid rgba(200,180,160,0.06)',opacity:'0',transition:'opacity 0.8s ease',
+    pointerEvents:'none',
+    maskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)',
+    WebkitMaskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)'
+  });
+  document.body.appendChild(lensGlow);
+
+  const logo = document.createElement('div'); logo.id = 'corner-logo'; logo.textContent = 'LENS';
+  Object.assign(logo.style, {
+    position:'fixed',zIndex:'10000',left:'28px',top:'10px',
+    WebkitAppRegion:'no-drag',
+    fontFamily:"var(--font-display), 'Cormorant Garamond', Georgia, serif",
+    fontSize:'1.2rem',fontWeight:'300',letterSpacing:'0.18em',
+    color:'rgba(220,200,175,0.85)',cursor:'pointer',opacity:'0',scale:'0.8',
+    transition:'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1), color 0.3s ease',
+    userSelect:'none',WebkitUserSelect:'none',lineHeight:'1',padding:'4px 0',willChange:'opacity, scale'
+  });
+  logo.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  document.body.appendChild(logo);
+
+  requestAnimationFrame(() => { lensGlow.style.opacity = '1'; logo.style.opacity = '1'; logo.style.scale = '1'; });
+  title.classList.add('hero__title--corner');
+}
