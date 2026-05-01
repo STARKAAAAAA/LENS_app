@@ -71,7 +71,8 @@ let _dbg = '?';
 let _cols = 0;
 
 function moveFocus(dir, mode) {
-  if (focusElements.length === 0) { updateFocus(mode); return; }
+  if (focusElements.length === 0) updateFocus(mode);
+  // 不 return —— 继续计算列数和移动（修复鼠标→手柄切换后首次不触发）
   const cols = mode === 'browse' ? getGridCols() : 1;
   _cols = cols;
   switch (dir) {
@@ -118,7 +119,8 @@ function setInputMode(mode) {
   _inputMode = mode;
   if (mode === 'gamepad') {
     document.body.classList.add('gamepad-active');
-    _prev = { l: false, r: false, u: false, d: false }; // 重置边缘检测
+    _prev = { l: false, r: false, u: false, d: false };
+    updateFocus(getMode()); // 预先填充焦点，避免moveFocus首帧populate后return
   } else {
     document.body.classList.remove('gamepad-active');
     focusElements.forEach(el => el.classList.remove('card--focused'));
