@@ -54,11 +54,73 @@
     line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar { display: none; }
+  html { scrollbar-width: none; }
 }
 
 /* ========== 主内容区 ========== */
 @layer components {
+  /* ====== 自定义标题栏 ====== */
+  .titlebar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 36px;
+    z-index: 9999;
+    -webkit-app-region: drag;
+  }
+  .titlebar--visible {
+    animation: titlebarSlideIn 0.55s var(--ease-out) both;
+  }
+
+  .titlebar__controls {
+    position: fixed;
+    top: 8px; right: 8px;
+    z-index: 10001;
+    display: flex; gap: 0;
+    padding: 3px;
+    background: rgba(220,200,180,0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(220,200,180,0.10);
+    border-radius: 10px;
+    -webkit-app-region: no-drag;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .titlebar__controls.titlebar--visible {
+    animation: titlebarSlideIn 0.55s var(--ease-out) both;
+  }
+
+  .titlebar__btn {
+    width: 32px; height: 26px;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(200,168,124,0.50);
+    background: transparent;
+    border: none;
+    transition: all 0.3s var(--ease-out);
+  }
+  .titlebar__btn:first-child {
+    border-radius: 7px 0 0 7px;
+  }
+  .titlebar__btn:last-child {
+    border-radius: 0 7px 7px 0;
+  }
+  .titlebar__btn:hover {
+    color: var(--accent);
+    background: rgba(220,200,180,0.12);
+  }
+  .titlebar__btn--close:hover {
+    color: #e87070;
+    background: rgba(232,112,112,0.18);
+  }
+
   .main-area {
     min-height: 100vh;
     transition: margin-left 0.5s var(--ease-out);
@@ -71,6 +133,10 @@
     width: 18px;
     z-index: 210;
     pointer-events: auto;
+  }
+
+  .sidebar-trigger--ready {
+    /* 启动后始终可交互 */
   }
 
   /* ========== 毛玻璃侧边栏 ========== */
@@ -101,6 +167,24 @@
     /* 点击展开 */
     &.sidebar--open {
       transform: translateX(0);
+    }
+
+    /* 未展开时：内容虚化 + 不可交互 */
+    & .sidebar__header,
+    & .sidebar__list,
+    & .sidebar__add {
+      opacity: 0;
+      filter: blur(6px);
+      pointer-events: none;
+      transition: opacity 0.6s var(--ease-out), filter 0.6s var(--ease-out);
+    }
+
+    &.sidebar--open .sidebar__header,
+    &.sidebar--open .sidebar__list,
+    &.sidebar--open .sidebar__add {
+      opacity: 1;
+      filter: blur(0);
+      pointer-events: auto;
     }
 
     & .sidebar__header {
@@ -578,14 +662,19 @@
 
   /* ========== 画廊导航毛玻璃条 ========== */
   .gallery__nav {
+    position: sticky; top: 96px;
+    z-index: 10;
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 2rem;
     padding: 1rem 1.5rem;
-    background: rgba(220,200,180,0.08);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border: 0.5px solid rgba(220,200,180,0.10);
+    background: rgba(10,10,8,0.55);
+    backdrop-filter: blur(24px) saturate(120%);
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
+    border: 0.5px solid rgba(220,200,180,0.12);
     border-radius: var(--radius);
+  }
+  .gallery__nav * {
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
   }
 
   .gallery__back {
@@ -593,17 +682,17 @@
     font-family: var(--font-display);
     font-size: 0.85rem; font-style: italic;
     letter-spacing: 0.06em;
-    color: var(--text-3);
+    color: var(--text);
     transition: color 0.4s ease;
 
-    &:hover { color: var(--text); }
+    &:hover { color: var(--accent); }
   }
 
   .gallery__info {
     font-family: var(--font-display);
     font-size: 0.7rem; font-style: italic;
     letter-spacing: 0.1em;
-    color: var(--text-3);
+    color: var(--text-2);
   }
 
   /* 自定义排序 & 筛选下拉组件 */
@@ -738,6 +827,7 @@
     }
 
     &:hover .gallery__item-title { opacity: 1; translate: 0 0; }
+
   }
 
   @keyframes itemIn {
@@ -795,7 +885,7 @@
 
   /* ========== 灯箱 ========== */
   .lightbox {
-    position: fixed; inset: 0; z-index: 1000;
+    position: fixed; inset: 0; z-index: 20000;
     background: rgba(0,0,0,0);
     display: flex; align-items: center; justify-content: center;
     visibility: hidden;
@@ -867,6 +957,7 @@
 
     & .lightbox__content {
       text-align: center; max-width: 90vw; max-height: 85vh;
+      position: relative;
       opacity: 0; scale: 0.95;
       transition: opacity 0.7s var(--ease-out) 0.1s, scale 0.7s var(--ease-out) 0.1s;
     }
@@ -999,7 +1090,7 @@
 
   /* ========== 幻灯片 ========== */
   .slideshow {
-    position: fixed; inset: 0; z-index: 2000;
+    position: fixed; inset: 0; z-index: 20000;
     background: var(--bg); display: flex; flex-direction: column;
     opacity: 0; visibility: hidden;
     scale: 1.04;
@@ -1076,7 +1167,7 @@
 
   /* ========== 毛玻璃工具栏 ========== */
   .toolbar {
-    position: fixed; top: 16px; right: 16px; z-index: 100;
+    position: fixed; top: 48px; right: 16px; z-index: 100;
     display: flex; gap: 2px;
     padding: 5px;
     background: rgba(220,200,180,0.06);
@@ -1093,14 +1184,16 @@
   .toolbar__btn {
     font-family: var(--font-display);
     font-size: 0.72rem; font-weight: 400; font-style: italic;
-    letter-spacing: 0.1em; color: rgba(220,200,180,0.4);
+    letter-spacing: 0.1em; color: rgba(220,200,180,0.45);
     padding: 7px 20px;
     border-radius: var(--radius-pill);
     background: transparent;
     border: none;
+    cursor: pointer;
     transition: all 0.35s var(--ease-out);
-    position: relative; z-index: 2;
     opacity: 0; transform: translateX(28px);
+    max-width: 200px;
+    white-space: nowrap;
   }
   .toolbar--visible .toolbar__btn {
     animation: btnSlideIn 0.55s var(--ease-spring) forwards;
@@ -1121,16 +1214,14 @@
     100% { text-shadow: 0 0 0 rgba(200,168,124,0); transform: scale(1); }
   }
 
-  .toolbar__btn {
-    &:hover {
-      color: var(--text);
-      background: rgba(220,200,180,0.08);
-    }
+  .toolbar__btn:hover {
+    color: var(--text);
+    background: rgba(220,200,180,0.10);
   }
 
   /* ========== 设置面板 ========== */
   .settings-panel {
-    position: fixed; top: 56px; right: 16px; z-index: 105;
+    position: fixed; top: 90px; right: 16px; z-index: 105;
     display: flex; flex-direction: column; gap: 2px;
     min-width: 220px;
     padding: 6px;
@@ -1170,6 +1261,36 @@
     height: 1px;
     margin: 2px 10px;
     background: rgba(200,168,124,0.08);
+  }
+  .settings-panel__item--col {
+    flex-direction: column; align-items: flex-start; gap: 8px;
+  }
+  .cache-dir-row {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+  }
+  .cache-dir-path {
+    flex: 1; min-width: 0;
+    font-family: var(--font-body);
+    font-size: 0.65rem; color: var(--text-3);
+    letter-spacing: 0.03em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px; padding: 4px 8px;
+  }
+  .cache-dir-btn {
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 0.7rem; font-style: italic; letter-spacing: 0.06em;
+    color: var(--text-2);
+    background: rgba(200,168,124,0.08);
+    border: 0.5px solid rgba(200,168,124,0.12);
+    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+    transition: all 0.3s var(--ease-out);
+  }
+  .cache-dir-btn:hover {
+    color: var(--text);
+    background: rgba(200,168,124,0.14);
+    border-color: rgba(200,168,124,0.22);
   }
 
   /* === 自定义开关 === */
@@ -1307,8 +1428,12 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding: 6px 16px;
     border-radius: var(--radius-pill);
-    background: rgba(10,10,8,0.85);
+    background: rgba(10,10,8,0.3);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 0.5px solid rgba(220,200,180,0.06);
+    opacity: 0;
+    transition: opacity 0.5s var(--ease-out);
   }
 }
 
@@ -1326,7 +1451,7 @@
     transition: opacity 0.35s var(--ease-out), visibility 0s 0s;
   }
   .shortcuts-panel {
-    position: fixed; top: 16px; right: 16px;
+    position: fixed; top: 48px; right: 16px;
     z-index: 3001;
     min-width: 280px;
     background: rgba(30,28,26,0.94);
@@ -1415,6 +1540,12 @@
     .hero__subtitle { letter-spacing: 0.35em; text-indent: 0.35em; }
     .lightbox__prev { left: 0.5rem; }
     .lightbox__next { right: 0.5rem; }
-    .toolbar { top: 4px; right: 4px; }
+    .toolbar { top: 38px; right: 4px; }
   }
+}
+
+/* ====== 标题栏动画 ====== */
+@keyframes titlebarSlideIn {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
 }

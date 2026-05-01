@@ -3,6 +3,7 @@ import { join } from '@tauri-apps/api/path';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 const CONFIG_KEY = 'lens-photo-dir';
 const SAVED_KEY = 'lens-saved-folders';
@@ -77,8 +78,27 @@ function preloadImages(imgs, onProgress) {
   }));
 }
 
+// ========== 自定义标题栏控制 ==========
+function initTitlebar() {
+  try {
+    const appWindow = getCurrentWindow();
+    document.getElementById('tb-minimize')?.addEventListener('click', () => appWindow.minimize());
+    document.getElementById('tb-maximize')?.addEventListener('click', () => appWindow.toggleMaximize());
+    document.getElementById('tb-close')?.addEventListener('click', () => appWindow.close());
+    const titlebar = document.getElementById('titlebar');
+    if (titlebar) {
+      titlebar.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.titlebar__btn')) return;
+        appWindow.toggleMaximize();
+      });
+    }
+  } catch (e) { console.warn('initTitlebar error:', e); }
+}
+
 // ========== App ==========
 document.addEventListener('DOMContentLoaded', async () => {
+  console.time('startup');
+  console.log('[LENS] DOMContentLoaded');
   const heroSlidesEl = document.getElementById('hero-slides');
   const categoriesEl = document.getElementById('categories');
   const galleryEl = document.getElementById('gallery');
@@ -89,6 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sidebarList = document.getElementById('sidebar-list');
   const sidebar = document.getElementById('sidebar');
   const sidebarTrigger = document.getElementById('sidebar-trigger');
+
+  // 初始化自定义标题栏 (暂时禁用排查问题)
+  initTitlebar();
 
   let data = { categories: [], photos: [], byCategory: {} };
   let photoDir = loadDir();
@@ -518,7 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       delBtn.style.borderColor = 'rgba(220,200,180,0.10)';
     });
     delBtn.addEventListener('click', async () => {
-      await invoke('clear_cache');
+      await invoke('clear_cache', { cacheDir: featureToggles.cacheDir });
       updateCacheDisplay();
     });
 
@@ -530,7 +553,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function updateCacheDisplay() {
     try {
-      const cache = await invoke('get_cache_info');
+      const cache = await invoke('get_cache_info', { cacheDir: featureToggles.cacheDir });
       const info = document.getElementById('cache-info');
       if (info) info.textContent = `缓存: ${formatBytes(cache.size_bytes)} | ${cache.file_count} 文件`;
     } catch (e) { /* ignore */ }
@@ -566,7 +589,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const unlisten = await listen('thumbnail-progress', (event) => {
         const { current, total, fresh } = event.payload;
         updateLoadingScreen(`正在生成缩略图... ${current} / ${total}`);
-        // 超过三分之一是全新生成 → 显示首次加载提示
         if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
           firstLoadHintShown = true;
           const hint = document.getElementById('loading-hint');
@@ -580,7 +602,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
       });
-      const thumbMap = await invoke('generate_thumbnails', { paths });
+      const thumbMap = await invoke('generate_thumbnails', { paths, cacheDir: featureToggles.cacheDir });
       unlisten();
 
       let thumbHits = 0;
@@ -669,7 +691,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     exif: true, rating: true,
     shortcuts: true, sortFilter: true,
     sortMethod: 'name', filterMode: 'all',
-    density: 'm', rawScan: false,
+    density: 'm',
+    cacheDir: 'E:\\LENS\\thumbnails',
   };
   function loadToggles() {
     try { return { ...DEFAULT_TOGGLES, ...JSON.parse(localStorage.getItem(TOGGLE_KEY)) }; }
@@ -695,6 +718,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       const on = featureToggles[key];
       btn.classList.toggle('toggle-switch--on', on);
     });
+    // 快捷键 "?" 按钮显隐动画
+    const shortcutsBtn2 = document.getElementById('tb-shortcuts');
+    if (shortcutsBtn2) {
+      if (featureToggles.shortcuts) {
+        shortcutsBtn2.style.opacity = '1';
+        shortcutsBtn2.style.maxWidth = '200px';
+        shortcutsBtn2.style.paddingLeft = '';
+        shortcutsBtn2.style.paddingRight = '';
+        shortcutsBtn2.style.pointerEvents = 'auto';
+        shortcutsBtn2.style.filter = 'blur(0)';
+        shortcutsBtn2.style.WebkitFilter = 'blur(0)';
+      } else {
+        shortcutsBtn2.style.opacity = '0';
+        shortcutsBtn2.style.maxWidth = '0';
+        shortcutsBtn2.style.paddingLeft = '0';
+        shortcutsBtn2.style.paddingRight = '0';
+        shortcutsBtn2.style.pointerEvents = 'none';
+        shortcutsBtn2.style.overflow = 'hidden';
+        shortcutsBtn2.style.margin = '0';
+        shortcutsBtn2.style.border = '0';
+        shortcutsBtn2.style.filter = 'blur(8px)';
+        shortcutsBtn2.style.WebkitFilter = 'blur(8px)';
+      }
+    }
     document.querySelectorAll('.density-btn').forEach(b => {
       b.classList.toggle('density-btn--active', b.dataset.density === featureToggles.density);
     });
@@ -728,24 +775,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsPanel.classList.remove('settings-panel--open');
   }
 
+  function updateCacheDirDisplay() {
+    const el = document.getElementById('cache-dir-path');
+    if (el) el.textContent = featureToggles.cacheDir || 'E:\\LENS\\thumbnails';
+  }
+  updateCacheDirDisplay();
+
   settingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     settingsPanel.classList.contains('settings-panel--open') ? closeSettingsPanel() : openSettingsPanel();
   });
 
-  settingsPanel.addEventListener('click', (e) => {
+  settingsPanel.addEventListener('click', async (e) => {
     const sw = e.target.closest('.toggle-switch');
     if (sw) {
       const key = sw.dataset.key;
       featureToggles[key] = !featureToggles[key];
       saveToggles(featureToggles);
       sw.classList.toggle('toggle-switch--on', featureToggles[key]);
+      applyTogglesUI();
       if (key === 'sortFilter') {
         if (featureToggles.sortFilter && currentCategory) {
           renderGalleryDropdowns();
         } else {
-          document.getElementById('gallery-sort')?.remove();
-          document.getElementById('gallery-filter')?.remove();
+          ['gallery-sort', 'gallery-filter'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.style.opacity = '0';
+              el.style.filter = 'blur(6px)';
+              el.style.WebkitFilter = 'blur(6px)';
+              el.style.pointerEvents = 'none';
+              el.style.transition = 'opacity 0.35s var(--ease-out), filter 0.35s var(--ease-out)';
+            }
+          });
           featureToggles.sortMethod = 'name';
           featureToggles.filterMode = 'all';
           saveToggles(featureToggles);
@@ -761,6 +823,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       featureToggles.density = db.dataset.density;
       saveToggles(featureToggles);
       applyTogglesUI();
+      return;
+    }
+    const cacheBtn = e.target.closest('#cache-dir-btn');
+    if (cacheBtn) {
+      const selected = await open({ directory: true, multiple: false, title: '选择缓存文件夹' });
+      if (selected) {
+        const cachePath = selected + '\\thumbnails';
+        featureToggles.cacheDir = cachePath;
+        saveToggles(featureToggles);
+        updateCacheDirDisplay();
+      }
       return;
     }
   });
@@ -795,11 +868,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     else { showEmpty('请选择照片文件夹'); }
   }
 
-  // 启动完成后显示工具栏（加载画面已消失 + 安全延迟 + CSS animation 驱动）
-  setTimeout(() => {
-    document.getElementById('toolbar').classList.add('toolbar--visible');
-  }, 300);
-
   document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
 
   initLightbox();
@@ -807,6 +875,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   initParallax();
   initScrollReveal();
   updateCacheDisplay();
+
+  // 启动完成后显示UI元素
+  setTimeout(() => {
+    document.getElementById('toolbar').classList.add('toolbar--visible');
+    document.getElementById('titlebar').classList.add('titlebar--visible');
+    document.getElementById('titlebar-controls').classList.add('titlebar--visible');
+    document.getElementById('sidebar-trigger').classList.add('sidebar-trigger--ready');
+    const dirLabel = document.getElementById('dir-label');
+    if (dirLabel) dirLabel.style.opacity = '1';
+  }, 300);
 
   // ========== 快捷键面板 ==========
   const shortcutsOverlay = document.getElementById('shortcuts-overlay');
@@ -841,6 +919,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   shortcutsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (!featureToggles.shortcuts) return;
     toggleShortcuts();
   });
   shortcutsOverlay.addEventListener('click', (e) => {
@@ -941,11 +1020,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         subtitle.style.transform = `translateY(${(1 - es) * 20}px)`;
       }
 
-      // 滚动指示器淡入：65–90%
-      const tC = Math.max(0, Math.min(1, (raw - 0.65) / 0.25));
-      if (scroll) scroll.style.opacity = easeOut(tC);
-      // 滚动指示线脉冲在动画结束后用 CSS animation，或仅做初始状态
-
       if (raw < 1) {
         requestAnimationFrame(tick);
       } else {
@@ -963,12 +1037,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const content = document.querySelector('.hero__content');
     const scroll = document.querySelector('.hero__scroll');
     if (!title || title.classList.contains('hero__title--corner')) return;
-    if (scroll) scroll.style.opacity = '0';
+    if (scroll) scroll.style.opacity = '1';
     if (content) content.classList.add('hero__content--corner');
 
     const lensGlow = document.createElement('div'); lensGlow.id = 'lens-glow';
     Object.assign(lensGlow.style, {
-      position:'fixed',zIndex:'497',left:'6px',top:'2px',width:'110px',height:'44px',
+      position:'fixed',zIndex:'9997',left:'6px',top:'2px',width:'110px',height:'44px',
       borderRadius:'16px',background:'rgba(200,180,160,0.04)',
       backdropFilter:'blur(40px)',WebkitBackdropFilter:'blur(40px)',
       border:'0.5px solid rgba(200,180,160,0.06)',opacity:'0',transition:'opacity 0.8s ease',
@@ -980,7 +1054,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const logo = document.createElement('div'); logo.id = 'corner-logo'; logo.textContent = 'LENS';
     Object.assign(logo.style, {
-      position:'fixed',zIndex:'500',left:'28px',top:'10px',
+      position:'fixed',zIndex:'10000',left:'28px',top:'10px',
+      WebkitAppRegion:'no-drag',
       fontFamily:"var(--font-display), 'Cormorant Garamond', Georgia, serif",
       fontSize:'1.2rem',fontWeight:'300',letterSpacing:'0.18em',
       color:'rgba(220,200,175,0.85)',cursor:'pointer',opacity:'0',scale:'0.8',
@@ -1229,14 +1304,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let _activeDropdowns = [];
   function renderGalleryDropdowns() {
-    // 清理旧下拉组件（wrapper + body 上的 menu）
-    _activeDropdowns.forEach(d => { d.el.remove(); if (d.menu) d.menu.remove(); });
-    _activeDropdowns = [];
-
-    if (!featureToggles.sortFilter) return;
-
     const nav = document.querySelector('.gallery__nav');
     if (!nav) return;
+
+    // 关闭筛选时：隐藏但不移除，保持布局宽度不变
+    if (!featureToggles.sortFilter) {
+      ['gallery-sort', 'gallery-filter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.opacity = '0';
+          el.style.filter = 'blur(6px)';
+          el.style.WebkitFilter = 'blur(6px)';
+          el.style.pointerEvents = 'none';
+          el.style.transition = 'opacity 0.35s var(--ease-out), filter 0.35s var(--ease-out)';
+        }
+      });
+      _activeDropdowns.forEach(d => { if (d.menu) d.menu.classList.remove('custom-dropdown__menu--open'); });
+      return;
+    }
+
+    // 清理旧组件并重建
+    _activeDropdowns.forEach(d => { d.el.remove(); if (d.menu) d.menu.remove(); });
+    _activeDropdowns = [];
 
     const sortOpts = [
       { value: 'name', label: '按名称' },
@@ -1274,8 +1363,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const info = document.getElementById('gallery-info');
     if (info) {
+      // 高斯模糊淡入动画
+      [filterComp.el, sortComp.el].forEach(el => {
+        el.style.opacity = '0';
+        el.style.filter = 'blur(6px)';
+        el.style.WebkitFilter = 'blur(6px)';
+        el.style.transition = 'opacity 0.4s var(--ease-out), filter 0.4s var(--ease-out)';
+      });
       nav.insertBefore(filterComp.el, info);
       nav.insertBefore(sortComp.el, filterComp.el);
+      requestAnimationFrame(() => {
+        [filterComp.el, sortComp.el].forEach(el => {
+          el.style.opacity = '1';
+          el.style.filter = 'blur(0)';
+          el.style.WebkitFilter = 'blur(0)';
+        });
+      });
     }
   }
 
@@ -1364,6 +1467,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lbImg = lightbox.querySelector('.lightbox__img');
     const lbTitle = lightbox.querySelector('.lightbox__title');
     const lbCounter = lightbox.querySelector('.lightbox__counter');
+
+    // 图片加载失败时回退缩略图
+    lbImg.addEventListener('error', () => {
+      const item = items[idx];
+      if (item && item.dataset.thumbSrc && lbImg.src !== item.dataset.thumbSrc + '?full=1') {
+        lbImg.src = item.dataset.thumbSrc + '?full=1';
+      }
+    });
     const btnClose = lightbox.querySelector('.lightbox__close');
     const btnPrev = lightbox.querySelector('.lightbox__prev');
     const btnNext = lightbox.querySelector('.lightbox__next');
@@ -1660,7 +1771,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ========== 一键回顶部 ==========
   const backToTop = document.getElementById('back-to-top');
   let scrollTicking = false;
-  backToTop.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  backToTop.addEventListener('click', () => {
+    const portfolio = document.getElementById('portfolio');
+    if (portfolio) { window.scrollTo({ top: portfolio.offsetTop - 8, behavior: 'smooth' }); }
+  });
   window.addEventListener('scroll', () => {
     if (!scrollTicking) {
       requestAnimationFrame(() => {

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 use std::sync::{Mutex, atomic::{AtomicU32, Ordering}};
 use image::GenericImageView;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 
 fn main() {
     tauri::Builder::default()
@@ -73,14 +73,6 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-// ========== 缓存目录 ==========
-
-fn thumb_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(app.path().app_cache_dir()
-        .map_err(|e| e.to_string())?
-        .join("thumbnails"))
-}
-
 // ========== 缩略图生成 ==========
 
 /// 生成缩略图缓存，返回 {原图路径: 缩略图缓存路径}
@@ -88,8 +80,9 @@ fn thumb_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 async fn generate_thumbnails(
     app: tauri::AppHandle,
     paths: Vec<String>,
+    cache_dir: String,
 ) -> Result<HashMap<String, String>, String> {
-    let cache_dir = thumb_cache_dir(&app)?;
+    let cache_dir = PathBuf::from(&cache_dir);
     std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
 
     // 缓存超过 7 天自动清除
@@ -117,14 +110,15 @@ async fn generate_thumbnails(
 
     let total = paths.len() as u32;
 
-    // spawn_blocking: 8 线程并行生成缩略图，首次加载快 5-8 倍
+    // spawn_blocking: 按 CPU 核心数并行生成缩略图
     tauri::async_runtime::spawn_blocking(move || {
         let map = Mutex::new(HashMap::new());
         let done = AtomicU32::new(0);
         let fresh = AtomicU32::new(0);
-        const CHUNK: usize = 8;
+        let num_threads = num_cpus::get().max(16);
+        let chunk_size = num_threads;
 
-        for chunk in paths.chunks(CHUNK) {
+        for chunk in paths.chunks(chunk_size) {
             std::thread::scope(|s| {
                 for path in chunk {
                     let app = app.clone();
@@ -167,39 +161,52 @@ fn djb2(s: &str) -> String {
     format!("{:016x}", h)
 }
 
-/// 为单张照片生成缩略图（宽高 ≤480px）
+/// 为单张照片生成缩略图（turbojpeg SIMD 解码 + Lanczos3 缩放 + 品质 95）
 fn generate_one(original: &str, dest: &PathBuf) {
     let data = match std::fs::read(original) {
         Ok(d) => d,
         Err(_) => return,
     };
 
-    // 小于 200KB 的原图直接复用
-    if data.len() < 200_000 {
-        let _ = std::fs::write(dest, &data);
+    // 尝试 turbojpeg 解码（SIMD 加速，比 image crate 快 2-3x）
+    let (w, h, pixels) = if let Ok(img) = turbojpeg::decompress_image::<image::Rgb<u8>>(&data) {
+        let (iw, ih) = (img.width() as u32, img.height() as u32);
+        (iw, ih, img.into_raw())
+    } else if let Ok(img) = image::load_from_memory(&data) {
+        // 非 JPEG 回退到 image crate
+        let rgb = img.to_rgb8();
+        let (w, h) = rgb.dimensions();
+        (w, h, rgb.into_raw())
+    } else {
         return;
-    }
-
-    let img = match image::load_from_memory(&data) {
-        Ok(i) => i,
-        Err(_) => return,
     };
 
-    let (w, h) = img.dimensions();
     let longest = w.max(h);
+    let (tw, th, final_pixels) = if longest <= 480 {
+        (w as usize, h as usize, pixels)
+    } else {
+        // Lanczos3 缩放到 480px（用 image crate）
+        let ratio = 480.0 / longest as f64;
+        let nw = (w as f64 * ratio) as u32;
+        let nh = (h as f64 * ratio) as u32;
+        let src = image::RgbImage::from_raw(w, h, pixels).unwrap();
+        let resized = image::DynamicImage::from(src)
+            .resize_exact(nw, nh, image::imageops::FilterType::Lanczos3)
+            .to_rgb8();
+        let (rw, rh) = resized.dimensions();
+        (rw as usize, rh as usize, resized.into_raw())
+    };
 
-    if longest <= 480 {
-        let _ = std::fs::write(dest, &data);
-        return;
-    }
-
-    let ratio = 480.0 / longest as f64;
-    let nw = (w as f64 * ratio) as u32;
-    let nh = (h as f64 * ratio) as u32;
-    let thumb = img.resize_exact(nw, nh, image::imageops::FilterType::CatmullRom);
-    let mut buf = std::io::Cursor::new(Vec::new());
-    if thumb.write_to(&mut buf, image::ImageFormat::Jpeg).is_ok() {
-        let _ = std::fs::write(dest, buf.into_inner());
+    // turbojpeg 编码（SIMD 加速，品质 95）
+    let enc_image = turbojpeg::Image {
+        pixels: final_pixels.as_slice(),
+        width: tw,
+        height: th,
+        pitch: tw * 3,
+        format: turbojpeg::PixelFormat::RGB,
+    };
+    if let Ok(jpg) = turbojpeg::compress(enc_image, 95, turbojpeg::Subsamp::Sub2x2) {
+        let _ = std::fs::write(dest, jpg);
     }
 }
 
@@ -212,8 +219,8 @@ struct CacheInfo {
 }
 
 #[tauri::command]
-fn get_cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
-    let cache_dir = thumb_cache_dir(&app)?;
+fn get_cache_info(_app: tauri::AppHandle, cache_dir: String) -> Result<CacheInfo, String> {
+    let cache_dir = PathBuf::from(&cache_dir);
 
     let mut size_bytes = 0u64;
     let mut file_count = 0u32;
@@ -233,8 +240,8 @@ fn get_cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
 }
 
 #[tauri::command]
-fn clear_cache(app: tauri::AppHandle) -> Result<(), String> {
-    let cache_dir = thumb_cache_dir(&app)?;
+fn clear_cache(_app: tauri::AppHandle, cache_dir: String) -> Result<(), String> {
+    let cache_dir = PathBuf::from(&cache_dir);
 
     if cache_dir.exists() {
         std::fs::remove_dir_all(&cache_dir).map_err(|e| e.to_string())?;
