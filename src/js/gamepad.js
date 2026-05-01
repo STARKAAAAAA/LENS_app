@@ -73,12 +73,35 @@ function createDebouncer() {
 
 let _gpAnimFrame = null;
 let _gpActive = false;
+let _inputMode = 'mouse'; // 'mouse' | 'gamepad'
+let _mouseTimer = null;
+
+function setInputMode(mode) {
+  if (_inputMode === mode) return;
+  _inputMode = mode;
+  if (mode === 'gamepad') {
+    document.body.classList.add('gamepad-active');
+  } else {
+    document.body.classList.remove('gamepad-active');
+    // 清除所有虚拟焦点
+    focusElements.forEach(el => el.classList.remove('card--focused'));
+    focusElements = [];
+    focusIndex = 0;
+  }
+}
 
 export function initGamepad() {
   if (_gpActive) return;
   _gpActive = true;
 
   const debounce = createDebouncer();
+
+  // 鼠标移动 → 切回鼠标模式
+  document.addEventListener('mousemove', () => {
+    if (_inputMode === 'gamepad') {
+      setInputMode('mouse');
+    }
+  }, { passive: true });
 
   function injectCardFloat(lx, ly) {
     const cards = document.querySelectorAll('.category-card, .gallery__item');
@@ -128,6 +151,13 @@ export function initGamepad() {
     // D-pad
     const dX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
     const dY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0);
+
+    // --- 检测手柄输入 → 切换到游戏手柄模式 ---
+    const hasStickInput = Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08 || Math.abs(rx) > 0.08 || Math.abs(ry) > 0.08;
+    const hasButtonInput = active.buttons.some(b => b?.pressed);
+    if (hasStickInput || hasButtonInput) {
+      if (_inputMode !== 'gamepad') setInputMode('gamepad');
+    }
 
     // --- 左摇杆 → 卡片浮游 (browse/gallery) ---
     if ((mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08)) {
@@ -221,17 +251,13 @@ export function initGamepad() {
 
   window.addEventListener('gamepadconnected', (e) => {
     console.log('[LENS] gamepad connected:', e.gamepad.id);
-    document.body.classList.add('gamepad-active');
     if (!_gpAnimFrame) _gpAnimFrame = requestAnimationFrame(poll);
   });
 
   window.addEventListener('gamepaddisconnected', (e) => {
     console.log('[LENS] gamepad disconnected:', e.gamepad.id);
-    document.body.classList.remove('gamepad-active');
+    setInputMode('mouse');
     releaseCardFloat();
-    focusElements.forEach(el => el.classList.remove('card--focused'));
-    focusElements = [];
-    focusIndex = 0;
   });
 
   // 立即开始轮询
