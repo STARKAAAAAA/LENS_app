@@ -201,6 +201,19 @@
     letter-spacing: 0.04em;
     flex: 1; text-align: right;
   }
+  /* 按设备切换显示 */
+  .shortcuts__section--kbd { display: block; }
+  .shortcuts__section--gamepad { display: none; }
+  body.gamepad-active .shortcuts__section--kbd { display: none; }
+  body.gamepad-active .shortcuts__section--gamepad { display: block; }
+
+  /* Xbox 风格按钮图标 */
+  .gp-icon {
+    width: 22px; height: 22px;
+    flex-shrink: 0;
+    display: block;
+  }
+  .gp-icon + .gp-icon { margin-left: 4px; }
   .shortcuts__hint {
     font-family: var(--font-body);
     font-size: 0.62rem; color: var(--text-3);

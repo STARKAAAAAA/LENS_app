@@ -519,12 +519,13 @@ body.gamepad-active {
   pointer-events: none;
   z-index: 999;
   opacity: 0;
+  overflow: hidden;
   transition: opacity 0.8s ease;
   background: radial-gradient(
-    circle at center,
-    rgba(255, 255, 255, 0.28) 0%,
-    rgba(255, 245, 235, 0.12) 35%,
-    transparent 65%
+    ellipse at center,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 245, 235, 0.07) 45%,
+    transparent 80%
   );
 }
 
@@ -541,9 +542,11 @@ body.gamepad-active {
   text-shadow: 0 0 16px rgba(200, 168, 124, 0.35);
 }
 
-/* 让被 --corner 隐藏的 hero 标题恢复可见 */
-.hero--focused .hero__content,
-.hero--focused .hero__title {
+/* 让被 --corner 隐藏的 hero 标题恢复可见（特异性需 ≥ .hero .hero__title.hero__title--corner 的 0,3,0） */
+.hero.hero--focused .hero__title,
+.hero.hero--focused .hero__title.hero__title--corner,
+.hero--focused .hero__content.hero__content--corner,
+.hero--focused .hero__content {
   opacity: 1 !important;
   pointer-events: auto !important;
 }
@@ -551,4 +554,60 @@ body.gamepad-active {
 /* 隐藏副标题 */
 .hero--focused .hero__subtitle {
   opacity: 0 !important;
+}
+
+/* Xbox 风格手柄按钮图示 */
+.gamepad-btn {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-family: var(--font-body);
+  font-size: 10px; font-weight: 700;
+  line-height: 1;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+/* 手柄激活时在操作按钮旁显示图示 */
+/* 手柄激活时 — Xbox 风格按钮图示 */
+body.gamepad-active .sidebar__item-remove::after {
+  content: '';
+  display: inline-block;
+  width: 22px; height: 22px;
+  background: url('/assets/icons/btn-x.svg') center/contain no-repeat;
+  margin-left: 6px; flex-shrink: 0;
+  vertical-align: middle;
+}
+
+body.gamepad-active .sidebar__add::after {
+  content: '';
+  display: inline-block;
+  width: 22px; height: 22px;
+  background: url('/assets/icons/btn-a.svg') center/contain no-repeat;
+  margin-left: 8px; flex-shrink: 0;
+  vertical-align: middle;
+}
+
+body.gamepad-active .gallery__back::after {
+  content: '';
+  display: inline-block;
+  width: 22px; height: 22px;
+  background: url('/assets/icons/btn-b.svg') center/contain no-repeat;
+  margin-left: 8px; flex-shrink: 0;
+  vertical-align: middle;
+  font-style: normal;
+}
+
+/* sidebar 文件夹选中态 */
+.sidebar__item.hero--focused {
+  background: rgba(220, 200, 180, 0.12) !important;
+  border-color: rgba(220, 200, 180, 0.22) !important;
+}
+
+.sidebar__add.hero--focused {
+  color: var(--text) !important;
+  border-color: rgba(220, 200, 180, 0.22) !important;
+  background: rgba(220, 200, 180, 0.14) !important;
 }

@@ -1,3 +1,17 @@
+@font-face {
+  font-family: 'Xbox';
+  src: url('../assets/fonts/Aldrich.ttf');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+/* 备选：Windows 自带类似 Xbox 的粗几何字体 */
+@font-face {
+  font-family: 'Xbox Fallback';
+  src: local('Segoe UI Black'), local('Impact'), local('Arial Black');
+  font-weight: 900;
+}
+
 @layer components {
   .main-area {
     min-height: 100vh;
