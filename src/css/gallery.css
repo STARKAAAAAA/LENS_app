@@ -1,5 +1,5 @@
 @layer components {
-  /* ========== Portfolio 毛玻璃面板 ========== */
+  /* ========== Portfolio 毛玻璃面�?========== */
   .portfolio {
     padding: 8rem 3rem 6rem;
     max-width: 1500px; margin: 0 auto;
@@ -66,7 +66,7 @@
     opacity: 1;
     transition: opacity 0.35s var(--ease-out);
 
-    /* 密度切换：金光扫过 */
+    /* 密度切换：金光扫�?*/
 
     &.categories--out { opacity: 0; }
   }
@@ -113,7 +113,7 @@
       filter: brightness(0.55) blur(6px);
     }
 
-    /* 毛玻璃信息面板 */
+    /* 毛玻璃信息面�?*/
     & .category-card__info {
       position: absolute; inset: 0;
       display: flex; flex-direction: column;
@@ -241,7 +241,7 @@
     color: var(--text-2);
   }
 
-  /* 自定义排序 & 筛选下拉组件 */
+  /* 自定义排�?& 筛选下拉组�?*/
   .custom-dropdown {
     position: relative;
     flex-shrink: 0;
@@ -287,7 +287,7 @@
     opacity: 0.8;
   }
   .custom-dropdown__menu {
-    /* position 由 JS 动态设为 fixed，基于 trigger 的 getBoundingClientRect */
+    /* position �?JS 动态设�?fixed，基�?trigger �?getBoundingClientRect */
     min-width: 120px;
     padding: 4px;
     background: rgba(30,28,26,0.95);
@@ -394,6 +394,35 @@
     transition: transform 0.6s var(--ease-out);
   }
 
+  /* 手柄模式下禁用鼠�?:hover 效果 */
+  body.gamepad-active .category-card:hover {
+    transform: none;
+  }
+  body.gamepad-active .category-card:hover .category-card__img {
+    transform: none;
+    filter: none;
+  }
+  body.gamepad-active .category-card:hover .category-card__info {
+    opacity: 0;
+  }
+  body.gamepad-active .category-card:hover .category-card__label {
+    opacity: 1;
+  }
+  body.gamepad-active .category-card:hover .category-card__count {
+    translate: 0 10px;
+  }
+  body.gamepad-active .gallery__item:hover img {
+    transform: none;
+    filter: none;
+  }
+  body.gamepad-active .gallery__item:hover .gallery__item-overlay {
+    opacity: 0;
+  }
+  body.gamepad-active .gallery__item:hover .gallery__item-title {
+    opacity: 0;
+    translate: 0 10px;
+  }
+
   @keyframes itemIn {
     from { opacity: 0; translate: 0 24px; }
     to { opacity: 1; translate: 0 0; }
@@ -422,7 +451,7 @@
     opacity: 1;
   }
 
-  /* 密度切换：遮罩转场 */
+  /* 密度切换：遮罩转�?*/
   .density-sweep {
     position: absolute; inset: 0; z-index: 999;
     background: linear-gradient(90deg,
@@ -445,7 +474,7 @@
     text-align: center; padding: 4rem 0 2rem;
   }
 
-  /* 毛玻璃加载按钮 */
+  /* 毛玻璃加载按�?*/
   .load-more-btn {
     font-family: var(--font-display);
     font-size: 0.75rem; font-weight: 400; font-style: italic;
@@ -476,7 +505,7 @@
     outline-offset: 4px;
     z-index: 6;
 
-    /* 显示hover遮罩层 */
+    /* 显示hover遮罩�?*/
     & .category-card__info { opacity: 1; }
     & .category-card__name { translate: 0 0; }
     & .category-card__count { translate: 0 0; }
@@ -484,7 +513,7 @@
     & .gallery__item-overlay { opacity: 1; }
     & .gallery__item-title { opacity: 1; translate: 0 0; }
 
-    /* 图片暗化+模糊，模拟鼠标悬浮 */
+    /* 图片暗化+模糊，模拟鼠标悬�?*/
     & img {
       filter: brightness(0.6) blur(3px);
     }
@@ -511,6 +540,20 @@ body.gamepad-active {
   .card--tilt-active {
     cursor: none;
   }
+
+  .toolbar__btn.hero--focused {
+    background: rgba(200, 168, 124, 0.1) !important;
+    box-shadow: 0 0 12px rgba(200, 168, 124, 0.15);
+  }
+}
+
+/* 设置面板聚焦光晕 */
+.custom-dropdown__option.hero--focused,
+#settings-panel .toggle-switch.hero--focused,
+#settings-panel .density-btn.hero--focused,
+#settings-panel #cache-dir-btn.hero--focused {
+  background: rgba(200, 168, 124, 0.1) !important;
+  box-shadow: 0 0 12px rgba(200, 168, 124, 0.15);
 }
 
 /* ========== 手柄方向键光晕（独立 DOM 元素，不受卡片内部层叠限制） ========== */
@@ -531,7 +574,7 @@ body.gamepad-active {
 
 .gamepad-glow--active {
   opacity: 1;
-  transition: opacity 0.15s ease; /* 出现快 */
+  transition: opacity 0.15s ease; /* 出现�?*/
 }
 
 /* hero 区域焦点：无金边，仅模拟 hover */
@@ -542,7 +585,7 @@ body.gamepad-active {
   text-shadow: 0 0 16px rgba(200, 168, 124, 0.35);
 }
 
-/* 让被 --corner 隐藏的 hero 标题恢复可见（特异性需 ≥ .hero .hero__title.hero__title--corner 的 0,3,0） */
+/* 让被 --corner 隐藏�?hero 标题恢复可见（特异性需 �?.hero .hero__title.hero__title--corner �?0,3,0�?*/
 .hero.hero--focused .hero__title,
 .hero.hero--focused .hero__title.hero__title--corner,
 .hero--focused .hero__content.hero__content--corner,
@@ -551,7 +594,7 @@ body.gamepad-active {
   pointer-events: auto !important;
 }
 
-/* 隐藏副标题 */
+/* 隐藏副标�?*/
 .hero--focused .hero__subtitle {
   opacity: 0 !important;
 }
@@ -570,26 +613,32 @@ body.gamepad-active {
   flex-shrink: 0;
 }
 
-/* 手柄激活时在操作按钮旁显示图示 */
-/* 手柄激活时 — Xbox 风格按钮图示 */
-body.gamepad-active .sidebar__item-remove::after {
-  content: '';
-  display: inline-block;
-  width: 22px; height: 22px;
-  background: url('/assets/icons/btn-x.svg') center/contain no-repeat;
-  margin-left: 6px; flex-shrink: 0;
-  vertical-align: middle;
+/* 手柄激活时 �?屏蔽侧边栏鼠�?hover 效果 */
+body.gamepad-active .sidebar__item:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+body.gamepad-active .sidebar__item:hover .sidebar__item-remove {
+  opacity: 0 !important;
+}
+body.gamepad-active .sidebar__item:hover .sidebar__item-name {
+  color: var(--text-2) !important;
 }
 
-body.gamepad-active .sidebar__add::after {
-  content: '';
-  display: inline-block;
-  width: 22px; height: 22px;
-  background: url('/assets/icons/btn-a.svg') center/contain no-repeat;
-  margin-left: 8px; flex-shrink: 0;
-  vertical-align: middle;
+/* 手柄按钮提示 �?JS 创建的真�?DOM 元素 */
+.gp-hint {
+  display: inline-flex; align-items: center; flex-shrink: 0;
 }
-
+.gp-hint img {
+  width: 22px; height: 22px; display: block;
+}
+	.gp-hint__label {
+	  font-family: var(--font-body);
+	  font-size: 0.6rem; font-weight: 400;
+	  letter-spacing: 0.04em;
+	  color: rgba(220,200,180,0.6);
+	  margin-left: 4px;
+	}
 body.gamepad-active .gallery__back::after {
   content: '';
   display: inline-block;
@@ -600,7 +649,7 @@ body.gamepad-active .gallery__back::after {
   font-style: normal;
 }
 
-/* sidebar 文件夹选中态 */
+/* sidebar 文件夹选中�?*/
 .sidebar__item.hero--focused {
   background: rgba(220, 200, 180, 0.12) !important;
   border-color: rgba(220, 200, 180, 0.22) !important;
@@ -610,4 +659,10 @@ body.gamepad-active .gallery__back::after {
   color: var(--text) !important;
   border-color: rgba(220, 200, 180, 0.22) !important;
   background: rgba(220, 200, 180, 0.14) !important;
+}
+
+#cache-section button.hero--focused {
+  color: rgba(220, 200, 180, 0.7) !important;
+  border-color: rgba(220, 200, 180, 0.25) !important;
+  background: rgba(220, 200, 180, 0.12) !important;
 }

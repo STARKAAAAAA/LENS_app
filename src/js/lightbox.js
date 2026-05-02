@@ -32,8 +32,13 @@ export function setPhotoRating(path, stars, fav) {
 }
 
 // ========== Lightbox ==========
+let _lightboxInitialized = false;
+
 export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes, onRatingChange } = {}) {
+  if (_lightboxInitialized) return;
   const lightbox = document.getElementById('lightbox');
+  if (!lightbox) return;
+  _lightboxInitialized = true;
   const lbImg = lightbox.querySelector('.lightbox__img');
   const lbTitle = lightbox.querySelector('.lightbox__title');
   const lbCounter = lightbox.querySelector('.lightbox__counter');
@@ -68,7 +73,8 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
       s.classList.toggle('rating__star--on', Number(s.dataset.v) <= r.stars);
     });
     ratingFav.classList.toggle('rating__fav--on', r.fav);
-    ratingPanel.classList.add('rating--visible');
+    if (path) ratingPanel.classList.add('rating--visible');
+    else ratingPanel.classList.remove('rating--visible');
   }
 
   // ========== EXIF 面板 ==========
@@ -125,6 +131,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     if (!item) return;
     lbImg.style.opacity = '0';
     setTimeout(() => {
+      if (!lightbox.classList.contains('active')) return;
       resetZoom();
       lbImg.src = item.dataset.src + '?full=1';
       lbImg.alt = item.dataset.title;
@@ -141,6 +148,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     items = Array.from(galleryGrid.querySelectorAll('.gallery__item'));
     idx = index; transitioning = true; resetZoom();
     const item = items[idx];
+    lbImg.style.opacity = '0';
     lbImg.src = item.dataset.src + '?full=1';
     lbTitle.textContent = item.dataset.title;
     lbCounter.textContent = `${idx + 1} / ${items.length}`;
@@ -148,9 +156,15 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     document.body.style.overflow = 'hidden';
     loadLightboxExif(item.dataset.path);
     updateRatingUI(item.dataset.path);
-    setTimeout(() => transitioning = false, 600);
+    setTimeout(() => { lbImg.style.opacity = '1'; transitioning = false; }, 300);
   }
-  function close() { lightbox.classList.remove('active'); document.body.style.overflow = ''; resetZoom(); }
+  function close() {
+    lightbox.classList.remove('active');
+    document.body.style.overflow = '';
+    resetZoom();
+    lbImg.style.opacity = '';
+    lbImg.src = '';
+  }
   function prev() { if (!transitioning) { transitioning = true; idx = (idx - 1 + items.length) % items.length; update(); } }
   function next() { if (!transitioning) { transitioning = true; idx = (idx + 1) % items.length; update(); } }
 
@@ -227,9 +241,9 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
 
   document.addEventListener('keydown', e => {
     if (!lightbox.classList.contains('active')) return;
-    if (e.key === 'Escape') close();
-    if (e.key === 'ArrowLeft') prev();
-    if (e.key === 'ArrowRight') next();
+    if (e.key === 'Escape') { close(); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { prev(); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { next(); e.preventDefault(); }
   });
 
   let touchX = 0;
@@ -242,7 +256,12 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
 }
 
 // ========== Slideshow ==========
+let _slideshowInitialized = false;
+
 export function initSlideshow({ getPhotos } = {}) {
+  if (_slideshowInitialized) return;
+  _slideshowInitialized = true;
+
   const slideshow = document.getElementById('slideshow');
   const img = document.getElementById('slideshow-img');
   const counter = document.getElementById('slideshow-counter');
@@ -254,11 +273,14 @@ export function initSlideshow({ getPhotos } = {}) {
   const btnFit = document.getElementById('sl-fit');
   const btnOrig = document.getElementById('sl-orig');
   const btnExit = document.getElementById('sl-exit');
+  const tbSlideshow = document.getElementById('tb-slideshow');
+
+  if (!slideshow || !img || !tbSlideshow) return;
 
   let photos = [], idx = 0, paused = false, timer = null;
   let zoom = 1, panX = 0, panY = 0;
   let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
-  let hideTimer = null;
+  let hideTimer = null, loadTimer = null;
 
   function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function applyTransform() { img.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; }
@@ -268,7 +290,8 @@ export function initSlideshow({ getPhotos } = {}) {
     if (!photos.length) return;
     const p = photos[idx % photos.length];
     img.classList.add('slideshow__img--out');
-    setTimeout(() => {
+    clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => {
       img.src = p.src + '?full=1';
       counter.textContent = `${(idx % photos.length) + 1} / ${photos.length}`;
       fitToWindow();
@@ -284,25 +307,26 @@ export function initSlideshow({ getPhotos } = {}) {
   function openSlideshow() {
     const allPhotos = getPhotos ? getPhotos() : [];
     if (!allPhotos.length) return;
+    clearInterval(timer); clearTimeout(loadTimer);
     photos = shuffle(allPhotos); idx = 0; paused = false; zoom = 1; panX = 0; panY = 0;
     btnPause.textContent = '暂停';
     slideshow.classList.add('active'); loadCurrent();
     timer = setInterval(() => { if (!paused) { idx++; loadCurrent(); } }, 5000);
     showControls();
   }
-  function closeSlideshow() { clearInterval(timer); slideshow.classList.remove('active'); }
+  function closeSlideshow() { clearInterval(timer); clearTimeout(loadTimer); slideshow.classList.remove('active'); }
 
-  btnPrev.addEventListener('click', () => { idx = (idx - 1 + photos.length) % photos.length; loadCurrent(); showControls(); });
-  btnNext.addEventListener('click', () => { idx++; loadCurrent(); showControls(); });
-  btnPause.addEventListener('click', () => { paused = !paused; btnPause.textContent = paused ? '继续' : '暂停'; showControls(); });
-  btnExit.addEventListener('click', closeSlideshow);
-  btnZoomIn.addEventListener('click', () => { zoom = Math.min(zoom * 1.3, 6); applyTransform(); showControls(); });
-  btnZoomOut.addEventListener('click', () => { zoom = Math.max(zoom / 1.3, 0.1); applyTransform(); showControls(); });
-  btnFit.addEventListener('click', () => { fitToWindow(); showControls(); });
-  btnOrig.addEventListener('click', () => { img.style.maxWidth = 'none'; img.style.maxHeight = 'none'; zoom = 1; panX = 0; panY = 0; applyTransform(); showControls(); });
+  btnPrev?.addEventListener('click', () => { if (!photos.length) return; idx = (idx - 1 + photos.length) % photos.length; loadCurrent(); showControls(); });
+  btnNext?.addEventListener('click', () => { if (!photos.length) return; idx++; loadCurrent(); showControls(); });
+  btnPause?.addEventListener('click', () => { paused = !paused; btnPause.textContent = paused ? '继续' : '暂停'; showControls(); });
+  btnExit?.addEventListener('click', closeSlideshow);
+  btnZoomIn?.addEventListener('click', () => { zoom = Math.min(zoom * 1.3, 6); applyTransform(); showControls(); });
+  btnZoomOut?.addEventListener('click', () => { zoom = Math.max(zoom / 1.3, 0.1); applyTransform(); showControls(); });
+  btnFit?.addEventListener('click', () => { fitToWindow(); showControls(); });
+  btnOrig?.addEventListener('click', () => { img.style.maxWidth = 'none'; img.style.maxHeight = 'none'; zoom = 1; panX = 0; panY = 0; applyTransform(); showControls(); });
 
   const imgWrap = document.querySelector('.slideshow__img-wrap');
-  imgWrap.addEventListener('wheel', e => {
+  imgWrap?.addEventListener('wheel', e => {
     e.preventDefault();
     if (e.deltaY < 0) zoom = Math.min(zoom * 1.12, 6); else zoom = Math.max(zoom / 1.12, 0.1);
     applyTransform(); showControls();
@@ -330,5 +354,5 @@ export function initSlideshow({ getPhotos } = {}) {
 
   slideshow.addEventListener('contextmenu', e => { e.preventDefault(); closeSlideshow(); });
   slideshow.addEventListener('mousemove', showControls);
-  document.getElementById('tb-slideshow').addEventListener('click', openSlideshow);
+  tbSlideshow.addEventListener('click', openSlideshow);
 }

@@ -31,6 +31,7 @@ export function buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOp
       : '';
     const card = document.createElement('div');
     card.className = 'category-card';
+    card.dataset.category = cat;
     card.innerHTML = `
       <img class="category-card__img" src="${cover.thumbSrc || cover.src}" alt="${cat}" decoding="async">
       <div class="category-card__label">
@@ -53,10 +54,10 @@ export function refreshCategoryCards({ categoriesEl, data, featureToggles }) {
     document.querySelectorAll('.category-card__rating').forEach(el => el.remove());
     return;
   }
+  const cards = categoriesEl.querySelectorAll('.category-card');
+  // 用 category 名称匹配（空分类不生成 card，索引会错位）
   data.categories.forEach(cat => {
-    const cards = categoriesEl.querySelectorAll('.category-card');
-    const idx = data.categories.indexOf(cat);
-    const card = cards[idx];
+    const card = categoriesEl.querySelector(`.category-card[data-category="${CSS.escape(cat)}"]`);
     if (!card) return;
     const avg = getCategoryAvgRating(cat, data);
     const labelCount = card.querySelector('.category-card__label-count');
@@ -83,7 +84,7 @@ export function refreshCategoryCards({ categoriesEl, data, featureToggles }) {
 export function sortPhotos(photos, method) {
   const arr = [...photos];
   if (method === 'name') {
-    arr.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
+    arr.sort((a, b) => (a.title || '').localeCompare((b.title || ''), undefined, { numeric: true }));
   } else if (method === 'date') {
     arr.sort((a, b) => {
       const da = extractDateFromPath(a.path);
@@ -91,7 +92,7 @@ export function sortPhotos(photos, method) {
       if (da && db) return db - da;
       if (da && !db) return -1;
       if (!da && db) return 1;
-      return a.title.localeCompare(b.title, undefined, { numeric: true });
+      return (a.title || '').localeCompare((b.title || ''), undefined, { numeric: true });
     });
   } else if (method === 'random') {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -172,10 +173,16 @@ export function createDropdown(id, options, currentValue, onChange) {
 
   function positionMenu() {
     const r = trigger.getBoundingClientRect();
+    const menuH = menu.offsetHeight || 200;
     menu.style.position = 'fixed';
-    menu.style.top = (r.bottom + 6) + 'px';
     menu.style.left = r.left + 'px';
     menu.style.minWidth = r.width + 'px';
+    // 下方空间不够则翻到上方
+    if (r.bottom + 6 + menuH > window.innerHeight && r.top - 6 - menuH > 0) {
+      menu.style.top = (r.top - menuH - 6) + 'px';
+    } else {
+      menu.style.top = (r.bottom + 6) + 'px';
+    }
   }
 
   const labelMap = {};
@@ -230,16 +237,25 @@ export function createDropdown(id, options, currentValue, onChange) {
     menu.classList.contains('custom-dropdown__menu--open') ? closeMenu() : openMenu();
   });
 
-  document.addEventListener('click', (e) => {
+  function onDocClick(e) {
     if (!wrapper.contains(e.target) && !menu.contains(e.target)) closeMenu();
-  });
+  }
+  function onScrollResize() {
+    if (menu.classList.contains('custom-dropdown__menu--open')) positionMenu();
+  }
 
-  // 窗口滚动/缩放时重新定位
-  window.addEventListener('scroll', () => { if (menu.classList.contains('custom-dropdown__menu--open')) positionMenu(); }, { passive: true });
-  window.addEventListener('resize', () => { if (menu.classList.contains('custom-dropdown__menu--open')) positionMenu(); }, { passive: true });
+  document.addEventListener('click', onDocClick);
+  window.addEventListener('scroll', onScrollResize, { passive: true });
+  window.addEventListener('resize', onScrollResize, { passive: true });
 
   wrapper.appendChild(trigger);
-  return { el: wrapper, update: updateTrigger, menu };
+  return { el: wrapper, update: updateTrigger, menu, destroy() {
+    document.removeEventListener('click', onDocClick);
+    window.removeEventListener('scroll', onScrollResize);
+    window.removeEventListener('resize', onScrollResize);
+    wrapper.remove();
+    menu.remove();
+  }};
 }
 
 // ========== 画廊下拉（排序/筛选） ==========
@@ -267,8 +283,8 @@ export function renderGalleryDropdowns({ featureToggles, saveToggles, buildGalle
     return;
   }
 
-  // 清理旧组件并重建
-  _activeDropdowns.forEach(d => { d.el.remove(); if (d.menu) d.menu.remove(); });
+  // 清理旧组件并重建（移除事件监听器）
+  _activeDropdowns.forEach(d => { if (d.destroy) d.destroy(); else { d.el.remove(); if (d.menu) d.menu.remove(); } });
   _activeDropdowns = [];
 
   const sortOpts = [
@@ -372,7 +388,8 @@ export async function openCategory(cat, ctx) {
   galleryEl.style.display = 'block';
 
   state.categoryTransitioning = false;
-  window.scrollTo({ top: galleryEl.offsetTop - 40, behavior: 'smooth' });
+  const galleryRect = galleryEl.getBoundingClientRect();
+  window.scrollTo({ top: window.scrollY + galleryRect.top - 40, behavior: 'smooth' });
 }
 
 // ========== Apple TV-style 3D card tilt & shine ==========
@@ -413,6 +430,7 @@ export function initCardTilt() {
   }
 
   function onMouseMove(e) {
+    if (document.body.classList.contains('gamepad-active')) return;
     const card = e.target.closest('.category-card, .gallery__item');
     if (!card || !card.classList.contains('card--tilt-active')) return;
     pendingCard = card; pendingClientX = e.clientX; pendingClientY = e.clientY;
@@ -426,6 +444,7 @@ export function initCardTilt() {
   }
 
   function onMouseOver(e) {
+    if (document.body.classList.contains('gamepad-active')) return;
     const card = e.target.closest('.category-card, .gallery__item');
     if (!card) return;
     if (e.relatedTarget && card.contains(e.relatedTarget)) return;
@@ -434,6 +453,7 @@ export function initCardTilt() {
   }
 
   function onMouseOut(e) {
+    if (document.body.classList.contains('gamepad-active')) return;
     const card = e.target.closest('.category-card, .gallery__item');
     if (!card) return;
     if (e.relatedTarget && card.contains(e.relatedTarget)) return;

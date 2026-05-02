@@ -1,4 +1,17 @@
 // ========== Gamepad Support ==========
+//
+// 架构:
+//   S.input = 'mouse' | 'gamepad'       body.gamepad-active 为唯一真相源
+//   S.zone  = 'grid' | 'hero' | 'sidebar'  焦点区域
+//   S.mode  = 'browse' | 'gallery' | 'lightbox' | 'slideshow' | 'settings' | 'shortcuts'
+//
+// 输入切换:
+//   mouse → gamepad: 任意摇杆/按键活动
+//   gamepad → mouse: 真实鼠标点击（非手柄模拟）+ 鼠标偏离锚点 >6px
+//
+// 按钮提示: 仅在手柄模式 + sidebar 区域时显示（JS 真实 DOM，非 CSS ::after）
+
+// ── Constants ──
 
 function detectLayout(gamepad) {
   const id = gamepad.id.toLowerCase();
@@ -8,31 +21,68 @@ function detectLayout(gamepad) {
   return 'xbox';
 }
 
-const BUTTONS = {
+const BTN = {
   xbox:   { A:0, B:1, X:2, Y:3, LB:4, RB:5, LT:6, RT:7, BACK:8, START:9, LS:10, RS:11, UP:12, DOWN:13, LEFT:14, RIGHT:15 },
   ps:     { A:0, B:1, X:2, Y:3, LB:4, RB:5, LT:6, RT:7, BACK:8, START:9, LS:10, RS:11, UP:12, DOWN:13, LEFT:14, RIGHT:15 },
   switch: { A:0, B:1, X:2, Y:3, LB:4, RB:5, LT:6, RT:7, BACK:8, START:9, LS:10, RS:11, UP:12, DOWN:13, LEFT:14, RIGHT:15 },
 };
 
-// --- 状态 ---
-let focusIndex = 0;
-let focusElements = [];
-let _gpAnimFrame = null;
-let _inputMode = 'mouse';
-let _lastMode = null;
-let _floatCard = null;
-let _prevDX = 0, _prevDY = 0; // 上一帧方向值，用于上升沿检测
-let _glowEl = null;        // 独立光晕 DOM 元素
-let _glowRaf = null;       // 光晕动画 rAF ID
-let _focusZone = 'grid';   // 'grid' | 'hero' | 'sidebar'
-let _heroElements = [];     // hero/sidebar 区域可聚焦元素
-let _heroIndex = 0;        // hero/sidebar 区域当前索引
-let _savedGridIndex = 0;   // 进入 hero/sidebar 前网格焦点位置
-let _savedMode = null;      // 保存时的模式，模式变了就不恢复
-let _savedZone = null;      // 进入 sidebar 前的 zone，退出时恢复
+const DEAD_ZONE = 0.15;
+const DPAD_THRESHOLD = 0.3;
+const FLOAT_LIFT = 5;
+const MOUSE_SWITCH_DIST = 6; // px — 鼠标偏离锚点超过此距离切回鼠标模式
+const OVERLAYS = new Set(['lightbox', 'slideshow', 'settings', 'shortcuts']);
+let _savedBrowseIdx = 0; // 从 gallery 返回 browse 时的分类卡位置
 
-// --- 模式 ---
-function getMode() {
+// ── Unified State ──
+
+const S = {
+  input: 'mouse',          // 'mouse' | 'gamepad'
+  mode:  'browse',         // current app mode (from detectMode)
+  zone:  'grid',           // 'grid' | 'hero' | 'sidebar' | 'toolbar'
+
+  gridIdx:    0,           // grid zone focus index
+  heroIdx:    0,           // hero zone focus index
+  sidebarIdx: 0,           // sidebar zone focus index
+  toolbarIdx: 0,           // toolbar zone focus index
+  settingsIdx: 0,          // settings overlay focus index
+  settingsDensityIdx: 0,   // density 按钮子索引 (0=小/1=中/2=大)
+
+  gridEls:    [],          // cached grid elements
+  heroEls:    [],          // cached hero elements
+  sidebarEls: [],          // cached sidebar elements
+  toolbarEls: [],          // cached toolbar elements
+  settingsEls: [],         // cached settings elements
+
+  // Saved state
+  // Saved state for zone transitions (grid ↔ hero, grid ↔ sidebar)
+  save:  { zone: null, mode: null, gridIdx: 0, heroIdx: 0 },
+
+  // Saved state for overlay entry/exit
+  ovSave: { mode: null, gridIdx: 0 },
+
+  // Mouse anchor for gamepad→mouse switch detection
+  anchor: { x: 0, y: 0 },
+
+  // Rising-edge dpad tracking
+  prevDX: 0, prevDY: 0,
+
+  // Guard: true when gamepad simulates a click, prevents false mode switch
+  clicking: false,
+
+  // Float effect
+  floatCard: null,
+
+  // Glow sweep
+  glow: { el: null, raf: null },
+
+  // rAF handle
+  raf: null,
+};
+
+// ── Mode Detection (read DOM state) ──
+
+function detectMode() {
   if (document.getElementById('lightbox')?.classList.contains('active')) return 'lightbox';
   if (document.getElementById('slideshow')?.classList.contains('active')) return 'slideshow';
   if (document.getElementById('settings-panel')?.classList.contains('settings-panel--open')) return 'settings';
@@ -41,70 +91,636 @@ function getMode() {
   return 'browse';
 }
 
-// --- 焦点 ---
-function updateFocus(mode) {
-  focusElements.forEach(el => el.classList.remove('card--focused'));
-  focusElements = [];
-  if (mode === 'browse') {
-    focusElements = Array.from(document.querySelectorAll('.category-card'));
-  } else if (mode === 'gallery') {
-    focusElements = Array.from(document.querySelectorAll('.gallery__item'));
+// ── Input Switching ──
+
+function setInput(input) {
+  if (S.input === input) return;
+  S.input = input;
+
+  if (input === 'gamepad') {
+    // ── mouse → gamepad ──
+    // 清除鼠标端残留（class + inline style）
+    document.querySelectorAll('.card--tilt-active').forEach(el => {
+      el.classList.remove('card--tilt-active');
+      el.style.transform = '';
+      el.style.transition = '';
+      el.style.removeProperty('--shine-x');
+      el.style.removeProperty('--shine-y');
+    });
+
+    document.body.classList.add('gamepad-active');
+    S.prevDX = S.prevDY = 0;
+
+    // 进入合适的 zone（如果 sidebar 已打开则接管）
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar?.classList.contains('sidebar--open')) {
+      enterZone('sidebar');
+    } else {
+      enterZone('grid');
+    }
+    refreshFocus();
+  } else {
+    // ── gamepad → mouse ──
+    releaseFloat();
+    clearGlow();
+    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
+      el.classList.remove('hero--focused', 'card--focused')
+    );
+    S.gridEls = [];
+    S.heroEls = [];
+    S.sidebarEls = [];
+    S.toolbarEls = [];
+    S.settingsEls = [];
+    S.gridIdx = 0;
+    S.heroIdx = 0;
+    S.sidebarIdx = 0;
+    S.toolbarIdx = 0;
+    S.settingsIdx = 0;
+    S.settingsDensityIdx = 0;
+    S.zone = 'grid';
+
+    const sidebar = document.getElementById('sidebar');
+    sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
+    gpTrackLogoStop(true);
+
+    document.body.classList.remove('gamepad-active');
+    refreshHints();
   }
-  if (focusElements.length === 0) { focusIndex = 0; return; }
-  focusIndex = Math.max(0, Math.min(focusIndex, focusElements.length - 1));
-  focusElements[focusIndex]?.classList.add('card--focused');
-  focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-// 计数列数：offsetLeft 去重
-function countCols(selector) {
-  const els = document.querySelectorAll(selector);
-  if (els.length < 2) return 1;
+// ── Zone Management ──
+
+// enterZone(zone) — 统一的区域切换入口，处理所有保存/恢复/清理
+function enterZone(zone) {
+  if (S.zone === zone) return;
+
+  releaseFloat();
+  clearGlow();
+
+  const prevZone = S.zone;
+
+  if (zone === 'sidebar') {
+    // 保存当前状态
+    S.save.zone = prevZone;
+    S.save.mode = S.mode;
+    S.save.gridIdx = S.gridIdx;
+
+    // 清除 grid/hero 焦点视觉
+    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
+      el.classList.remove('hero--focused', 'card--focused')
+    );
+
+    S.zone = 'sidebar';
+    buildSidebarEls();
+    S.sidebarIdx = 0;
+    applySidebarFocus();
+
+    // 确保 sidebar 完全打开
+    const sidebar = document.getElementById('sidebar');
+    sidebar?.classList.add('sidebar--open');
+    sidebar?.classList.remove('sidebar--peek');
+    gpTrackLogoStart();
+  } else if (zone === 'toolbar') {
+    // 保存当前状态
+    S.save.zone = prevZone;
+    S.save.mode = S.mode;
+    S.save.heroIdx = S.heroIdx;
+
+    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
+      el.classList.remove('hero--focused', 'card--focused')
+    );
+
+    S.zone = 'toolbar';
+    buildToolbarEls();
+    S.toolbarIdx = 0;
+    applyToolbarFocus();
+  } else if (zone === 'hero') {
+    S.save.zone = prevZone;
+    S.save.mode = S.mode;
+    S.save.gridIdx = S.gridIdx;
+
+    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
+      el.classList.remove('hero--focused', 'card--focused')
+    );
+
+    S.zone = 'hero';
+    buildHeroEls();
+    // 从 toolbar 返回时恢复位置，否则从底部开始
+    S.heroIdx = (prevZone === 'toolbar' && S.save.heroIdx != null)
+      ? Math.min(S.save.heroIdx, Math.max(0, S.heroEls.length - 1))
+      : Math.max(0, S.heroEls.length - 1);
+    applyHeroFocus();
+  } else if (zone === 'grid') {
+    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
+      el.classList.remove('hero--focused', 'card--focused')
+    );
+
+    S.zone = 'grid';
+
+    if (prevZone === 'sidebar') {
+      S.gridIdx = (S.mode === S.save.mode) ? S.save.gridIdx : 0;
+      const sidebar = document.getElementById('sidebar');
+      sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
+      gpTrackLogoStop(true);
+      S.sidebarEls = [];
+    } else if (prevZone === 'hero') {
+      S.gridIdx = (S.mode === S.save.mode) ? S.save.gridIdx : 0;
+      S.heroEls = [];
+    } else if (prevZone === 'toolbar') {
+      S.gridIdx = 0;
+      S.toolbarEls = [];
+    }
+
+    buildGridEls();
+    clampGridIdx();
+    applyGridFocus();
+  }
+
+  refreshHints();
+}
+
+// ── Element Building ──
+
+function buildGridEls() {
+  S.gridEls = S.mode === 'browse'
+    ? Array.from(document.querySelectorAll('.category-card'))
+    : Array.from(document.querySelectorAll('.gallery__item'));
+}
+
+function buildHeroEls() {
+  S.heroEls = [];
+  if (S.mode === 'gallery') {
+    const back = document.getElementById('gallery-back');
+    if (back) S.heroEls.push(back);
+    // 所有下拉触发器（排序 + 筛选），按 DOM 顺序
+    document.querySelectorAll('.custom-dropdown__trigger').forEach(el => S.heroEls.push(el));
+  }
+}
+
+function buildSidebarEls() {
+  S.sidebarEls = [];
+  document.querySelectorAll('#sidebar-list .sidebar__item').forEach(el => S.sidebarEls.push(el));
+  const add = document.getElementById('sidebar-add');
+  if (add) S.sidebarEls.push(add);
+  const cacheBtn = document.querySelector('#cache-section button');
+  if (cacheBtn) S.sidebarEls.push(cacheBtn);
+}
+
+function buildToolbarEls() {
+  S.toolbarEls = Array.from(document.querySelectorAll('#toolbar .toolbar__btn'));
+}
+
+function buildSettingsEls() {
+  S.settingsEls = [];
+  // 4 个开关
+  document.querySelectorAll('#settings-panel .toggle-switch').forEach(el => S.settingsEls.push(el));
+  // 密度选择器（一个整体条目，densityIdx 控制子选择）
+  const densityBtns = document.querySelectorAll('#settings-panel .density-btn');
+  if (densityBtns.length > 0) {
+    // 找到当前 active 的 density 按钮作为初始子索引
+    S.settingsDensityIdx = 0;
+    densityBtns.forEach((b, i) => { if (b.classList.contains('density-btn--active')) S.settingsDensityIdx = i; });
+    S.settingsEls.push({ _density: true, buttons: Array.from(densityBtns) });
+  }
+  // 缓存按钮
+  const cacheBtn = document.getElementById('cache-dir-btn');
+  if (cacheBtn) S.settingsEls.push(cacheBtn);
+}
+
+// ── Focus Application ──
+
+function clampGridIdx() {
+  if (S.gridEls.length === 0) { S.gridIdx = 0; return; }
+  S.gridIdx = Math.max(0, Math.min(S.gridIdx, S.gridEls.length - 1));
+}
+
+function applyGridFocus() {
+  S.gridEls.forEach(el => el.classList.remove('card--focused'));
+  const el = S.gridEls[S.gridIdx];
+  if (el) {
+    el.classList.add('card--focused');
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function applyHeroFocus() {
+  S.heroEls.forEach(el => el.classList.remove('hero--focused'));
+  const el = S.heroEls[S.heroIdx];
+  if (el) {
+    el.classList.add('hero--focused');
+    // 滚动到 portfolio 区域顶部，保证导航条完整可见
+    const portfolio = document.getElementById('portfolio');
+    if (portfolio) {
+      const r = portfolio.getBoundingClientRect();
+      window.scrollTo({ top: window.scrollY + r.top - 8, behavior: 'smooth' });
+    } else {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }
+}
+
+function applySidebarFocus() {
+  S.sidebarEls.forEach(el => el.classList.remove('hero--focused'));
+  const el = S.sidebarEls[S.sidebarIdx];
+  if (el) {
+    el.classList.add('hero--focused');
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  refreshHints(); // 提示跟随焦点移动
+}
+
+function applyToolbarFocus() {
+  S.toolbarEls.forEach(el => el.classList.remove('hero--focused'));
+  const el = S.toolbarEls[S.toolbarIdx];
+  if (el) {
+    el.classList.add('hero--focused');
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function applySettingsFocus() {
+  // 先清除所有（包括 density 子按钮）
+  S.settingsEls.forEach(el => {
+    if (el._density) el.buttons.forEach(b => b.classList.remove('hero--focused'));
+    else el.classList.remove('hero--focused');
+  });
+  const el = S.settingsEls[S.settingsIdx];
+  if (!el) return;
+  if (el._density) {
+    const target = el.buttons[S.settingsDensityIdx];
+    if (target) {
+      target.classList.add('hero--focused');
+      target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  } else {
+    el.classList.add('hero--focused');
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+// refreshFocus — mode/zone 变化后刷新焦点视觉
+function refreshFocus() {
+  if (S.zone === 'grid') {
+    buildGridEls(); clampGridIdx(); applyGridFocus();
+  } else if (S.zone === 'hero') {
+    buildHeroEls();
+    S.heroIdx = Math.min(S.heroIdx, Math.max(0, S.heroEls.length - 1));
+    applyHeroFocus();
+  } else if (S.zone === 'sidebar') {
+    buildSidebarEls();
+    S.sidebarIdx = Math.min(S.sidebarIdx, Math.max(0, S.sidebarEls.length - 1));
+    applySidebarFocus();
+  } else if (S.zone === 'toolbar') {
+    buildToolbarEls();
+    S.toolbarIdx = Math.min(S.toolbarIdx, Math.max(0, S.toolbarEls.length - 1));
+    applyToolbarFocus();
+  }
+}
+
+// ── Navigation ──
+
+function countGridCols() {
+  if (S.gridEls.length < 2) return 1;
   const set = new Set();
-  for (const el of els) set.add(el.offsetLeft);
+  for (const el of S.gridEls) set.add(el.offsetLeft);
   return set.size || 1;
 }
 
-// hero 区域元素
-function buildHeroElements(mode) {
-  _heroElements = [];
-  if (mode === 'gallery') {
-    const back = document.getElementById('gallery-back');
-    const sort = document.querySelector('.custom-dropdown__trigger');
-    if (back) _heroElements.push(back);
-    if (sort) _heroElements.push(sort);
+function navigate(dir) {
+  // 非左方向键取消 sidebar peek
+  if (dir !== 'left') {
+    const sb = document.getElementById('sidebar');
+    if (sb?.classList.contains('sidebar--peek') && !sb.classList.contains('sidebar--open')) {
+      sb.classList.remove('sidebar--peek');
+      gpTrackLogoStop(true);
+    }
   }
-  _heroIndex = 0;
+
+  if (S.zone === 'sidebar') { sidebarNavigate(dir); return; }
+  if (S.zone === 'hero')    { heroNavigate(dir);    return; }
+  if (S.zone === 'toolbar') { toolbarNavigate(dir);  return; }
+  gridNavigate(dir);
 }
 
-function buildSidebarElements() {
-  _heroElements = [];
-  const items = document.querySelectorAll('#sidebar-list .sidebar__item');
-  items.forEach(el => _heroElements.push(el));
-  const add = document.getElementById('sidebar-add');
-  if (add) _heroElements.push(add);
-  _heroIndex = 0;
+function gridNavigate(dir) {
+  if (S.gridEls.length === 0) { buildGridEls(); }
+  // 空网格：gallery 下允许 UP 进入 hero（可操作返回按钮）
+  if (S.gridEls.length === 0) {
+    if (S.mode === 'gallery' && dir === 'up') { enterZone('hero'); }
+    return;
+  }
+  clampGridIdx();
+
+  const prevIdx = S.gridIdx;
+
+  if (S.mode === 'browse') {
+    const cols = countGridCols();
+    const row = Math.floor(S.gridIdx / cols);
+    const col = S.gridIdx % cols;
+    const totalRows = Math.ceil(S.gridEls.length / cols);
+
+    switch (dir) {
+      case 'left':
+        if (col > 0) { S.gridIdx--; }
+        else { trySidebarPeek(); return; }
+        break;
+      case 'right':
+        if (col < cols - 1 && S.gridIdx < S.gridEls.length - 1) S.gridIdx++;
+        break;
+      case 'up':
+        if (row === 0) {
+          // 已在页顶 → 工具栏；否则先滚到页顶
+          if (window.scrollY < 50) { enterZone('toolbar'); return; }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        } else {
+          S.gridIdx = Math.max(0, S.gridIdx - cols);
+        }
+        break;
+      case 'down':
+        if (row < totalRows - 1) S.gridIdx = Math.min(S.gridEls.length - 1, S.gridIdx + cols);
+        break;
+    }
+  } else if (S.mode === 'gallery') {
+    switch (dir) {
+      case 'up': {
+        // 同列内上移，到列顶则跳出到 hero
+        const cur = S.gridEls[S.gridIdx];
+        if (!cur) break;
+        const curLeft = cur.getBoundingClientRect().left;
+        let found = -1;
+        for (let i = S.gridIdx - 1; i >= 0; i--) {
+          if (Math.abs(S.gridEls[i].getBoundingClientRect().left - curLeft) < 5) {
+            found = i; break;
+          }
+        }
+        if (found >= 0) S.gridIdx = found;
+        else enterZone('hero');
+        break;
+      }
+      case 'down':
+        // 只在同列内下移，不跳到下一列
+        if (S.gridIdx < S.gridEls.length - 1) {
+          const cur = S.gridEls[S.gridIdx];
+          const next = S.gridEls[S.gridIdx + 1];
+          if (cur && next && Math.abs(cur.getBoundingClientRect().left - next.getBoundingClientRect().left) < 5) {
+            S.gridIdx++;
+          }
+        }
+        break;
+      case 'left':
+      case 'right': {
+        const current = S.gridEls[S.gridIdx];
+        if (!current) break;
+        const cr = current.getBoundingClientRect();
+        const cx = cr.left + cr.width / 2;
+        const cy = cr.top + cr.height / 2;
+        let best = S.gridIdx;
+        let bestScore = Infinity;
+        for (let i = 0; i < S.gridEls.length; i++) {
+          if (i === S.gridIdx) continue;
+          const r = S.gridEls[i].getBoundingClientRect();
+          const ix = r.left + r.width / 2;
+          const iy = r.top + r.height / 2;
+          if (dir === 'right' && ix <= cx + 2) continue;
+          if (dir === 'left'  && ix >= cx - 2) continue;
+          const score = Math.abs(ix - cx) + Math.abs(iy - cy) * 3;
+          if (score < bestScore) { bestScore = score; best = i; }
+        }
+        S.gridIdx = best;
+        break;
+      }
+    }
+    // gallery 左边界 → sidebar
+    if (dir === 'left' && S.gridIdx === prevIdx) {
+      trySidebarPeek();
+      return;
+    }
+  }
+
+  // 应用焦点
+  if (S.gridIdx !== prevIdx) {
+    applyGridFocus();
+    sweepGlow(S.gridEls[S.gridIdx], dir);
+  } else {
+    S.gridEls[S.gridIdx]?.classList.add('card--focused');
+  }
 }
 
-// LENS 随侧边栏展开右移（模拟鼠标行为）
-function lensShiftRight() {
-  const logo = document.getElementById('corner-logo');
-  if (logo) { logo.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)'; logo.style.left = '262px'; }
-}
-function lensShiftBack() {
-  const logo = document.getElementById('corner-logo');
-  if (logo) { logo.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)'; logo.style.left = '28px'; }
+// trySidebarPeek — 第一次左：探出；第二次左：完全展开 + 进入 sidebar zone
+function trySidebarPeek() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  if (sidebar.classList.contains('sidebar--open')) {
+    // 已打开（如鼠标打开的）→ 直接接管
+    enterZone('sidebar');
+  } else if (sidebar.classList.contains('sidebar--peek')) {
+    // 第二次左 → 完全展开
+    enterZone('sidebar');
+  } else {
+    // 第一次左 → 探出（仅探出，logo 不动，匹配鼠标行为）
+    sidebar.classList.add('sidebar--peek');
+  }
 }
 
-// 光晕扫入动画（grid 和 sidebar 共用）
+function heroNavigate(dir) {
+  // browse 模式下 hero 区为空：上→工具栏，下→网格
+  if (S.heroEls.length === 0) {
+    if (dir === 'up')   { enterZone('toolbar'); return; }
+    if (dir === 'down') { enterZone('grid'); return; }
+    return;
+  }
+
+
+  switch (dir) {
+    case 'up':
+      if (S.heroIdx >= S.heroEls.length - 1) {
+        if (window.scrollY < 50) { enterZone('toolbar'); return; }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      S.heroIdx = Math.min(S.heroEls.length - 1, S.heroIdx + 1);
+      break;
+    case 'down':
+      if (S.heroIdx === 0) { enterZone('grid'); return; }
+      else S.heroIdx--;
+      break;
+    case 'left':  S.heroIdx = Math.max(0, S.heroIdx - 1); break;
+    case 'right': S.heroIdx = Math.min(S.heroEls.length - 1, S.heroIdx + 1); break;
+  }
+
+  applyHeroFocus();
+  sweepGlow(S.heroEls[S.heroIdx], dir);
+}
+
+function toolbarNavigate(dir) {
+  if (S.toolbarEls.length === 0) { enterZone('grid'); return; }
+
+  switch (dir) {
+    case 'down':
+      // browse 回 grid，gallery 回 hero
+      enterZone(S.mode === 'gallery' ? 'hero' : 'grid');
+      return;
+    case 'up':
+      // 已到页面最顶部，UP 不做任何事
+      return;
+    case 'left':
+      S.toolbarIdx = Math.max(0, S.toolbarIdx - 1);
+      break;
+    case 'right':
+      S.toolbarIdx = Math.min(S.toolbarEls.length - 1, S.toolbarIdx + 1);
+      break;
+  }
+
+  applyToolbarFocus();
+  if (dir === 'left' || dir === 'right') sweepGlow(S.toolbarEls[S.toolbarIdx], dir);
+}
+
+function sidebarNavigate(dir) {
+  if (S.sidebarEls.length === 0) { enterZone('grid'); return; }
+
+  switch (dir) {
+    case 'right':
+      enterZone(S.save.zone === 'sidebar' ? 'grid' : (S.save.zone || 'grid'));
+      return;
+    case 'up': {
+      const prev = S.sidebarIdx;
+      S.sidebarIdx = Math.max(0, S.sidebarIdx - 1);
+      applySidebarFocus();
+      if (prev !== S.sidebarIdx) sweepGlow(S.sidebarEls[S.sidebarIdx], dir);
+      break;
+    }
+    case 'down': {
+      const prev = S.sidebarIdx;
+      S.sidebarIdx = Math.min(S.sidebarEls.length - 1, S.sidebarIdx + 1);
+      applySidebarFocus();
+      if (prev !== S.sidebarIdx) sweepGlow(S.sidebarEls[S.sidebarIdx], dir);
+      break;
+    }
+  }
+}
+
+// ── Button Actions ──
+
+function safeClick(el) {
+  if (!el) return;
+  S.clicking = true;
+  el.click();
+  S.clicking = false;
+}
+
+function actionA() {
+  const m = S.mode;
+
+  // overlay 模式优先（zone 在 overlay 下不相关）
+  if (m === 'settings') {
+    if (S.settingsEls.length === 0) buildSettingsEls();
+    const sEl = S.settingsEls[S.settingsIdx];
+    if (!sEl) return;
+    if (sEl._density) { safeClick(sEl.buttons[S.settingsDensityIdx]); }
+    else { safeClick(sEl); }
+    return;
+  }
+  if (m === 'shortcuts') { safeClick(document.getElementById('shortcuts-overlay')); return; }
+
+  // 非 overlay 模式按 zone 分发
+  if (S.zone === 'sidebar') { safeClick(S.sidebarEls[S.sidebarIdx]); return; }
+  if (S.zone === 'hero')    {
+    const openMenuA = document.querySelector('.custom-dropdown__menu--open');
+    if (openMenuA) { const s = openMenuA.querySelector('.custom-dropdown__option.hero--focused') || openMenuA.querySelector('.custom-dropdown__option--sel'); if (s) { safeClick(s); return; } }
+    safeClick(S.heroEls[S.heroIdx]);
+    return;
+  }
+  if (S.zone === 'toolbar') { safeClick(S.toolbarEls[S.toolbarIdx]); return; }
+
+  if (m === 'browse' || m === 'gallery') {
+    if (S.gridEls.length === 0) buildGridEls();
+    safeClick(S.gridEls[S.gridIdx]);
+  }
+}
+
+function actionB() {
+  const m = S.mode;
+
+  // overlay 模式优先
+  if (m === 'settings')  { document.getElementById('settings-panel')?.classList.remove('settings-panel--open'); return; }
+  if (m === 'shortcuts') { safeClick(document.getElementById('shortcuts-overlay')); return; }
+  if (m === 'lightbox')  { safeClick(document.querySelector('.lightbox__close')); return; }
+  if (m === 'slideshow') { safeClick(document.getElementById('sl-exit')); return; }
+
+  // 非 overlay 模式
+  const openMenuB = document.querySelector('.custom-dropdown__menu--open');
+  if (openMenuB) { openMenuB.classList.remove('custom-dropdown__menu--open'); document.querySelector('.custom-dropdown__trigger--open')?.classList.remove('custom-dropdown__trigger--open'); return; }
+  if (S.zone === 'sidebar') { enterZone(S.save.zone === 'sidebar' ? 'grid' : (S.save.zone || 'grid')); return; }
+
+  if (m === 'gallery') safeClick(document.getElementById('gallery-back'));
+}
+
+function actionX() {
+  if (S.zone === 'sidebar') {
+    const el = S.sidebarEls[S.sidebarIdx];
+    safeClick(el?.querySelector('.sidebar__item-remove'));
+    // 等待 DOM 更新后重建 sidebar 元素
+    setTimeout(() => {
+      buildSidebarEls();
+      if (S.sidebarEls.length > 0) {
+        S.sidebarIdx = Math.min(S.sidebarIdx, S.sidebarEls.length - 1);
+        applySidebarFocus();
+        refreshHints();
+      } else {
+        enterZone('grid');
+      }
+    }, 100);
+    return;
+  }
+  if (S.mode === 'lightbox') safeClick(document.getElementById('rating-fav'));
+}
+
+function actionY()   { safeClick(document.getElementById('tb-slideshow')); }
+function actionLB()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.lightbox__prev')); if (S.mode === 'slideshow') safeClick(document.getElementById('sl-prev')); }
+function actionRB()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.lightbox__next')); if (S.mode === 'slideshow') safeClick(document.getElementById('sl-next')); }
+function actionLT()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.rating__star[data-v="1"]')); }
+function actionRT()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.rating__star[data-v="5"]')); }
+function actionLS()  { if (S.mode === 'slideshow') safeClick(document.getElementById('sl-pause')); }
+function actionStart() { safeClick(document.getElementById('tb-settings')); }
+function actionBack()  { safeClick(document.getElementById('tb-shortcuts')); }
+
+// ── Visual Effects ──
+
+function applyFloat(lx, ly) {
+  const target = S.zone === 'sidebar' ? S.sidebarEls[S.sidebarIdx]
+               : S.zone === 'hero'    ? S.heroEls[S.heroIdx]
+               : S.zone === 'toolbar' ? S.toolbarEls[S.toolbarIdx]
+               : S.gridEls[S.gridIdx];
+
+  if (!target) { releaseFloat(); return; }
+  if (target !== S.floatCard) { releaseFloat(); S.floatCard = target; }
+
+  target.style.transform = `translateX(${lx * FLOAT_LIFT}px) translateY(${ly * FLOAT_LIFT}px) scale3d(1.005, 1.005, 1)`;
+  target.style.transition = 'none';
+  target.style.setProperty('--shine-x', (50 + lx * 30) + '%');
+  target.style.setProperty('--shine-y', (50 + ly * 30) + '%');
+}
+
+function releaseFloat() {
+  if (S.floatCard) {
+    S.floatCard.style.transform = '';
+    S.floatCard.style.transition = '';
+    S.floatCard.style.setProperty('--shine-x', '50%');
+    S.floatCard.style.setProperty('--shine-y', '50%');
+    S.floatCard = null;
+  }
+}
+
 function sweepGlow(el, dir) {
   if (!el) return;
-  if (!_glowEl) {
-    _glowEl = document.createElement('div');
-    _glowEl.className = 'gamepad-glow';
-    document.body.appendChild(_glowEl);
+  if (!S.glow.el) {
+    S.glow.el = document.createElement('div');
+    S.glow.el.className = 'gamepad-glow';
+    document.body.appendChild(S.glow.el);
   }
-  if (_glowRaf) cancelAnimationFrame(_glowRaf);
+  if (S.glow.raf) cancelAnimationFrame(S.glow.raf);
 
   const r = el.getBoundingClientRect();
   const cx = r.left + r.width / 2;
@@ -117,257 +733,96 @@ function sweepGlow(el, dir) {
   };
   const [sx, sy] = starts[dir] || [cx, cy];
 
-  _glowEl.style.width  = r.width + 'px';
-  _glowEl.style.height = r.height + 'px';
-  _glowEl.style.borderRadius = getComputedStyle(el).borderRadius;
-  _glowEl.style.left = (sx - r.width / 2) + 'px';
-  _glowEl.style.top  = (sy - r.height / 2) + 'px';
-  _glowEl.classList.add('gamepad-glow--active');
+  S.glow.el.style.width  = r.width + 'px';
+  S.glow.el.style.height = r.height + 'px';
+  S.glow.el.style.borderRadius = getComputedStyle(el).borderRadius;
+  S.glow.el.style.left = (sx - r.width / 2) + 'px';
+  S.glow.el.style.top  = (sy - r.height / 2) + 'px';
+  S.glow.el.classList.add('gamepad-glow--active');
 
   let t = 0;
   const sweep = () => {
     t += 0.03;
     if (t >= 2.8) {
-      _glowEl.classList.remove('gamepad-glow--active');
-      _glowRaf = null;
+      S.glow.el.classList.remove('gamepad-glow--active');
+      S.glow.raf = null;
       return;
     }
     if (t <= 1) {
       const e = 1 - Math.pow(1 - t, 2);
-      _glowEl.style.left = (sx + (cx - sx) * e - r.width / 2) + 'px';
-      _glowEl.style.top  = (sy + (cy - sy) * e - r.height / 2) + 'px';
+      S.glow.el.style.left = (sx + (cx - sx) * e - r.width / 2) + 'px';
+      S.glow.el.style.top  = (sy + (cy - sy) * e - r.height / 2) + 'px';
     }
-    _glowRaf = requestAnimationFrame(sweep);
+    S.glow.raf = requestAnimationFrame(sweep);
   };
-  _glowRaf = requestAnimationFrame(sweep);
+  S.glow.raf = requestAnimationFrame(sweep);
 }
 
-function updateHeroFocus() {
-  _heroElements.forEach(el => el.classList.remove('hero--focused'));
-  const el = _heroElements[_heroIndex];
-  if (el) {
-    el.classList.add('hero--focused');
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+function clearGlow() {
+  if (S.glow.raf) { cancelAnimationFrame(S.glow.raf); S.glow.raf = null; }
+  if (S.glow.el) { S.glow.el.classList.remove('gamepad-glow--active'); }
+}
+
+// ── Button Hints (自动管理，仅依据 S.input + S.zone) ──
+
+function refreshHints() {
+  // 先清除所有现有 hints
+  document.querySelectorAll('.gp-hint').forEach(el => el.remove());
+
+  // 仅在手柄模式 + sidebar 区域显示
+  if (S.input !== 'gamepad') return;
+  if (S.zone !== 'sidebar') return;
+
+  // X 图标 + "删除" — 仅当前选中的文件夹项
+  const focused = S.sidebarEls[S.sidebarIdx];
+  if (focused && focused.classList.contains('sidebar__item')) {
+    const hint = document.createElement('span');
+    hint.className = 'gp-hint';
+    hint.innerHTML = '<img src="/assets/icons/btn-x.svg" alt="X"><span class="gp-hint__label">删除</span>';
+    focused.appendChild(hint);
+  }
+
+  // A 图标 — 添加按钮（仅选中时显示）
+  if (focused && focused.id === 'sidebar-add') {
+    const hint = document.createElement('span');
+    hint.className = 'gp-hint';
+    hint.innerHTML = '<img src="/assets/icons/btn-a.svg" alt="A">';
+    focused.appendChild(hint);
   }
 }
 
-function moveFocus(dir, mode) {
-  // ==== Hero 区域导航 ====
-  // hero 元素排序：index 0=最靠近卡片，index 越大越靠页面顶部
-  if (_focusZone === 'hero') {
-    if (_heroElements.length === 0) { _focusZone = 'grid'; return; }
-    if (dir === 'down') {
-      if (_heroIndex === 0) {
-        // 已在最靠近卡片的 hero 元素，再按下 → 回到之前的位置
-        _focusZone = 'grid';
-        updateHeroFocus();
-        focusIndex = (mode === _savedMode) ? _savedGridIndex : 0;
-        updateFocus(mode);
-      } else {
-        _heroIndex--;
-        updateHeroFocus();
-      }
-      return;
-    }
-    if (dir === 'up') {
-      _heroIndex = Math.min(_heroElements.length - 1, _heroIndex + 1);
-      updateHeroFocus();
-      return;
-    }
-    if (dir === 'left')  { _heroIndex = Math.max(0, _heroIndex - 1); updateHeroFocus(); }
-    if (dir === 'right') { _heroIndex = Math.min(_heroElements.length - 1, _heroIndex + 1); updateHeroFocus(); }
-    return;
-  }
+// ── LENS Logo 随动追踪（照搬 main.js trackLogo 的 rAF 逻辑）──
 
-  // ==== Sidebar 区域导航 ====
-  if (_focusZone === 'sidebar') {
-    if (dir === 'right') {
-      // 仅右 → 关闭侧边栏，回到进入前的状态
-      updateHeroFocus();
-      const sidebar = document.getElementById('sidebar');
-      sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
-      lensShiftBack();
-      if (_savedZone === 'grid') {
-        _focusZone = 'grid';
-        focusIndex = (mode === _savedMode) ? _savedGridIndex : 0;
-        // 手动恢复焦点（新鲜 DOM + 不 scrollIntoView）
-        const els = mode === 'browse'
-          ? Array.from(document.querySelectorAll('.category-card'))
-          : Array.from(document.querySelectorAll('.gallery__item'));
-        if (els.length > 0) {
-          focusIndex = Math.max(0, Math.min(focusIndex, els.length - 1));
-          els.forEach(el => el.classList.remove('card--focused'));
-          els[focusIndex]?.classList.add('card--focused');
-        }
-      } else {
-        _focusZone = _savedZone || 'grid';
-      }
-      return;
-    }
-    if (_heroElements.length === 0) { _focusZone = 'grid'; return; }
-    if (dir === 'up') {
-      const prev = _heroIndex;
-      _heroIndex = Math.max(0, _heroIndex - 1);
-      updateHeroFocus();
-      if (prev !== _heroIndex) sweepGlow(_heroElements[_heroIndex], dir);
-    }
-    if (dir === 'down') {
-      const prev = _heroIndex;
-      _heroIndex = Math.min(_heroElements.length - 1, _heroIndex + 1);
-      updateHeroFocus();
-      if (prev !== _heroIndex) sweepGlow(_heroElements[_heroIndex], dir);
-    }
-    return;
-  }
+let _gpLogoTracking = null;
 
-  // 始终从 DOM 新鲜查询，不依赖缓存
-  focusElements.forEach(el => el.classList.remove('card--focused'));
-  focusElements = [];
-  if (mode === 'browse') {
-    focusElements = Array.from(document.querySelectorAll('.category-card'));
-  } else if (mode === 'gallery') {
-    focusElements = Array.from(document.querySelectorAll('.gallery__item'));
+function gpTrackLogoStart() {
+  if (_gpLogoTracking) return;
+  function track() {
+    const logo = document.getElementById('corner-logo');
+    const sidebar = document.getElementById('sidebar');
+    if (!logo || !sidebar) { gpTrackLogoStop(true); return; }
+    const sr = sidebar.getBoundingClientRect();
+    logo.style.transition = 'none';
+    logo.style.left = (sr.right + 10) + 'px';
+    _gpLogoTracking = requestAnimationFrame(track);
   }
-  if (focusElements.length === 0) { focusIndex = 0; return; }
-  focusIndex = Math.max(0, Math.min(focusIndex, focusElements.length - 1));
-
-  let stepH = 1;
-  let stepV = 1;
-  if (mode === 'browse') {
-    stepH = 1;
-    stepV = countCols('.category-card');
-  } else if (mode === 'gallery') {
-    stepH = Math.max(1, Math.round(focusElements.length / countCols('.gallery__item')));
-    stepV = 1;
-  }
-  // 非左方向键取消侧边栏 peek
-  if (dir !== 'left') {
-    const sb = document.getElementById('sidebar');
-    if (sb?.classList.contains('sidebar--peek') && !sb.classList.contains('sidebar--open')) {
-      sb.classList.remove('sidebar--peek');
-      lensShiftBack();
-    }
-  }
-
-  const prevIdx = focusIndex;
-  if (mode === 'browse') {
-    // CSS Grid 行优先：同行内左右移动，上下跨行
-    const col = focusIndex % stepV;
-    const totalCols = stepV;
-    switch (dir) {
-      case 'left':
-        if (col > 0) {
-          focusIndex -= stepH;
-        } else {
-          const sidebar = document.getElementById('sidebar');
-          if (sidebar?.classList.contains('sidebar--peek')) {
-            // 第二次左：完全展开 + 进入侧边栏
-            sidebar.classList.add('sidebar--open');
-            _savedGridIndex = focusIndex;
-            _savedMode = mode;
-            _savedZone = _focusZone;
-            _focusZone = 'sidebar';
-            buildSidebarElements();
-            updateHeroFocus();
-            // LENS 右移
-            lensShiftRight();
-            releaseCardFloat();
-          } else {
-            // 第一次左：探出
-            sidebar?.classList.add('sidebar--peek');
-          }
-        }
-        break;
-      case 'right': if (col < totalCols - 1 && focusIndex < focusElements.length - 1) focusIndex += stepH; break;
-      case 'up':
-        if (focusIndex < stepV) {
-          // 第一行向上 → 跟鼠标点击 corner logo 一样滚到顶部
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          focusIndex = Math.max(0, focusIndex - stepV);
-        }
-        break;
-      case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
-    }
-  } else if (mode === 'gallery') {
-    // CSS Columns 列优先：上下同列相邻移动，左右按屏幕坐标找最近项
-    const current = focusElements[focusIndex];
-    switch (dir) {
-      case 'up':
-        if (focusIndex === 0) {
-          // 第一张照片向上 → 跳出网格进入 hero
-          _savedGridIndex = focusIndex;
-          _savedMode = mode;
-          _focusZone = 'hero';
-          buildHeroElements(mode);
-          updateHeroFocus();
-          releaseCardFloat();
-        } else {
-          focusIndex = Math.max(0, focusIndex - stepV);
-        }
-        break;
-      case 'down':
-        focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV);
-        break;
-      case 'left':
-      case 'right': {
-        if (!current) break;
-        const cr = current.getBoundingClientRect();
-        const cy = cr.top + cr.height / 2;
-        const cx = cr.left + cr.width / 2;
-        let best = focusIndex;
-        let bestScore = Infinity;
-        for (let i = 0; i < focusElements.length; i++) {
-          if (i === focusIndex) continue;
-          const r = focusElements[i].getBoundingClientRect();
-          const ix = r.left + r.width / 2;
-          const iy = r.top + r.height / 2;
-          if (dir === 'right' && ix <= cx + 2) continue;
-          if (dir === 'left'  && ix >= cx - 2) continue;
-          const hDist = Math.abs(ix - cx);
-          const vDist = Math.abs(iy - cy);
-          const score = hDist + vDist * 3; // 纵向偏差重罚，优先同行
-          if (score < bestScore) { bestScore = score; best = i; }
-        }
-        focusIndex = best;
-        break;
-      }
-    }
-    // gallery 左边界 → 两步展开侧边栏
-    if (dir === 'left' && focusIndex === prevIdx) {
-      const sidebar = document.getElementById('sidebar');
-      if (sidebar?.classList.contains('sidebar--peek')) {
-        sidebar.classList.add('sidebar--open');
-        _savedGridIndex = focusIndex;
-        _focusZone = 'sidebar';
-        buildSidebarElements();
-        updateHeroFocus();
-        lensShiftRight();
-        releaseCardFloat();
-      } else {
-        sidebar?.classList.add('sidebar--peek');
-      }
-    }
-  }
-  // 如果已跳转到 hero/sidebar 区域，跳过网格焦点应用
-  if (_focusZone !== 'grid') return;
-  if (_focusZone === 'hero') return;
-
-  // 应用焦点视觉（不重复查询 DOM）
-  if (prevIdx !== focusIndex) {
-    focusElements[prevIdx]?.classList.remove('card--focused');
-    focusElements[focusIndex]?.classList.add('card--focused');
-    focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  } else {
-    focusElements[focusIndex]?.classList.add('card--focused');
-  }
-
-  // 光晕从移动方向扫入中心（独立 DOM 元素）
-  if (prevIdx !== focusIndex) sweepGlow(focusElements[focusIndex], dir);
+  _gpLogoTracking = requestAnimationFrame(track);
 }
 
-// --- 去抖（按钮用） ---
-function db(fn) {
+function gpTrackLogoStop(reset) {
+  if (_gpLogoTracking) { cancelAnimationFrame(_gpLogoTracking); _gpLogoTracking = null; }
+  if (reset) {
+    const logo = document.getElementById('corner-logo');
+    if (logo) {
+      logo.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)';
+      logo.style.left = '28px';
+    }
+  }
+}
+
+// ── Debounce (rising-edge trigger) ──
+
+function debounce(fn) {
   let state = false;
   return (pressed) => {
     if (pressed && !state) { state = true; fn(); }
@@ -375,175 +830,209 @@ function db(fn) {
   };
 }
 
-// --- 输入模式 ---
-function setInputMode(mode) {
-  if (_inputMode === mode) return;
-  _inputMode = mode;
-  if (mode === 'gamepad') {
-    document.body.classList.add('gamepad-active');
-    _prevDX = _prevDY = 0;
-    updateFocus(getMode());
-  } else {
-    document.body.classList.remove('gamepad-active');
-    _heroElements.forEach(el => el.classList.remove('hero--focused'));
-    _heroElements = [];
-    document.getElementById('sidebar')?.classList.remove('sidebar--open', 'sidebar--peek');
-    lensShiftBack();
-    focusElements.forEach(el => el.classList.remove('card--focused'));
-    focusElements = [];
-    focusIndex = 0;
-    _focusZone = 'grid';
-  }
-}
+// ── Button debouncers (created once) ──
 
-// --- 浮游 ---
-function injectCardFloat(card, lx, ly) {
-  const lift = 5;
-  card.classList.add('card--tilt-active');
-  card.style.transform = `translateX(${lx * lift}px) translateY(${ly * lift}px) scale3d(1.005, 1.005, 1)`;
-  card.style.setProperty('--shine-x', (50 + lx * 30) + '%');
-  card.style.setProperty('--shine-y', (50 + ly * 30) + '%');
-}
+const btnA = debounce(() => actionA());
+const btnB = debounce(() => actionB());
+const btnX = debounce(() => actionX());
+const btnY = debounce(() => actionY());
+const btnLB = debounce(() => actionLB());
+const btnRB = debounce(() => actionRB());
+const btnLT = debounce(() => actionLT());
+const btnRT = debounce(() => actionRT());
+const btnLS = debounce(() => actionLS());
+const btnStart = debounce(() => actionStart());
+const btnBack = debounce(() => actionBack());
 
-function releaseCardFloat() {
-  if (_floatCard) {
-    _floatCard.classList.remove('card--tilt-active');
-    _floatCard.style.transform = '';
-    _floatCard.style.setProperty('--shine-x', '50%');
-    _floatCard.style.setProperty('--shine-y', '50%');
-    _floatCard = null;
-  }
-}
+// ── Poll Loop ──
 
-// ========== 入口 ==========
-export function initGamepad() {
-  if (_gpAnimFrame) return;
-
-  const btnA = db(() => {
-    const m = getMode();
-    if (_focusZone === 'hero' || _focusZone === 'sidebar') {
-      _heroElements[_heroIndex]?.click();
-      return;
-    }
-    if (m === 'browse' || m === 'gallery') {
-      if (focusElements.length === 0) updateFocus(m);
-      focusElements[focusIndex]?.click();
-    }
-    if (m === 'settings') document.querySelector('.toggle-switch')?.click();
-    if (m === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
-  });
-  const btnB = db(() => {
-    const m = getMode();
-    if (_focusZone === 'sidebar') {
-      // B 关闭侧边栏，回到进入前的状态
-      updateHeroFocus();
-      const sidebar = document.getElementById('sidebar');
-      sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
-      lensShiftBack();
-      if (_savedZone === 'grid') {
-        _focusZone = 'grid';
-        focusIndex = (m === _savedMode) ? _savedGridIndex : 0;
-        // 手动恢复焦点，不调 updateFocus（避免 scrollIntoView）
-        const els = m === 'browse'
-          ? Array.from(document.querySelectorAll('.category-card'))
-          : Array.from(document.querySelectorAll('.gallery__item'));
-        if (els.length > 0) {
-          focusIndex = Math.max(0, Math.min(focusIndex, els.length - 1));
-          els.forEach(el => el.classList.remove('card--focused'));
-          els[focusIndex]?.classList.add('card--focused');
-        }
-      } else {
-        _focusZone = _savedZone || 'grid';
-      }
-      return;
-    }
-    if (m === 'lightbox')  document.querySelector('.lightbox__close')?.click();
-    if (m === 'slideshow') document.getElementById('sl-exit')?.click();
-    if (m === 'gallery')   document.getElementById('gallery-back')?.click();
-    if (m === 'settings')  document.getElementById('settings-panel')?.classList.remove('settings-panel--open');
-    if (m === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
-  });
-  const btnX = db(() => {
-    if (_focusZone === 'sidebar') {
-      const el = _heroElements[_heroIndex];
-      el?.querySelector('.sidebar__item-remove')?.click();
-      return;
-    }
-    if (getMode() === 'lightbox') document.getElementById('rating-fav')?.click();
-  });
-  const btnY = db(() => { document.getElementById('tb-slideshow')?.click(); });
-  const btnLB = db(() => {
-    const m = getMode();
-    if (m === 'lightbox')  document.querySelector('.lightbox__prev')?.click();
-    if (m === 'slideshow') document.getElementById('sl-prev')?.click();
-  });
-  const btnRB = db(() => {
-    const m = getMode();
-    if (m === 'lightbox')  document.querySelector('.lightbox__next')?.click();
-    if (m === 'slideshow') document.getElementById('sl-next')?.click();
-  });
-  const btnLT = db(() => { if (getMode() === 'lightbox') document.querySelector('.rating__star[data-v="1"]')?.click(); });
-  const btnRT = db(() => { if (getMode() === 'lightbox') document.querySelector('.rating__star[data-v="5"]')?.click(); });
-  const btnLS = db(() => { if (getMode() === 'slideshow') document.getElementById('sl-pause')?.click(); });
-  const btnStart = db(() => { document.getElementById('tb-settings')?.click(); });
-  const btnBack = db(() => { document.getElementById('tb-shortcuts')?.click(); });
-
-  document.addEventListener('mousemove', () => {
-    if (_inputMode === 'gamepad') setInputMode('mouse');
-  }, { passive: true });
-
-  function poll() {
+function poll() {
+  try {
     const gamepads = navigator.getGamepads();
     let active = null;
     for (const gp of gamepads) { if (gp?.connected) { active = gp; break; } }
-    if (!active) { _gpAnimFrame = requestAnimationFrame(poll); return; }
 
-    const map = BUTTONS[detectLayout(active)];
-    const mode = getMode();
+    if (!active) { S.raf = requestAnimationFrame(poll); return; }
+
+    const map = BTN[detectLayout(active)];
     const lx = active.axes[0] || 0;
     const ly = active.axes[1] || 0;
-    const ry = active.axes[3] || 0;
 
-    // 输入检测 → 切换模式
-    if ((Math.abs(lx) > 0.15 || Math.abs(ly) > 0.15 || active.buttons.some(b => b?.pressed)) && _inputMode !== 'gamepad') {
-      setInputMode('gamepad');
+    // ── Detect mode change ──
+    const mode = detectMode();
+    const modeChanged = S.mode !== mode;
+    const wasOverlay = OVERLAYS.has(S.mode);
+    const isOverlay = OVERLAYS.has(mode);
+
+    if (modeChanged) {
+      releaseFloat();
+      const oldMode = S.mode; // 保存旧模式
+
+      if (!wasOverlay && isOverlay) {
+        // 进入叠加模式：保存当前位置
+        S.ovSave.gridIdx = S.gridIdx;
+        S.ovSave.mode = S.mode;
+      }
+
+      S.mode = mode;
+
+      // settings 进入/退出时管理元素列表
+      if (mode === 'settings') {
+        buildSettingsEls(); S.settingsIdx = 0; applySettingsFocus();
+      }
+      if (wasOverlay && !isOverlay) {
+        // 退出叠加模式：恢复位置
+        if (S.zone === 'grid') {
+          S.gridIdx = (mode === S.ovSave.mode) ? S.ovSave.gridIdx : 0;
+        }
+      } else if (!isOverlay && !wasOverlay && S.zone === 'grid') {
+        // 非叠加模式间切换
+        if (oldMode === 'browse' && mode === 'gallery') {
+          // browse→gallery：保存当前分类卡位置
+          _savedBrowseIdx = S.gridIdx;
+          S.gridIdx = 0;
+        } else if (oldMode === 'gallery' && mode === 'browse') {
+          // gallery→browse：回到之前打开的分类卡位置
+          S.gridIdx = (typeof _savedBrowseIdx !== 'undefined') ? _savedBrowseIdx : 0;
+        } else {
+          S.gridIdx = 0;
+        }
+      }
+
+      if (!isOverlay && S.zone === 'grid') {
+        buildGridEls(); clampGridIdx(); applyGridFocus();
+      }
     }
 
-    // ==== 方向移动：上升沿触发 ====
-    const T = 0.3;
-    const DEAD = 0.15;
-    const rawX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0) + (lx < -T ? -1 : 0) + (lx > T ? 1 : 0);
-    const rawY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0) + (ly < -T ? -1 : 0) + (ly > T ? 1 : 0);
-    // 死区归零：摇杆回到中心附近自动重置边缘检测
-    const dx = Math.abs(lx) < DEAD && !active.buttons[map.LEFT]?.pressed && !active.buttons[map.RIGHT]?.pressed ? 0 : rawX;
-    const dy = Math.abs(ly) < DEAD && !active.buttons[map.UP]?.pressed && !active.buttons[map.DOWN]?.pressed ? 0 : rawY;
-
-    if (dx < 0 && _prevDX >= 0) moveFocus('left', mode);
-    if (dx > 0 && _prevDX <= 0) moveFocus('right', mode);
-    if (dy < 0 && _prevDY >= 0) moveFocus('up', mode);
-    if (dy > 0 && _prevDY <= 0) moveFocus('down', mode);
-
-    _prevDX = dx;
-    _prevDY = dy;
-
-    // ==== 浮游微动（grid 卡片 + sidebar 文件夹） ====
-    const dpadX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
-    const dpadY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0);
-    const floatX = Math.abs(lx) > 0.08 ? lx : dpadX;
-    const floatY = Math.abs(ly) > 0.08 ? ly : dpadY;
-
-    const canFloat = (_focusZone === 'grid' && (mode === 'browse' || mode === 'gallery'))
-                  || _focusZone === 'sidebar';
-
-    if (canFloat && (Math.abs(floatX) > 0.08 || Math.abs(floatY) > 0.08)) {
-      const target = _focusZone === 'sidebar' ? _heroElements[_heroIndex] : focusElements[focusIndex];
-      if (target && target !== _floatCard) { releaseCardFloat(); _floatCard = target; }
-      if (target) injectCardFloat(target, floatX, floatY);
-    } else if (_floatCard) {
-      releaseCardFloat();
+    // ── mouse → gamepad detection ──
+    if (S.input === 'mouse') {
+      const hasInput = Math.abs(lx) > DEAD_ZONE || Math.abs(ly) > DEAD_ZONE
+        || active.buttons.some(b => b?.pressed);
+      if (hasInput) {
+        setInput('gamepad');
+        // Fall through to process this frame
+      } else {
+        S.raf = requestAnimationFrame(poll);
+        return;
+      }
     }
 
-    // ==== 按钮 ====
+    // ── Navigation (only in non-overlay modes) ──
+    if (!isOverlay) {
+      // 上升沿方向检测 (D-pad + 左摇杆)
+      const rawX = (active.buttons[map.LEFT]?.pressed ? -1 : 0)
+                 + (active.buttons[map.RIGHT]?.pressed ? 1 : 0)
+                 + (lx < -DPAD_THRESHOLD ? -1 : 0)
+                 + (lx > DPAD_THRESHOLD ? 1 : 0);
+      const rawY = (active.buttons[map.UP]?.pressed ? -1 : 0)
+                 + (active.buttons[map.DOWN]?.pressed ? 1 : 0)
+                 + (ly < -DPAD_THRESHOLD ? -1 : 0)
+                 + (ly > DPAD_THRESHOLD ? 1 : 0);
+
+      const dx = (Math.abs(lx) < DEAD_ZONE
+        && !active.buttons[map.LEFT]?.pressed
+        && !active.buttons[map.RIGHT]?.pressed) ? 0 : rawX;
+      const dy = (Math.abs(ly) < DEAD_ZONE
+        && !active.buttons[map.UP]?.pressed
+        && !active.buttons[map.DOWN]?.pressed) ? 0 : rawY;
+
+      // ── 下拉菜单拦截 ──
+      const openMenu = document.querySelector('.custom-dropdown__menu--open');
+      if (openMenu) {
+        const opts = openMenu.querySelectorAll('.custom-dropdown__option');
+        // 上升沿：按一次移动一次（和正常导航一致）
+        if (dy < 0 && S.prevDY >= 0 && opts.length > 0) {
+          const cur = openMenu.querySelector('.custom-dropdown__option.hero--focused') || openMenu.querySelector('.custom-dropdown__option--sel');
+          let oi = Array.from(opts).indexOf(cur);
+          if (oi < 0) oi = 0;
+          oi = Math.max(0, oi - 1);
+          opts.forEach(o => o.classList.remove('hero--focused'));
+          opts[oi].classList.add('hero--focused');
+        }
+        if (dy > 0 && S.prevDY <= 0 && opts.length > 0) {
+          const cur = openMenu.querySelector('.custom-dropdown__option.hero--focused') || openMenu.querySelector('.custom-dropdown__option--sel');
+          let oi = Array.from(opts).indexOf(cur);
+          if (oi < 0) oi = 0;
+          oi = Math.min(opts.length - 1, oi + 1);
+          opts.forEach(o => o.classList.remove('hero--focused'));
+          opts[oi].classList.add('hero--focused');
+        }
+        // LEFT/RIGHT 关闭菜单回 hero
+        if ((dx < 0 && S.prevDX >= 0) || (dx > 0 && S.prevDX <= 0)) {
+          openMenu.classList.remove('custom-dropdown__menu--open');
+          document.querySelector('.custom-dropdown__trigger--open')?.classList.remove('custom-dropdown__trigger--open');
+          if (dx < 0) S.heroIdx = Math.max(0, S.heroIdx - 1);
+          if (dx > 0) S.heroIdx = Math.min(S.heroEls.length - 1, S.heroIdx + 1);
+          applyHeroFocus();
+        }
+      } else {
+        if (dx < 0 && S.prevDX >= 0) navigate('left');
+        if (dx > 0 && S.prevDX <= 0) navigate('right');
+        if (dy < 0 && S.prevDY >= 0) navigate('up');
+        if (dy > 0 && S.prevDY <= 0) navigate('down');
+      }
+      S.prevDX = dx;
+      S.prevDY = dy;
+
+      // ── Float (摇杆微动，仅 grid/hero/sidebar) ──
+      const dpadX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
+      const dpadY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0);
+      const floatX = Math.abs(lx) > 0.08 ? lx : dpadX;
+      const floatY = Math.abs(ly) > 0.08 ? ly : dpadY;
+
+      if (Math.abs(floatX) > 0.08 || Math.abs(floatY) > 0.08) {
+        applyFloat(floatX, floatY);
+      } else if (S.floatCard) {
+        releaseFloat();
+      }
+    } else if (mode === 'settings') {
+      // ── Settings overlay ──
+      if (S.settingsEls.length === 0) { buildSettingsEls(); S.settingsIdx = 0; }
+      const cur = S.settingsEls[S.settingsIdx];
+      const isDensity = cur && cur._density;
+
+      // 垂直 UP/DOWN
+      const rawSY = (active.buttons[map.UP]?.pressed ? -1 : 0)
+                  + (active.buttons[map.DOWN]?.pressed ? 1 : 0)
+                  + (ly < -DPAD_THRESHOLD ? -1 : 0)
+                  + (ly > DPAD_THRESHOLD ? 1 : 0);
+      const sdy = (Math.abs(ly) < DEAD_ZONE
+        && !active.buttons[map.UP]?.pressed
+        && !active.buttons[map.DOWN]?.pressed) ? 0 : rawSY;
+
+      if (sdy < 0 && S.prevDY >= 0) {
+        S.settingsIdx = Math.max(0, S.settingsIdx - 1);
+        applySettingsFocus();
+      }
+      if (sdy > 0 && S.prevDY <= 0) {
+        S.settingsIdx = Math.min(S.settingsEls.length - 1, S.settingsIdx + 1);
+        applySettingsFocus();
+      }
+      S.prevDY = sdy;
+
+      // 密度条目内：LEFT/RIGHT 切换小/中/大
+      if (isDensity) {
+        const rawSX = (active.buttons[map.LEFT]?.pressed ? -1 : 0)
+                    + (active.buttons[map.RIGHT]?.pressed ? 1 : 0)
+                    + (lx < -DPAD_THRESHOLD ? -1 : 0)
+                    + (lx > DPAD_THRESHOLD ? 1 : 0);
+        const sdx = (Math.abs(lx) < DEAD_ZONE
+          && !active.buttons[map.LEFT]?.pressed
+          && !active.buttons[map.RIGHT]?.pressed) ? 0 : rawSX;
+
+        if (sdx < 0 && S.prevDX >= 0) {
+          S.settingsDensityIdx = Math.max(0, S.settingsDensityIdx - 1);
+          applySettingsFocus();
+        }
+        if (sdx > 0 && S.prevDX <= 0) {
+          S.settingsDensityIdx = Math.min(cur.buttons.length - 1, S.settingsDensityIdx + 1);
+          applySettingsFocus();
+        }
+        S.prevDX = sdx;
+      }
+    }
+
+    // ── Buttons (always processed, regardless of overlay) ──
     btnA(active.buttons[map.A]?.pressed);
     btnB(active.buttons[map.B]?.pressed);
     btnX(active.buttons[map.X]?.pressed);
@@ -556,27 +1045,69 @@ export function initGamepad() {
     btnStart(active.buttons[map.START]?.pressed);
     btnBack(active.buttons[map.BACK]?.pressed);
 
-    // ==== 右摇杆缩放 ====
+    // ── Right stick zoom (lightbox only) ──
+    const ry = active.axes[3] || 0;
     if (mode === 'lightbox' && Math.abs(ry) > 0.15) {
-      document.getElementById('lightbox')?.dispatchEvent(new WheelEvent('wheel', { deltaY: -ry * 50, bubbles: true }));
+      document.getElementById('lightbox')?.dispatchEvent(
+        new WheelEvent('wheel', { deltaY: -ry * 50, bubbles: true })
+      );
     }
-
-    // ==== 模式变化 → 刷新焦点 ====
-    if (_lastMode !== mode) {
-      _lastMode = mode;
-      focusIndex = 0;
-      if (_focusZone === 'hero') updateHeroFocus();
-      _focusZone = 'grid';
-      updateFocus(mode);
-    }
-
-    _gpAnimFrame = requestAnimationFrame(poll);
+  } catch (e) {
+    console.error('[LENS] gamepad poll error:', e);
   }
 
-  window.addEventListener('gamepadconnected', () => {
-    if (!_gpAnimFrame) _gpAnimFrame = requestAnimationFrame(poll);
-  });
-  window.addEventListener('gamepaddisconnected', () => setInputMode('mouse'));
+  S.raf = requestAnimationFrame(poll);
+}
 
-  _gpAnimFrame = requestAnimationFrame(poll);
+// ── Public API ──
+
+export function initGamepad() {
+  if (S.raf) return;
+
+  // ── Mouse detection for gamepad→mouse switching ──
+  document.addEventListener('mousemove', (e) => {
+    if (S.input === 'gamepad') {
+      const dx = e.clientX - S.anchor.x;
+      const dy = e.clientY - S.anchor.y;
+      if (dx * dx + dy * dy > MOUSE_SWITCH_DIST * MOUSE_SWITCH_DIST) {
+        setInput('mouse');
+      }
+    } else {
+      S.anchor.x = e.clientX;
+      S.anchor.y = e.clientY;
+    }
+  }, { passive: true });
+
+  // 真实鼠标点击 → 切回鼠标模式（手柄模拟点击已标记 S.clicking）
+  document.addEventListener('click', () => {
+    if (!S.clicking && S.input === 'gamepad') setInput('mouse');
+  }, { passive: true });
+
+  // ── Gamepad connection events ──
+  window.addEventListener('gamepadconnected', () => {
+    if (!S.raf) S.raf = requestAnimationFrame(poll);
+  });
+  window.addEventListener('gamepaddisconnected', () => {
+    if (S.input === 'gamepad') setInput('mouse');
+  });
+
+  // ── Start polling ──
+  S.raf = requestAnimationFrame(poll);
+}
+
+export function destroyGamepad() {
+  if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
+  clearGlow();
+  if (S.glow.el) { S.glow.el.remove(); S.glow.el = null; }
+  releaseFloat();
+  document.body.classList.remove('gamepad-active');
+  document.querySelectorAll('.card--focused, .hero--focused, .gp-hint').forEach(el => {
+    el.classList.remove('card--focused', 'hero--focused');
+    if (el.classList.contains('gp-hint')) el.remove();
+  });
+  // Reset all state
+  S.input = 'mouse'; S.mode = 'browse'; S.zone = 'grid';
+  S.gridIdx = 0; S.heroIdx = 0; S.sidebarIdx = 0; S.toolbarIdx = 0; S.settingsIdx = 0; S.settingsDensityIdx = 0;
+  S.gridEls = []; S.heroEls = []; S.sidebarEls = []; S.toolbarEls = []; S.settingsEls = [];
+  S.clicking = false;
 }

@@ -45,7 +45,7 @@ export function removeSavedFolder(dir, { getSavedFolders, saveFolders, loadDir, 
   const idx = dirs.findIndex(d => d.replace(/\\/g, '/') === dir.replace(/\\/g, '/'));
   if (idx !== -1) dirs.splice(idx, 1);
   saveFolders(dirs);
-  const current = loadDir();
+  const current = loadDir() || '';
   if (current.replace(/\\/g, '/') === dir.replace(/\\/g, '/')) {
     if (dirs.length > 0) { onReload(dirs[0]); }
     else { onEmpty(); }
@@ -103,7 +103,7 @@ export function createCacheSection({ sidebar, featureToggles, invoke, formatByte
   });
   delBtn.addEventListener('click', async () => {
     await invoke('clear_cache', { cacheDir: featureToggles.cacheDir });
-    updateCacheDisplay();
+    await updateCacheDisplay();
   });
 
   row.appendChild(info);

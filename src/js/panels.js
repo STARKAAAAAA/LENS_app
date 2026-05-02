@@ -120,7 +120,8 @@ export function initShortcutsPanel({ featureToggles }) {
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === '?' && featureToggles.shortcuts) {
-      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       e.preventDefault();
       toggleShortcuts();
     }

@@ -86,6 +86,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     sidebar.classList.remove('sidebar--open', 'sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'auto';
     cancelAnimationFrame(logoTracking); logoTracking = null;
+    const logo = document.getElementById('corner-logo');
+    const glow = document.getElementById('lens-glow');
+    if (logo) logo.style.left = '28px';
+    if (glow) glow.style.left = '6px';
   }
   function hideSidebar() {
     sidebarHideTimer = setTimeout(() => {
@@ -399,7 +403,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     categoriesEl.style.display = 'grid';
     sectionTitle.textContent = 'Selected Works';
     state.categoryTransitioning = false;
-    window.scrollTo({ top: document.getElementById('portfolio').offsetTop - 40, behavior: 'smooth' });
+    const portfolioEl = document.getElementById('portfolio');
+    const portfolioRect = portfolioEl.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + portfolioRect.top - 40, behavior: 'smooth' });
   });
 
   // ---- Init lightbox, slideshow, effects ----
@@ -437,7 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let scrollTicking = false;
   backToTop.addEventListener('click', () => {
     const portfolio = document.getElementById('portfolio');
-    if (portfolio) { window.scrollTo({ top: portfolio.offsetTop - 8, behavior: 'smooth' }); }
+    if (portfolio) { const r = portfolio.getBoundingClientRect(); window.scrollTo({ top: window.scrollY + r.top - 8, behavior: 'smooth' }); }
   });
   window.addEventListener('scroll', () => {
     if (!scrollTicking) {
@@ -452,7 +458,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---- Parallax ----
   function initParallax() {
     const heroSlides = document.querySelector('.hero__slides');
-    const heroH = document.querySelector('.hero').offsetHeight;
+    const heroEl = document.querySelector('.hero');
+    if (!heroSlides || !heroEl) return;
+    let heroH = heroEl.offsetHeight;
     let paraTicking = false;
     window.addEventListener('scroll', () => {
       if (!paraTicking) {
@@ -466,6 +474,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         paraTicking = true;
       }
+    }, { passive: true });
+    window.addEventListener('resize', () => {
+      heroH = heroEl.offsetHeight;
     }, { passive: true });
   }
 
