@@ -22,6 +22,12 @@ let _inputMode = 'mouse';
 let _lastMode = null;
 let _floatCard = null;
 let _prevDX = 0, _prevDY = 0; // 上一帧方向值，用于上升沿检测
+let _glowEl = null;        // 独立光晕 DOM 元素
+let _glowRaf = null;       // 光晕动画 rAF ID
+let _focusZone = 'grid';   // 'grid' | 'hero'  焦点区域
+let _heroElements = [];     // hero 区域可聚焦元素
+let _heroIndex = 0;        // hero 区域当前索引
+let _savedGridIndex = 0;   // 进入 hero 前网格焦点位置，返回时恢复
 
 // --- 模式 ---
 function getMode() {
@@ -43,7 +49,7 @@ function updateFocus(mode) {
     focusElements = Array.from(document.querySelectorAll('.gallery__item'));
   }
   if (focusElements.length === 0) { focusIndex = 0; return; }
-  focusIndex = Math.min(focusIndex, focusElements.length - 1);
+  focusIndex = Math.max(0, Math.min(focusIndex, focusElements.length - 1));
   focusElements[focusIndex]?.classList.add('card--focused');
   focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
@@ -57,44 +63,206 @@ function countCols(selector) {
   return set.size || 1;
 }
 
-function moveFocus(dir, mode) {
-  if (focusElements.length === 0) { updateFocus(mode); if (focusElements.length === 0) return; }
-  let stepH = 1; // 水平步长（同行/同列内的相邻）
-  let stepV = 1; // 垂直步长（跨行/跨列）
+// hero 区域元素
+function buildHeroElements(mode) {
+  _heroElements = [];
   if (mode === 'browse') {
-    // CSS Grid 行优先排列：左右同行(±1) 上下跨行(±cols)
+    // 从下到上：portfolio 标题 → hero 整屏区（页面最顶部，100vh 无空隙）
+    const pfHeader = document.querySelector('.portfolio__header');
+    const hero = document.getElementById('hero');
+    if (pfHeader) _heroElements.push(pfHeader);
+    if (hero)     _heroElements.push(hero);
+  } else if (mode === 'gallery') {
+    const back = document.getElementById('gallery-back');
+    const sort = document.querySelector('.custom-dropdown__trigger');
+    if (back) _heroElements.push(back);
+    if (sort) _heroElements.push(sort);
+  }
+  _heroIndex = 0;
+}
+
+function updateHeroFocus() {
+  _heroElements.forEach(el => el.classList.remove('hero--focused'));
+  const el = _heroElements[_heroIndex];
+  if (el) {
+    el.classList.add('hero--focused');
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+}
+
+function moveFocus(dir, mode) {
+  // ==== Hero 区域导航 ====
+  // hero 元素排序：index 0=最靠近卡片，index 越大越靠页面顶部
+  if (_focusZone === 'hero') {
+    if (_heroElements.length === 0) { _focusZone = 'grid'; return; }
+    if (dir === 'down') {
+      if (_heroIndex === 0) {
+        // 已在最靠近卡片的 hero 元素，再按下 → 回到之前的位置
+        _focusZone = 'grid';
+        updateHeroFocus();
+        focusIndex = _savedGridIndex;
+        updateFocus(mode);
+      } else {
+        _heroIndex--;
+        updateHeroFocus();
+      }
+      return;
+    }
+    if (dir === 'up') {
+      _heroIndex = Math.min(_heroElements.length - 1, _heroIndex + 1);
+      updateHeroFocus();
+      return;
+    }
+    if (dir === 'left')  { _heroIndex = Math.max(0, _heroIndex - 1); updateHeroFocus(); }
+    if (dir === 'right') { _heroIndex = Math.min(_heroElements.length - 1, _heroIndex + 1); updateHeroFocus(); }
+    return;
+  }
+
+  // 始终从 DOM 新鲜查询，不依赖缓存
+  focusElements.forEach(el => el.classList.remove('card--focused'));
+  focusElements = [];
+  if (mode === 'browse') {
+    focusElements = Array.from(document.querySelectorAll('.category-card'));
+  } else if (mode === 'gallery') {
+    focusElements = Array.from(document.querySelectorAll('.gallery__item'));
+  }
+  if (focusElements.length === 0) { focusIndex = 0; return; }
+  focusIndex = Math.max(0, Math.min(focusIndex, focusElements.length - 1));
+
+  let stepH = 1;
+  let stepV = 1;
+  if (mode === 'browse') {
     stepH = 1;
     stepV = countCols('.category-card');
   } else if (mode === 'gallery') {
-    // CSS Columns 列优先排列：上下同列(±1) 左右跨列(±itemsPerCol)
     stepH = Math.max(1, Math.round(focusElements.length / countCols('.gallery__item')));
     stepV = 1;
   }
   const prevIdx = focusIndex;
-  switch (dir) {
-    case 'left':  focusIndex = Math.max(0, focusIndex - stepH); break;
-    case 'right': focusIndex = Math.min(focusElements.length - 1, focusIndex + stepH); break;
-    case 'up':    focusIndex = Math.max(0, focusIndex - stepV); break;
-    case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
+  if (mode === 'browse') {
+    // CSS Grid 行优先：同行内左右移动，上下跨行
+    const col = focusIndex % stepV;
+    const totalCols = stepV;
+    switch (dir) {
+      case 'left':  if (col > 0) focusIndex -= stepH; break;
+      case 'right': if (col < totalCols - 1 && focusIndex < focusElements.length - 1) focusIndex += stepH; break;
+      case 'up':
+        if (focusIndex < stepV) {
+          // 第一行向上 → 跳出网格进入 hero
+          _savedGridIndex = focusIndex;
+          _focusZone = 'hero';
+          buildHeroElements(mode);
+          updateHeroFocus();
+          releaseCardFloat();
+        } else {
+          focusIndex = Math.max(0, focusIndex - stepV);
+        }
+        break;
+      case 'down':  focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV); break;
+    }
+  } else if (mode === 'gallery') {
+    // CSS Columns 列优先：上下同列相邻移动，左右按屏幕坐标找最近项
+    const current = focusElements[focusIndex];
+    switch (dir) {
+      case 'up':
+        if (focusIndex === 0) {
+          // 第一张照片向上 → 跳出网格进入 hero
+          _savedGridIndex = focusIndex;
+          _focusZone = 'hero';
+          buildHeroElements(mode);
+          updateHeroFocus();
+          releaseCardFloat();
+        } else {
+          focusIndex = Math.max(0, focusIndex - stepV);
+        }
+        break;
+      case 'down':
+        focusIndex = Math.min(focusElements.length - 1, focusIndex + stepV);
+        break;
+      case 'left':
+      case 'right': {
+        if (!current) break;
+        const cr = current.getBoundingClientRect();
+        const cy = cr.top + cr.height / 2;
+        const cx = cr.left + cr.width / 2;
+        let best = focusIndex;
+        let bestScore = Infinity;
+        for (let i = 0; i < focusElements.length; i++) {
+          if (i === focusIndex) continue;
+          const r = focusElements[i].getBoundingClientRect();
+          const ix = r.left + r.width / 2;
+          const iy = r.top + r.height / 2;
+          if (dir === 'right' && ix <= cx + 2) continue;
+          if (dir === 'left'  && ix >= cx - 2) continue;
+          const hDist = Math.abs(ix - cx);
+          const vDist = Math.abs(iy - cy);
+          const score = hDist + vDist * 3; // 纵向偏差重罚，优先同行
+          if (score < bestScore) { bestScore = score; best = i; }
+        }
+        focusIndex = best;
+        break;
+      }
+    }
   }
-  updateFocus(mode);
+  // 如果已跳转到 hero 区域，跳过网格焦点应用
+  if (_focusZone === 'hero') return;
 
-  // 光晕从移动方向扫入中心（rAF驱动 --shine-x/y）
+  // 应用焦点视觉（不重复查询 DOM）
+  if (prevIdx !== focusIndex) {
+    focusElements[prevIdx]?.classList.remove('card--focused');
+    focusElements[focusIndex]?.classList.add('card--focused');
+    focusElements[focusIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } else {
+    focusElements[focusIndex]?.classList.add('card--focused');
+  }
+
+  // 光晕从移动方向扫入中心（独立 DOM 元素）
   if (prevIdx !== focusIndex) {
     const card = focusElements[focusIndex];
     if (card) {
-      const from = { left:[80,50], right:[20,50], up:[50,80], down:[50,20] }[dir] || [50,50];
-      card.classList.add('card--tilt-active');
-      let t = 0;
-      function sweep() {
-        t += 0.04;
-        if (t >= 1) { card.classList.remove('card--tilt-active'); return; }
-        const e = 1 - Math.pow(1 - t, 2);
-        card.style.setProperty('--shine-x', (from[0] + (50 - from[0]) * e) + '%');
-        card.style.setProperty('--shine-y', (from[1] + (50 - from[1]) * e) + '%');
-        requestAnimationFrame(sweep);
+      if (!_glowEl) {
+        _glowEl = document.createElement('div');
+        _glowEl.className = 'gamepad-glow';
+        document.body.appendChild(_glowEl);
       }
-      requestAnimationFrame(sweep);
+      if (_glowRaf) cancelAnimationFrame(_glowRaf);
+
+      const r = card.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const starts = {
+        left:  [r.right, cy],
+        right: [r.left, cy],
+        up:    [cx, r.bottom],
+        down:  [cx, r.top],
+      };
+      const [sx, sy] = starts[dir] || [cx, cy];
+
+      _glowEl.style.width  = r.width + 'px';
+      _glowEl.style.height = r.height + 'px';
+      _glowEl.style.borderRadius = getComputedStyle(card).borderRadius;
+      _glowEl.style.left = (sx - r.width / 2) + 'px';
+      _glowEl.style.top  = (sy - r.height / 2) + 'px';
+      _glowEl.classList.add('gamepad-glow--active');
+
+      let t = 0;
+      const sweep = () => {
+        t += 0.03;
+        if (t >= 2.8) {
+          // 停留结束，CSS transition 自动渐淡
+          _glowEl.classList.remove('gamepad-glow--active');
+          _glowRaf = null;
+          return;
+        }
+        if (t <= 1) {
+          const e = 1 - Math.pow(1 - t, 2);
+          _glowEl.style.left = (sx + (cx - sx) * e - r.width / 2) + 'px';
+          _glowEl.style.top  = (sy + (cy - sy) * e - r.height / 2) + 'px';
+        }
+        // t 在 1~2.8 之间：光晕停留在中心
+        _glowRaf = requestAnimationFrame(sweep);
+      };
+      _glowRaf = requestAnimationFrame(sweep);
     }
   }
 }
@@ -118,9 +286,12 @@ function setInputMode(mode) {
     updateFocus(getMode());
   } else {
     document.body.classList.remove('gamepad-active');
+    _heroElements.forEach(el => el.classList.remove('card--focused'));
+    _heroElements = [];
     focusElements.forEach(el => el.classList.remove('card--focused'));
     focusElements = [];
     focusIndex = 0;
+    _focusZone = 'grid';
   }
 }
 
@@ -149,7 +320,14 @@ export function initGamepad() {
 
   const btnA = db(() => {
     const m = getMode();
-    if (m === 'browse' || m === 'gallery') focusElements[focusIndex]?.click();
+    if (_focusZone === 'hero') {
+      _heroElements[_heroIndex]?.click();
+      return;
+    }
+    if (m === 'browse' || m === 'gallery') {
+      if (focusElements.length === 0) updateFocus(m);
+      focusElements[focusIndex]?.click();
+    }
     if (m === 'settings') document.querySelector('.toggle-switch')?.click();
     if (m === 'shortcuts') document.getElementById('shortcuts-overlay')?.click();
   });
@@ -217,11 +395,16 @@ export function initGamepad() {
     _prevDX = dx;
     _prevDY = dy;
 
-    // ==== 卡片浮游 ====
-    if ((mode === 'browse' || mode === 'gallery') && (Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08)) {
+    // ==== 卡片浮游（模拟摇杆 + 十字键） ====
+    const dpadX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
+    const dpadY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0);
+    const floatX = Math.abs(lx) > 0.08 ? lx : dpadX;
+    const floatY = Math.abs(ly) > 0.08 ? ly : dpadY;
+
+    if (_focusZone === 'grid' && (mode === 'browse' || mode === 'gallery') && (Math.abs(floatX) > 0.08 || Math.abs(floatY) > 0.08)) {
       const card = focusElements[focusIndex];
       if (card && card !== _floatCard) { releaseCardFloat(); _floatCard = card; }
-      if (card) injectCardFloat(card, lx, ly);
+      if (card) injectCardFloat(card, floatX, floatY);
     } else if (_floatCard) {
       releaseCardFloat();
     }
@@ -248,6 +431,8 @@ export function initGamepad() {
     if (_lastMode !== mode) {
       _lastMode = mode;
       focusIndex = 0;
+      if (_focusZone === 'hero') updateHeroFocus();
+      _focusZone = 'grid';
       updateFocus(mode);
     }
 

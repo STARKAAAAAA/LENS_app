@@ -412,9 +412,9 @@
     transition: opacity 0.35s ease;
     background: radial-gradient(
       circle at var(--shine-x, 50%) var(--shine-y, 50%),
-      rgba(255, 255, 255, 0.28) 0%,
-      rgba(255, 245, 235, 0.12) 35%,
-      transparent 65%
+      rgba(255, 255, 255, 0.35) 0%,
+      rgba(255, 245, 235, 0.15) 25%,
+      transparent 55%
     );
   }
 
@@ -511,4 +511,44 @@ body.gamepad-active {
   .card--tilt-active {
     cursor: none;
   }
+}
+
+/* ========== 手柄方向键光晕（独立 DOM 元素，不受卡片内部层叠限制） ========== */
+.gamepad-glow {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 245, 235, 0.12) 35%,
+    transparent 65%
+  );
+}
+
+.gamepad-glow--active {
+  opacity: 1;
+  transition: opacity 0.15s ease; /* 出现快 */
+}
+
+/* hero 区域焦点：无金边，仅模拟 hover */
+/* hero 焦点：只改文字元素，不碰 overlay/slides/背景 */
+.hero--focused,
+.hero--focused :where(h1, h2, h3, h4, h5, h6, p, span, a, button) {
+  color: var(--accent) !important;
+  text-shadow: 0 0 16px rgba(200, 168, 124, 0.35);
+}
+
+/* 让被 --corner 隐藏的 hero 标题恢复可见 */
+.hero--focused .hero__content,
+.hero--focused .hero__title {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* 隐藏副标题 */
+.hero--focused .hero__subtitle {
+  opacity: 0 !important;
 }
