@@ -83,14 +83,16 @@
 - CSS @layer 架构 (reset / base / components / utilities)
 
 ### 手柄 / Gamepad
-- 全功能导航：方向键/摇杆控制焦点移动，A确认/B返回/X删除/Y幻灯片
-- 鼠标/手柄自动切换输入源，手柄激活时隐藏光标
-- 按钮去抖+上升沿检测，摇杆死区0.15防止漂移
-- 卡片悬浮浮游微动 + 方向光晕扫入动画（独立DOM元素，自适应形状）
-- Xbox风格按钮提示：?面板按设备切换(键盘/手柄)，内联图标(Ⓧ删除 Ⓐ添加 Ⓑ返回)
+- 全功能导航：方向键/摇杆焦点移动，A确认/B返回/X收藏+Y幻灯片
+- 鼠标/手柄自动切换，手柄激活隐藏光标，上升沿检测防抖
+- 灯箱：LB/RB 翻页，LT/RT 逐星评分，右摇杆缩放+左摇杆平移，RS 复位
+- 幻灯片：LB/RB 翻页，LS 暂停，RS 适配，右摇杆缩放+左摇杆平移
+- D-pad 左右键在灯箱/幻灯片中翻页
+- 缩放统一 zoomBy 函数，适配/1:1/缩放按钮带过渡动画
+- 卡片悬浮浮游微动 + 方向光晕扫入动画
+- Xbox 风格按钮提示图标（面按钮圆框+肩键扳机圆角矩形+摇杆方向图）
+- 左下角提示栏：LT/RT/X/LS/RS 实时功能标注
 - 飞智八爪鱼4、Xbox、PS5、Switch Pro 控制器兼容
-- Grid模式下左右键不跨行，Gallery模式下左右用屏幕坐标邻近搜索同行走位
-- Hero区域：网格顶部按上滚到顶部，侧边栏：左键两步展开
 
 ### 工程 / Engineering
 - CSS 模块化拆分（12 文件）：reset, variables, base, titlebar, toolbar, sidebar, loading, hero, gallery, lightbox, panels, utilities
