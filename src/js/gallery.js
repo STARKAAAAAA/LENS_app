@@ -25,10 +25,6 @@ export function buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOp
     const catPhotos = data.byCategory[cat] || [];
     const cover = catPhotos[0];
     if (!cover) return;
-    const avg = getCategoryAvgRating(cat, data);
-    const starsHtml = featureToggles.rating && avg > 0
-      ? `<div class="category-card__rating">${'★'.repeat(avg)}${'☆'.repeat(5 - avg)}</div>`
-      : '';
     const card = document.createElement('div');
     card.className = 'category-card';
     card.dataset.category = cat;
@@ -36,7 +32,7 @@ export function buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOp
       <img class="category-card__img" src="${cover.thumbSrc || cover.src}" alt="${cat}" decoding="async">
       <div class="category-card__label">
         <div class="category-card__label-name">${cat}</div>
-        <div class="category-card__label-count">${catPhotos.length} 张${starsHtml}</div>
+        <div class="category-card__label-count">${catPhotos.length} 张</div>
       </div>
       <div class="category-card__info">
         <div class="category-card__name">${cat}</div>
@@ -50,31 +46,43 @@ export function buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOp
 
 // refreshCategoryCards({ categoriesEl, data, featureToggles })
 export function refreshCategoryCards({ categoriesEl, data, featureToggles }) {
-  if (!featureToggles.rating) {
-    document.querySelectorAll('.category-card__rating').forEach(el => el.remove());
-    return;
-  }
-  const cards = categoriesEl.querySelectorAll('.category-card');
-  // 用 category 名称匹配（空分类不生成 card，索引会错位）
-  data.categories.forEach(cat => {
-    const card = categoriesEl.querySelector(`.category-card[data-category="${CSS.escape(cat)}"]`);
-    if (!card) return;
-    const avg = getCategoryAvgRating(cat, data);
-    const labelCount = card.querySelector('.category-card__label-count');
-    if (!labelCount) return;
-    let ratingEl = card.querySelector('.category-card__rating');
-    if (avg > 0) {
-      const starsStr = '★'.repeat(avg) + '☆'.repeat(5 - avg);
-      if (ratingEl) {
-        ratingEl.textContent = starsStr;
-      } else {
-        ratingEl = document.createElement('div');
-        ratingEl.className = 'category-card__rating';
-        ratingEl.textContent = starsStr;
-        labelCount.appendChild(ratingEl);
+  // 评分不再显示在分类卡上
+  document.querySelectorAll('.category-card__rating').forEach(el => el.remove());
+  // 刷新照片上的评分星和收藏标
+  refreshGalleryRatings();
+}
+
+function refreshGalleryRatings() {
+  const ratings = loadRatings();
+  document.querySelectorAll('.gallery__item').forEach(item => {
+    const path = item.dataset.path;
+    if (!path) return;
+    const r = ratings[path] || {};
+    // 更新星星
+    let starsEl = item.querySelector('.gallery__item-stars');
+    if (r.stars > 0) {
+      const html = '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars);
+      if (starsEl) starsEl.textContent = html;
+      else {
+        starsEl = document.createElement('div');
+        starsEl.className = 'gallery__item-stars';
+        starsEl.textContent = html;
+        item.appendChild(starsEl);
       }
-    } else if (ratingEl) {
-      ratingEl.remove();
+    } else if (starsEl) {
+      starsEl.remove();
+    }
+    // 更新收藏标
+    let favEl = item.querySelector('.gallery__item-fav');
+    if (r.fav) {
+      if (!favEl) {
+        favEl = document.createElement('div');
+        favEl.className = 'gallery__item-fav';
+        favEl.textContent = '♥';
+        item.appendChild(favEl);
+      }
+    } else if (favEl) {
+      favEl.remove();
     }
   });
 }
@@ -134,6 +142,7 @@ export function getSortedFilteredPhotos({ currentPhotos, featureToggles }) {
 // buildGalleryGridDOM(photos, { galleryGrid, galleryInfo })
 export function buildGalleryGridDOM(photos, { galleryGrid, galleryInfo }) {
   galleryGrid.innerHTML = '';
+  const ratings = loadRatings();
   const fragment = document.createDocumentFragment();
   photos.forEach((p, i) => {
     const item = document.createElement('div');
@@ -143,9 +152,17 @@ export function buildGalleryGridDOM(photos, { galleryGrid, galleryInfo }) {
     item.dataset.title = p.title;
     item.dataset.index = i;
     item.style.animationDelay = `${i * 0.02}s`;
+    const r = ratings[p.path];
+    const starsHtml = (r && r.stars > 0)
+      ? `<div class="gallery__item-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</div>`
+      : '';
+    const favHtml = (r && r.fav)
+      ? `<div class="gallery__item-fav">♥</div>`
+      : '';
     item.innerHTML = `
       <img src="${p.thumbSrc || p.src}" alt="${p.title}" decoding="async">
-      <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>`;
+      <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>
+      ${starsHtml}${favHtml}`;
     fragment.appendChild(item);
   });
   galleryGrid.appendChild(fragment);

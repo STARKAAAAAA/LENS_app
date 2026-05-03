@@ -51,22 +51,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTogglesUI(featureToggles);
 
   // ---- Sidebar interaction (stays in main.js) ----
-  let logoTracking = null;
   let sidebarClicked = false;
 
-  function trackLogo() {
+  // 全局 logo 追踪（单一 rAF，鼠标和手柄共用）
+  let _logoTrackRaf = null;
+  function startLogoTrack() {
+    if (_logoTrackRaf) return;
+    function track() {
+      const logo = document.getElementById('corner-logo');
+      const glow = document.getElementById('lens-glow');
+      const sr = sidebar.getBoundingClientRect();
+      const open = sidebar.classList.contains('sidebar--open') && sr.right > 20;
+      if (!open || !logo) { _logoTrackRaf = null; logo && (logo.style.left = '28px'); glow && (glow.style.left = '6px'); return; }
+      const delta = sr.right + 10 - 28;
+      logo.style.left = (28 + delta) + 'px';
+      if (glow) glow.style.left = (6 + delta) + 'px';
+      _logoTrackRaf = requestAnimationFrame(track);
+    }
+    _logoTrackRaf = requestAnimationFrame(track);
+  }
+  function stopLogoTrack() {
+    if (_logoTrackRaf) { cancelAnimationFrame(_logoTrackRaf); _logoTrackRaf = null; }
     const logo = document.getElementById('corner-logo');
     const glow = document.getElementById('lens-glow');
-    const sr = sidebar.getBoundingClientRect();
-    const open = sidebar.classList.contains('sidebar--open') && sr.right > 20;
-    if (!logo) { logoTracking = null; return; }
-    if (!open) { logo.style.left = '28px'; if (glow) glow.style.left = '6px'; logoTracking = null; return; }
-    const targetLeft = sr.right + 10;
-    const delta = targetLeft - 28;
-    logo.style.left = (28 + delta) + 'px';
-    if (glow) glow.style.left = (6 + delta) + 'px';
-    logoTracking = requestAnimationFrame(trackLogo);
+    if (logo) { logo.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)'; logo.style.left = '28px'; }
+    if (glow) { glow.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)'; glow.style.left = '6px'; }
   }
+  window.__lensStartLogo = startLogoTrack;
+  window.__lensStopLogo = stopLogoTrack;
+
+  // 侧边栏打开/关闭时自动启动/停止追踪
+  new MutationObserver(() => {
+    if (sidebar.classList.contains('sidebar--open')) startLogoTrack();
+    else stopLogoTrack();
+  }).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
 
   function peekSidebar() {
     clearTimeout(sidebarHideTimer);
@@ -77,19 +95,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     sidebarClicked = true;
     sidebar.classList.add('sidebar--open'); sidebar.classList.remove('sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'none';
-    cancelAnimationFrame(logoTracking);
-    logoTracking = requestAnimationFrame(trackLogo);
   }
   function hideSidebarNow() {
     clearTimeout(sidebarHideTimer);
     sidebarClicked = false;
     sidebar.classList.remove('sidebar--open', 'sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'auto';
-    cancelAnimationFrame(logoTracking); logoTracking = null;
-    const logo = document.getElementById('corner-logo');
-    const glow = document.getElementById('lens-glow');
-    if (logo) logo.style.left = '28px';
-    if (glow) glow.style.left = '6px';
   }
   function hideSidebar() {
     sidebarHideTimer = setTimeout(() => {
@@ -97,11 +108,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         sidebarClicked = false;
         sidebar.classList.remove('sidebar--open', 'sidebar--peek');
         sidebarTrigger.style.pointerEvents = 'auto';
-        cancelAnimationFrame(logoTracking); logoTracking = null;
-        const logo = document.getElementById('corner-logo');
-        const glow = document.getElementById('lens-glow');
-        if (logo) logo.style.left = '28px';
-        if (glow) glow.style.left = '6px';
       }
     }, 500);
   }

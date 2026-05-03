@@ -24,7 +24,6 @@
     -webkit-backdrop-filter: blur(24px);
     border: 0.5px solid rgba(220,200,180,0.12);
     border-radius: var(--radius);
-    overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
     pointer-events: auto;
@@ -76,8 +75,9 @@
     & .sidebar__list {
       flex: 1;
       overflow-y: auto;
-      overflow-x: hidden;
-      padding: 0 10px;
+      overflow-y: auto;
+      overflow-x: visible;
+      padding: 6px 10px 4px;
       position: relative; z-index: 2;
 
       &::-webkit-scrollbar { width: 3px; }
@@ -197,15 +197,17 @@
     }
   }
 
-  /* ========== 角落 Logo ========== */
+  /* ========== 角落 Logo（class 驱动跟随侧边栏）========== */
   #corner-logo {
+    transition: left 0.5s cubic-bezier(0.16,1,0.3,1);
     &:hover { color: var(--accent) !important; }
   }
-
-  /* #lens-glow — dynamically created in JS, styled inline */
   #lens-glow {
-    /* inline styles set by JS at runtime */
+    transition: left 0.5s cubic-bezier(0.16,1,0.3,1);
   }
+  /* 侧边栏打开时 logo/glow 移到侧边栏右侧 */
+  #corner-logo.logo--shifted { left: 258px !important; }
+  #lens-glow.logo--shifted  { left: 236px !important; }
 
   /* 路径标签 */
   #dir-label {

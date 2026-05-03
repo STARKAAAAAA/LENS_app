@@ -58,8 +58,15 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
   let zoom = 1, panX = 0, panY = 0;
   let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
-  function applyLbTransform() { lbImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; }
+  function applyLbTransform() { lbImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; lbImg.style.cursor = zoom > 1 ? 'grab' : 'zoom-in'; }
   function resetZoom() { zoom = 1; panX = 0; panY = 0; lbImg.style.transform = ''; }
+  // 存储 zoom/pan 引用到 DOM，供 gamepad.js 直接读写
+  lightbox._zoom = () => zoom;
+  lightbox._panX = () => panX;
+  lightbox._panY = () => panY;
+  lightbox._setZoomPan = (z, px, py) => { zoom = z; panX = px; panY = py; applyLbTransform(); };
+  lightbox._applyZoom = () => { if (zoom <= 1) { panX = 0; panY = 0; } applyLbTransform(); };
+  lightbox._resetZoom = resetZoom;
 
   // ========== 评分 UI（灯箱内） ==========
   const ratingStars = document.getElementById('rating-stars');
@@ -284,7 +291,20 @@ export function initSlideshow({ getPhotos } = {}) {
 
   function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function applyTransform() { img.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; }
-  function fitToWindow() { zoom = 1; panX = 0; panY = 0; img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; applyTransform(); }
+  function fitToWindow() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
+  // 统一缩放函数（鼠标滚轮 + 手柄摇杆共用）
+  function zoomBy(delta, px, py) {
+    zoom = Math.min(6, Math.max(0.5, zoom * (1 + delta)));
+    if (zoom <= 1) { panX = 0; panY = 0; }
+    else { panX += px; panY += py; }
+    applyTransform();
+  }
+  // 暴露 slideshow zoom/pan 供 gamepad.js 读写
+  slideshow._zoom = () => zoom;
+  slideshow._panX = () => panX;
+  slideshow._panY = () => panY;
+  slideshow._setZoomPan = (z, px, py) => { zoom = z; panX = px; panY = py; applyTransform(); };
+  slideshow._resetZoom = fitToWindow;
 
   function loadCurrent() {
     if (!photos.length) return;
@@ -318,18 +338,32 @@ export function initSlideshow({ getPhotos } = {}) {
 
   btnPrev?.addEventListener('click', () => { if (!photos.length) return; idx = (idx - 1 + photos.length) % photos.length; loadCurrent(); showControls(); });
   btnNext?.addEventListener('click', () => { if (!photos.length) return; idx++; loadCurrent(); showControls(); });
-  btnPause?.addEventListener('click', () => { paused = !paused; btnPause.textContent = paused ? '继续' : '暂停'; showControls(); });
+  btnPause?.addEventListener('click', () => { paused = !paused; btnPause.childNodes[0].textContent = paused ? '继续' : '暂停'; showControls(); });
   btnExit?.addEventListener('click', closeSlideshow);
-  btnZoomIn?.addEventListener('click', () => { zoom = Math.min(zoom * 1.3, 6); applyTransform(); showControls(); });
-  btnZoomOut?.addEventListener('click', () => { zoom = Math.max(zoom / 1.3, 0.1); applyTransform(); showControls(); });
-  btnFit?.addEventListener('click', () => { fitToWindow(); showControls(); });
-  btnOrig?.addEventListener('click', () => { img.style.maxWidth = 'none'; img.style.maxHeight = 'none'; zoom = 1; panX = 0; panY = 0; applyTransform(); showControls(); });
+  btnZoomIn?.addEventListener('click', () => { img.style.transition = 'transform 0.3s ease-out'; img.addEventListener('transitionend', () => { img.style.transition = ''; }, { once: true }); zoomBy(0.2, 0, 0); showControls(); });
+  btnZoomOut?.addEventListener('click', () => { img.style.transition = 'transform 0.3s ease-out'; img.addEventListener('transitionend', () => { img.style.transition = ''; }, { once: true }); zoomBy(-0.2, 0, 0); showControls(); });
+  function animateZoom(targetZoom) {
+    img.style.transition = 'transform 0.4s ease-out';
+    img.addEventListener('transitionend', () => { img.style.transition = ''; }, { once: true });
+    zoom = targetZoom; panX = 0; panY = 0;
+    applyTransform();
+  }
+  btnFit?.addEventListener('click', () => { animateZoom(1); showControls(); });
+  btnOrig?.addEventListener('click', () => {
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    let target = 2;
+    if (nw && nh) {
+      const r = imgWrap.getBoundingClientRect();
+      target = Math.min(nw / r.width, nh / r.height);
+    }
+    animateZoom(target); showControls();
+  });
 
   const imgWrap = document.querySelector('.slideshow__img-wrap');
   imgWrap?.addEventListener('wheel', e => {
     e.preventDefault();
-    if (e.deltaY < 0) zoom = Math.min(zoom * 1.12, 6); else zoom = Math.max(zoom / 1.12, 0.1);
-    applyTransform(); showControls();
+    zoomBy(e.deltaY < 0 ? 0.08 : -0.08, 0, 0);
+    showControls();
   }, { passive: false });
 
   imgWrap.addEventListener('mousedown', e => {
@@ -355,4 +389,64 @@ export function initSlideshow({ getPhotos } = {}) {
   slideshow.addEventListener('contextmenu', e => { e.preventDefault(); closeSlideshow(); });
   slideshow.addEventListener('mousemove', showControls);
   tbSlideshow.addEventListener('click', openSlideshow);
+}
+
+// ========== 供 gamepad.js 使用的 zoom/pan 接口 ==========
+
+export function gpLightboxZoom(ry, rx, dy) {
+  const lb = document.getElementById('lightbox');
+  if (!lb?._zoom) return;
+  let zoom = lb._zoom();
+  let panX = lb._panX();
+  let panY = lb._panY();
+  // 缩放
+  if (ry !== 0) zoom = Math.min(8, Math.max(0.5, zoom * (1 + ry * 0.06)));
+  // 平移
+  if (zoom > 1) {
+    panX += (rx || 0) * 6;
+    panY += (dy || 0) * 6;
+  } else { panX = 0; panY = 0; }
+  lb._setZoomPan(zoom, panX, panY);
+}
+
+// ── 幻灯片 zoom/pan ──
+
+export function gpSlideshowZoom(ry, rx, dy) {
+  const ss = document.getElementById('slideshow');
+  if (!ss?._zoom) return;
+  let zoom = ss._zoom();
+  let panX = ss._panX();
+  let panY = ss._panY();
+  // 缩放（与鼠标滚轮一致的倍率）
+  if (ry !== 0) zoom = Math.min(6, Math.max(0.5, zoom * (1 + ry * 0.06)));
+  // 平移
+  if (zoom > 1) {
+    panX += (rx || 0) * 6;
+    panY += (dy || 0) * 6;
+  } else { panX = 0; panY = 0; }
+  ss._setZoomPan(zoom, panX, panY);
+}
+
+export function gpSlideshowResetZoom() {
+  const ss = document.getElementById('slideshow');
+  if (!ss?._zoom || ss._zoom() <= 1) return;
+  const img = document.getElementById('slideshow-img');
+  if (img) {
+    img.style.transition = 'transform 0.4s ease-out';
+    img.addEventListener('transitionend', () => { img.style.transition = ''; }, { once: true });
+  }
+  ss._resetZoom();
+}
+
+export function gpLightboxResetZoom() {
+  const lb = document.getElementById('lightbox');
+  if (!lb?._zoom) return;
+  const zoom = lb._zoom();
+  if (zoom <= 1) return;
+  const img = lb.querySelector('.lightbox__img');
+  if (img) {
+    img.style.transition = 'transform 0.4s ease-out';
+    img.addEventListener('transitionend', () => { img.style.transition = ''; }, { once: true });
+  }
+  lb._resetZoom();
 }

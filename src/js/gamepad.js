@@ -1,3 +1,5 @@
+import { getPhotoRating, gpLightboxZoom, gpLightboxResetZoom, gpSlideshowZoom, gpSlideshowResetZoom } from './lightbox.js';
+
 // ========== Gamepad Support ==========
 //
 // 架构:
@@ -33,6 +35,7 @@ const FLOAT_LIFT = 5;
 const MOUSE_SWITCH_DIST = 6; // px — 鼠标偏离锚点超过此距离切回鼠标模式
 const OVERLAYS = new Set(['lightbox', 'slideshow', 'settings', 'shortcuts']);
 let _savedBrowseIdx = 0; // 从 gallery 返回 browse 时的分类卡位置
+let _listeners = null;   // 事件监听器引用，供 destroyGamepad 移除
 
 // ── Unified State ──
 
@@ -111,21 +114,21 @@ function setInput(input) {
     document.body.classList.add('gamepad-active');
     S.prevDX = S.prevDY = 0;
 
-    // 进入合适的 zone（如果 sidebar 已打开则接管）
+    // 进入合适的 zone
     const sidebar = document.getElementById('sidebar');
     if (sidebar?.classList.contains('sidebar--open')) {
       enterZone('sidebar');
-    } else {
+    } else if (!OVERLAYS.has(S.mode)) {
       enterZone('grid');
     }
     refreshFocus();
+    refreshHints(); // overlay 模式下 enterZone 不会被调用，需要手动刷新提示
   } else {
     // ── gamepad → mouse ──
     releaseFloat();
     clearGlow();
-    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
-      el.classList.remove('hero--focused', 'card--focused')
-    );
+    document.querySelectorAll('.hero--focused').forEach(el => el.classList.remove('hero--focused'));
+    clearAllCardFocus();
     S.gridEls = [];
     S.heroEls = [];
     S.sidebarEls = [];
@@ -166,9 +169,8 @@ function enterZone(zone) {
     S.save.gridIdx = S.gridIdx;
 
     // 清除 grid/hero 焦点视觉
-    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
-      el.classList.remove('hero--focused', 'card--focused')
-    );
+    document.querySelectorAll('.hero--focused').forEach(el => el.classList.remove('hero--focused'));
+    clearAllCardFocus();
 
     S.zone = 'sidebar';
     buildSidebarEls();
@@ -186,9 +188,8 @@ function enterZone(zone) {
     S.save.mode = S.mode;
     S.save.heroIdx = S.heroIdx;
 
-    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
-      el.classList.remove('hero--focused', 'card--focused')
-    );
+    document.querySelectorAll('.hero--focused').forEach(el => el.classList.remove('hero--focused'));
+    clearAllCardFocus();
 
     S.zone = 'toolbar';
     buildToolbarEls();
@@ -199,9 +200,8 @@ function enterZone(zone) {
     S.save.mode = S.mode;
     S.save.gridIdx = S.gridIdx;
 
-    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
-      el.classList.remove('hero--focused', 'card--focused')
-    );
+    document.querySelectorAll('.hero--focused').forEach(el => el.classList.remove('hero--focused'));
+    clearAllCardFocus();
 
     S.zone = 'hero';
     buildHeroEls();
@@ -211,9 +211,8 @@ function enterZone(zone) {
       : Math.max(0, S.heroEls.length - 1);
     applyHeroFocus();
   } else if (zone === 'grid') {
-    document.querySelectorAll('.hero--focused, .card--focused').forEach(el =>
-      el.classList.remove('hero--focused', 'card--focused')
-    );
+    document.querySelectorAll('.hero--focused').forEach(el => el.classList.remove('hero--focused'));
+    clearAllCardFocus();
 
     S.zone = 'grid';
 
@@ -289,13 +288,17 @@ function buildSettingsEls() {
 
 // ── Focus Application ──
 
+function clearAllCardFocus() {
+  document.querySelectorAll('.card--focused').forEach(el => el.classList.remove('card--focused'));
+}
+
 function clampGridIdx() {
   if (S.gridEls.length === 0) { S.gridIdx = 0; return; }
   S.gridIdx = Math.max(0, Math.min(S.gridIdx, S.gridEls.length - 1));
 }
 
 function applyGridFocus() {
-  S.gridEls.forEach(el => el.classList.remove('card--focused'));
+  clearAllCardFocus();
   const el = S.gridEls[S.gridIdx];
   if (el) {
     el.classList.add('card--focused');
@@ -503,7 +506,11 @@ function gridNavigate(dir) {
     applyGridFocus();
     sweepGlow(S.gridEls[S.gridIdx], dir);
   } else {
-    S.gridEls[S.gridIdx]?.classList.add('card--focused');
+    // 索引未变，焦点已在目标元素上（由上次 applyGridFocus 设置），无需重新设置
+    const el = S.gridEls[S.gridIdx];
+    if (el && !el.classList.contains('card--focused')) {
+      el.classList.add('card--focused');
+    }
   }
 }
 
@@ -680,9 +687,27 @@ function actionX() {
 function actionY()   { safeClick(document.getElementById('tb-slideshow')); }
 function actionLB()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.lightbox__prev')); if (S.mode === 'slideshow') safeClick(document.getElementById('sl-prev')); }
 function actionRB()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.lightbox__next')); if (S.mode === 'slideshow') safeClick(document.getElementById('sl-next')); }
-function actionLT()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.rating__star[data-v="1"]')); }
-function actionRT()  { if (S.mode === 'lightbox') safeClick(document.querySelector('.rating__star[data-v="5"]')); }
+function actionLT() {
+  if (S.mode !== 'lightbox') return;
+  const path = document.getElementById('lightbox')?.dataset.currentPath;
+  if (!path) return;
+  const cur = getPhotoRating(path).stars;
+  if (cur <= 0) return;
+  const target = cur === 1 ? 1 : cur - 1; // cur=1→click star1→toggle→0, else→click star(cur-1)→cur-1
+  const el = document.querySelector(`.rating__star[data-v="${target}"]`);
+  if (el) safeClick(el);
+}
+function actionRT() {
+  if (S.mode !== 'lightbox') return;
+  const path = document.getElementById('lightbox')?.dataset.currentPath;
+  if (!path) return;
+  const cur = getPhotoRating(path).stars;
+  if (cur >= 5) return;
+  const el = document.querySelector(`.rating__star[data-v="${cur + 1}"]`);
+  if (el) safeClick(el);
+}
 function actionLS()  { if (S.mode === 'slideshow') safeClick(document.getElementById('sl-pause')); }
+function actionRS()  { if (S.mode === 'lightbox') gpLightboxResetZoom(); if (S.mode === 'slideshow') safeClick(document.getElementById('sl-fit')); }
 function actionStart() { safeClick(document.getElementById('tb-settings')); }
 function actionBack()  { safeClick(document.getElementById('tb-shortcuts')); }
 
@@ -766,59 +791,93 @@ function clearGlow() {
 // ── Button Hints (自动管理，仅依据 S.input + S.zone) ──
 
 function refreshHints() {
-  // 先清除所有现有 hints
-  document.querySelectorAll('.gp-hint').forEach(el => el.remove());
-
-  // 仅在手柄模式 + sidebar 区域显示
+  // 清除旧提示
+  document.querySelectorAll('.gp-hint, .gp-stick-row').forEach(el => el.remove());
   if (S.input !== 'gamepad') return;
-  if (S.zone !== 'sidebar') return;
 
-  // X 图标 + "删除" — 仅当前选中的文件夹项
-  const focused = S.sidebarEls[S.sidebarIdx];
-  if (focused && focused.classList.contains('sidebar__item')) {
-    const hint = document.createElement('span');
-    hint.className = 'gp-hint';
-    hint.innerHTML = '<img src="/assets/icons/btn-x.svg" alt="X"><span class="gp-hint__label">删除</span>';
-    focused.appendChild(hint);
+  const lbActive = document.getElementById('lightbox')?.classList.contains('active');
+  const ssActive = document.getElementById('slideshow')?.classList.contains('active');
+
+  // ── Sidebar ──
+  if (S.zone === 'sidebar') {
+    const focused = S.sidebarEls[S.sidebarIdx];
+    if (focused?.classList.contains('sidebar__item')) {
+      const h = document.createElement('span');
+      h.className = 'gp-hint';
+      h.innerHTML = '<img src="/assets/icons/btn-x.svg"><span class="gp-hint__label">删除</span>';
+      focused.appendChild(h);
+    }
+    if (focused?.id === 'sidebar-add') {
+      const h = document.createElement('span');
+      h.className = 'gp-hint';
+      h.innerHTML = '<img src="/assets/icons/btn-a.svg"><span class="gp-hint__label">添加</span>';
+      focused.appendChild(h);
+    }
   }
 
-  // A 图标 — 添加按钮（仅选中时显示）
-  if (focused && focused.id === 'sidebar-add') {
-    const hint = document.createElement('span');
-    hint.className = 'gp-hint';
-    hint.innerHTML = '<img src="/assets/icons/btn-a.svg" alt="A">';
-    focused.appendChild(hint);
+  // ── Lightbox ──
+  if (lbActive) {
+    const lb = document.getElementById('lightbox');
+    if (!lb) return;
+    lb.insertAdjacentHTML('beforeend',
+      `<span class="gp-hint gp-hint--lb-fixed"><img src="/assets/icons/btn-lb.svg"><span>上一张</span></span>` +
+      `<span class="gp-hint gp-hint--rb-fixed"><img src="/assets/icons/btn-rb.svg"><span>下一张</span></span>`
+    );
+    // 全部提示统一放在内容区下面（block 布局，自然换行）
+    const content = lb.querySelector('.lightbox__content');
+    if (content) {
+      const hintRow = document.createElement('div');
+      hintRow.className = 'gp-stick-row';
+      hintRow.innerHTML =
+        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-lt.svg"><span>-1星</span></span>' +
+        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rt.svg"><span>+1星</span></span>' +
+        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-x.svg"><span>收藏</span></span>' +
+        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-ls.svg"><span>移动</span></span>' +
+        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs.svg"><span>缩放</span></span>' +
+        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs-press.svg"><span>复位</span></span>';
+      content.appendChild(hintRow);
+    }
+  }
+
+  // ── Slideshow ──
+  if (ssActive) {
+    const prev = document.querySelector('#sl-prev');
+    const next = document.querySelector('#sl-next');
+    if (prev) {
+      const h = document.createElement('span');
+      h.className = 'gp-hint gp-hint--inline';
+      h.innerHTML = '<img src="/assets/icons/btn-lb.svg">';
+      prev.appendChild(h);
+    }
+    if (next) {
+      const h = document.createElement('span');
+      h.className = 'gp-hint gp-hint--inline';
+      h.innerHTML = '<img src="/assets/icons/btn-rb.svg">';
+      next.appendChild(h);
+    }
+    // LS 暂停图标放在暂停按钮旁
+    const pauseBtn = document.getElementById('sl-pause');
+    if (pauseBtn) {
+      const h = document.createElement('span');
+      h.className = 'gp-hint gp-hint--inline';
+      h.innerHTML = '<img src="/assets/icons/btn-ls-press.svg">';
+      pauseBtn.appendChild(h);
+    }
+    // RS 复位图标放在适配按钮旁
+    const fitBtn = document.getElementById('sl-fit');
+    if (fitBtn) {
+      const h = document.createElement('span');
+      h.className = 'gp-hint gp-hint--inline';
+      h.innerHTML = '<img src="/assets/icons/btn-rs-press.svg">';
+      fitBtn.appendChild(h);
+    }
   }
 }
 
 // ── LENS Logo 随动追踪（照搬 main.js trackLogo 的 rAF 逻辑）──
 
-let _gpLogoTracking = null;
-
-function gpTrackLogoStart() {
-  if (_gpLogoTracking) return;
-  function track() {
-    const logo = document.getElementById('corner-logo');
-    const sidebar = document.getElementById('sidebar');
-    if (!logo || !sidebar) { gpTrackLogoStop(true); return; }
-    const sr = sidebar.getBoundingClientRect();
-    logo.style.transition = 'none';
-    logo.style.left = (sr.right + 10) + 'px';
-    _gpLogoTracking = requestAnimationFrame(track);
-  }
-  _gpLogoTracking = requestAnimationFrame(track);
-}
-
-function gpTrackLogoStop(reset) {
-  if (_gpLogoTracking) { cancelAnimationFrame(_gpLogoTracking); _gpLogoTracking = null; }
-  if (reset) {
-    const logo = document.getElementById('corner-logo');
-    if (logo) {
-      logo.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)';
-      logo.style.left = '28px';
-    }
-  }
-}
+function gpTrackLogoStart() { window.__lensStartLogo?.(); }
+function gpTrackLogoStop(reset) { if (reset) window.__lensStopLogo?.(); }
 
 // ── Debounce (rising-edge trigger) ──
 
@@ -841,8 +900,11 @@ const btnRB = debounce(() => actionRB());
 const btnLT = debounce(() => actionLT());
 const btnRT = debounce(() => actionRT());
 const btnLS = debounce(() => actionLS());
+const btnRS = debounce(() => actionRS());
 const btnStart = debounce(() => actionStart());
 const btnBack = debounce(() => actionBack());
+const btnDpadL = debounce(() => { if (S.mode === 'lightbox' || S.mode === 'slideshow') actionLB(); });
+const btnDpadR = debounce(() => { if (S.mode === 'lightbox' || S.mode === 'slideshow') actionRB(); });
 
 // ── Poll Loop ──
 
@@ -902,6 +964,7 @@ function poll() {
       if (!isOverlay && S.zone === 'grid') {
         buildGridEls(); clampGridIdx(); applyGridFocus();
       }
+      refreshHints(); // 模式切换时更新肩键提示
     }
 
     // ── mouse → gamepad detection ──
@@ -1042,15 +1105,25 @@ function poll() {
     btnLT(active.buttons[map.LT]?.pressed);
     btnRT(active.buttons[map.RT]?.pressed);
     btnLS(active.buttons[map.LS]?.pressed);
+    btnRS(active.buttons[map.RS]?.pressed);
     btnStart(active.buttons[map.START]?.pressed);
     btnBack(active.buttons[map.BACK]?.pressed);
+    // D-pad LEFT/RIGHT 在 lightbox/slideshow 中翻页
+    btnDpadL(active.buttons[map.LEFT]?.pressed);
+    btnDpadR(active.buttons[map.RIGHT]?.pressed);
 
-    // ── Right stick zoom (lightbox only) ──
-    const ry = active.axes[3] || 0;
-    if (mode === 'lightbox' && Math.abs(ry) > 0.15) {
-      document.getElementById('lightbox')?.dispatchEvent(
-        new WheelEvent('wheel', { deltaY: -ry * 50, bubbles: true })
-      );
+    // ── Lightbox / Slideshow zoom/pan (only in gamepad mode) ──
+    if (S.input === 'gamepad' && (mode === 'lightbox' || mode === 'slideshow')) {
+      const ry = active.axes[3] || 0;
+      const lx = active.axes[0] || 0;
+      const ly = active.axes[1] || 0;
+      if (mode === 'lightbox') {
+        if (Math.abs(ry) > 0.1) gpLightboxZoom(-ry, 0, 0);
+        if (Math.abs(lx) > 0.1 || Math.abs(ly) > 0.1) gpLightboxZoom(0, -lx, -ly);
+      } else {
+        if (Math.abs(ry) > 0.1) gpSlideshowZoom(-ry, 0, 0);
+        if (Math.abs(lx) > 0.1 || Math.abs(ly) > 0.1) gpSlideshowZoom(0, -lx, -ly);
+      }
     }
   } catch (e) {
     console.error('[LENS] gamepad poll error:', e);
@@ -1065,7 +1138,7 @@ export function initGamepad() {
   if (S.raf) return;
 
   // ── Mouse detection for gamepad→mouse switching ──
-  document.addEventListener('mousemove', (e) => {
+  const onMove = (e) => {
     if (S.input === 'gamepad') {
       const dx = e.clientX - S.anchor.x;
       const dy = e.clientY - S.anchor.y;
@@ -1076,38 +1149,64 @@ export function initGamepad() {
       S.anchor.x = e.clientX;
       S.anchor.y = e.clientY;
     }
-  }, { passive: true });
-
-  // 真实鼠标点击 → 切回鼠标模式（手柄模拟点击已标记 S.clicking）
-  document.addEventListener('click', () => {
+  };
+  const onClick = () => {
     if (!S.clicking && S.input === 'gamepad') setInput('mouse');
-  }, { passive: true });
-
-  // ── Gamepad connection events ──
-  window.addEventListener('gamepadconnected', () => {
+  };
+  const onConnected = () => {
     if (!S.raf) S.raf = requestAnimationFrame(poll);
-  });
-  window.addEventListener('gamepaddisconnected', () => {
+  };
+  const onDisconnected = () => {
     if (S.input === 'gamepad') setInput('mouse');
-  });
+  };
+
+  document.addEventListener('mousemove', onMove, { passive: true });
+  document.addEventListener('click', onClick, { passive: true });
+  window.addEventListener('gamepadconnected', onConnected);
+  window.addEventListener('gamepaddisconnected', onDisconnected);
+  _listeners = { onMove, onClick, onConnected, onDisconnected };
 
   // ── Start polling ──
   S.raf = requestAnimationFrame(poll);
 }
 
 export function destroyGamepad() {
+  // Stop polling
   if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
+
+  // Remove event listeners
+  if (_listeners) {
+    document.removeEventListener('mousemove', _listeners.onMove);
+    document.removeEventListener('click', _listeners.onClick);
+    window.removeEventListener('gamepadconnected', _listeners.onConnected);
+    window.removeEventListener('gamepaddisconnected', _listeners.onDisconnected);
+    _listeners = null;
+  }
+
+  // Clear visual effects
   clearGlow();
   if (S.glow.el) { S.glow.el.remove(); S.glow.el = null; }
   releaseFloat();
+  gpTrackLogoStop(true);
+
+  // Clear sidebar state
+  const sidebar = document.getElementById('sidebar');
+  sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
+
+  // Clear focus classes
   document.body.classList.remove('gamepad-active');
-  document.querySelectorAll('.card--focused, .hero--focused, .gp-hint').forEach(el => {
-    el.classList.remove('card--focused', 'hero--focused');
-    if (el.classList.contains('gp-hint')) el.remove();
-  });
+  document.querySelectorAll('.hero--focused').forEach(el => el.classList.remove('hero--focused'));
+  clearAllCardFocus();
+  document.querySelectorAll('.gp-hint').forEach(el => el.remove());
+
   // Reset all state
   S.input = 'mouse'; S.mode = 'browse'; S.zone = 'grid';
   S.gridIdx = 0; S.heroIdx = 0; S.sidebarIdx = 0; S.toolbarIdx = 0; S.settingsIdx = 0; S.settingsDensityIdx = 0;
   S.gridEls = []; S.heroEls = []; S.sidebarEls = []; S.toolbarEls = []; S.settingsEls = [];
+  S.save = { zone: null, mode: null, gridIdx: 0, heroIdx: 0 };
+  S.ovSave = { mode: null, gridIdx: 0 };
+  S.anchor = { x: 0, y: 0 };
+  S.prevDX = 0; S.prevDY = 0;
   S.clicking = false;
+  _savedBrowseIdx = 0;
 }

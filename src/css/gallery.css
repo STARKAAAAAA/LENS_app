@@ -327,7 +327,7 @@
   }
 
   .gallery__grid {
-    position: relative; overflow: hidden;
+    position: relative;
     columns: 3; column-gap: 10px;
   }
 
@@ -367,6 +367,18 @@
       letter-spacing: 0.06em;
       opacity: 0; translate: 0 10px;
       transition: opacity 0.4s var(--ease-out) 0.06s, translate 0.4s var(--ease-out) 0.06s;
+    }
+    & .gallery__item-stars {
+      position: absolute; bottom: 8px; right: 8px;
+      color: var(--accent);
+      font-size: 0.8rem; letter-spacing: 2px;
+      z-index: 2;
+    }
+    & .gallery__item-fav {
+      position: absolute; top: 8px; right: 8px;
+      color: #e87070; font-size: 1rem;
+      z-index: 2;
+      filter: drop-shadow(0 0 4px rgba(232,112,112,0.5));
     }
 
     &:hover .gallery__item-title { opacity: 1; translate: 0 0; }
@@ -523,17 +535,6 @@
   }
 }
 
-/* 焦点移动微动动画 */
-.card--nudge-left  { animation: nudgeLeft 0.25s var(--ease-out); }
-.card--nudge-right { animation: nudgeRight 0.25s var(--ease-out); }
-.card--nudge-up    { animation: nudgeUp 0.25s var(--ease-out); }
-.card--nudge-down  { animation: nudgeDown 0.25s var(--ease-out); }
-
-@keyframes nudgeLeft  { 50% { transform: translateX(-4px); } }
-@keyframes nudgeRight { 50% { transform: translateX(4px); } }
-@keyframes nudgeUp    { 50% { transform: translateY(-4px); } }
-@keyframes nudgeDown  { 50% { transform: translateY(4px); } }
-
 body.gamepad-active {
   cursor: none;
 
@@ -626,19 +627,69 @@ body.gamepad-active .sidebar__item:hover .sidebar__item-name {
 }
 
 /* 手柄按钮提示 �?JS 创建的真�?DOM 元素 */
+/* ── 手柄按钮提示 ── */
+
+/* 通用 */
 .gp-hint {
-  display: inline-flex; align-items: center; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 4px;
+  pointer-events: none;
 }
-.gp-hint img {
-  width: 22px; height: 22px; display: block;
+.gp-hint img { width: 20px; height: 20px; display: block; }
+.gp-hint__label {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(200,168,124,0.85);
+  text-transform: uppercase;
 }
-	.gp-hint__label {
-	  font-family: var(--font-body);
-	  font-size: 0.6rem; font-weight: 400;
-	  letter-spacing: 0.04em;
-	  color: rgba(220,200,180,0.6);
-	  margin-left: 4px;
-	}
+
+/* 灯箱：固定定位 */
+.gp-hint--lb-fixed,
+.gp-hint--rb-fixed {
+  position: fixed;
+  display: inline-flex; align-items: center; gap: 4px;
+  top: 50%; transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 20001;
+}
+.gp-hint--lb-fixed { left: calc(1.5rem + 54px); }
+.gp-hint--rb-fixed { right: calc(1.5rem + 54px); }
+.gp-hint--lb-fixed span, .gp-hint--rb-fixed span {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(200,168,124,0.85);
+  text-transform: uppercase;
+}
+
+/* 提示通用样式 */
+.gp-hint--fav {
+  display: inline-flex; align-items: center; gap: 4px;
+  pointer-events: none;
+}
+.gp-hint--fav span {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(200,168,124,0.85);
+  text-transform: uppercase;
+}
+
+/* 摇杆提示行（左下角） */
+.gp-stick-row {
+  position: fixed;
+  bottom: 32px; left: 32px;
+  display: flex; align-items: center; gap: 12px;
+  pointer-events: none;
+  z-index: 20001;
+}
+
+/* 幻灯片：行内提示 */
+.gp-hint--inline {
+  display: inline-flex; align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
 body.gamepad-active .gallery__back::after {
   content: '';
   display: inline-block;
