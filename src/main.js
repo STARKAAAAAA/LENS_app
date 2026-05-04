@@ -2,6 +2,23 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
+// ===== Invoke 日志包装 =====
+async function loggedInvoke(cmd, args) {
+  const t0 = performance.now();
+  try {
+    const result = await invoke(cmd, args);
+    const ms = Math.round(performance.now() - t0);
+    window.__lensInvokeLog?.push({ cmd, ms, ok: true, time: Date.now() });
+    if (window.__lensInvokeLog?.length > 50) window.__lensInvokeLog.shift();
+    return result;
+  } catch (e) {
+    const ms = Math.round(performance.now() - t0);
+    window.__lensInvokeLog?.push({ cmd, ms, ok: false, time: Date.now() });
+    if (window.__lensInvokeLog?.length > 50) window.__lensInvokeLog.shift();
+    throw e;
+  }
+}
+
 import { formatBytes, preloadImages } from './js/utils.js';
 import { CONFIG_KEY, loadDir, saveDir, getSavedFolders, saveFolders } from './js/config.js';
 import { selectFolder, scanPhotos } from './js/scanner.js';
@@ -237,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
       });
-      const thumbMap = await invoke('generate_thumbnails', { paths, cacheDir: featureToggles.cacheDir });
+      const thumbMap = await loggedInvoke('generate_thumbnails', { paths, cacheDir: featureToggles.cacheDir });
       unlisten();
 
       let thumbHits = 0;

@@ -85,8 +85,12 @@ export function initShortcutsPanel({ featureToggles }) {
   let shortcutsClosing = false;
 
   function openShortcuts() {
+    // 中断正在进行的关闭动画
+    if (shortcutsClosing) {
+      shortcutsClosing = false;
+      shortcutsPanel.classList.remove('shortcuts-panel--out');
+    }
     shortcutsOverlay.classList.add('shortcuts-overlay--open');
-    shortcutsPanel.classList.remove('shortcuts-panel--out');
     // 共享 overflow 锁（与 dev panel 协调）
     const lock = window.__lensOverflowLock = (window.__lensOverflowLock || 0) + 1;
     if (lock === 1) document.body.style.overflow = 'hidden';
@@ -96,14 +100,19 @@ export function initShortcutsPanel({ featureToggles }) {
     shortcutsClosing = true;
     shortcutsPanel.classList.add('shortcuts-panel--out');
     shortcutsOverlay.classList.remove('shortcuts-overlay--open');
-    const onEnd = () => {
+    const cleanup = () => {
       shortcutsPanel.removeEventListener('animationend', onEnd);
       shortcutsPanel.classList.remove('shortcuts-panel--out');
       shortcutsClosing = false;
       window.__lensOverflowLock = Math.max(0, (window.__lensOverflowLock || 0) - 1);
       if (window.__lensOverflowLock === 0) document.body.style.overflow = '';
     };
+    const onEnd = (e) => {
+      if (e.animationName !== 'panelDissolve') return;
+      cleanup();
+    };
     shortcutsPanel.addEventListener('animationend', onEnd);
+    setTimeout(cleanup, 500); // 兜底
   }
   function toggleShortcuts() {
     if (shortcutsOverlay.classList.contains('shortcuts-overlay--open')) {

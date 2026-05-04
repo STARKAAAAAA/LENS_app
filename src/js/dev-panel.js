@@ -1,6 +1,9 @@
 // ========== 开发者面板 — LENS Developer Panel ==========
 // 快捷键 Ctrl+Shift+D 打开  手柄 START+BACK 打开
 
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+
 // dev panel 使用独立的预设系统，不依赖 toggles.js
 
 // ── 模块内部状态 ──
@@ -17,10 +20,12 @@ const D = {
   _closeFallback: null,
   _closeOnEnd: null,
   gpEventLog: [],
+  invokeLog: [],
 };
 const CONSOLE_MAX = 200;
 const FPS_MAX = 60;
 const GP_EVENT_MAX = 20;
+const INVOKE_MAX = 50;
 
 // localStorage keys
 const PRESETS_KEY = 'lens-dev-presets';
@@ -29,9 +34,10 @@ const ACTIVE_PRESET_KEY = 'lens-dev-active-preset';
 // CSS 变量快照键
 const CSS_VAR_KEYS = [
   '--accent','--bg','--bg-deep','--text','--text-2','--text-3',
-  '--glass-bg','--glass-border',
+  '--glass-bg','--glass-border','--glass-bg-hover','--glass-border-bright',
   '--radius','--radius-sm','--radius-pill',
   '--thumb-card-size','--font-scale','--anim-speed','--glass-blur',
+  '--font-display','--font-body','--ease-out','--ease-spring',
 ];
 
 // CSS 变量默认值（init 时从 :root 捕获）
@@ -45,8 +51,11 @@ const BUILTIN_PRESETS = [
       '--accent':'#c8a87c','--bg':'#0a0a08','--bg-deep':'#060605',
       '--text':'#e8e4e0','--text-2':'#9a948e','--text-3':'#8a8580',
       '--glass-bg':'rgba(220,200,180,0.06)','--glass-border':'rgba(220,200,180,0.10)',
+      '--glass-bg-hover':'rgba(220,200,180,0.12)','--glass-border-bright':'rgba(220,200,180,0.20)',
       '--radius':'20px','--radius-sm':'14px','--radius-pill':'100px',
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
     },
   },
   {
@@ -55,8 +64,11 @@ const BUILTIN_PRESETS = [
       '--accent':'#d4a040','--bg':'#0a0804','--bg-deep':'#060402',
       '--text':'#f0e8d8','--text-2':'#b0a080','--text-3':'#908870',
       '--glass-bg':'rgba(240,200,140,0.08)','--glass-border':'rgba(240,200,140,0.12)',
+      '--glass-bg-hover':'rgba(240,200,140,0.14)','--glass-border-bright':'rgba(240,200,140,0.22)',
       '--radius':'20px','--radius-sm':'14px','--radius-pill':'100px',
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
     },
   },
   {
@@ -65,8 +77,11 @@ const BUILTIN_PRESETS = [
       '--accent':'#8ca8c8','--bg':'#08080c','--bg-deep':'#040406',
       '--text':'#e0e4e8','--text-2':'#8c9098','--text-3':'#787c84',
       '--glass-bg':'rgba(180,190,210,0.06)','--glass-border':'rgba(180,190,210,0.10)',
+      '--glass-bg-hover':'rgba(180,190,210,0.12)','--glass-border-bright':'rgba(180,190,210,0.20)',
       '--radius':'18px','--radius-sm':'12px','--radius-pill':'100px',
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
     },
   },
   {
@@ -75,8 +90,11 @@ const BUILTIN_PRESETS = [
       '--accent':'#ffcc44','--bg':'#000000','--bg-deep':'#000000',
       '--text':'#ffffff','--text-2':'#cccccc','--text-3':'#aaaaaa',
       '--glass-bg':'rgba(255,255,255,0.08)','--glass-border':'rgba(255,255,255,0.15)',
+      '--glass-bg-hover':'rgba(255,255,255,0.14)','--glass-border-bright':'rgba(255,255,255,0.25)',
       '--radius':'20px','--radius-sm':'14px','--radius-pill':'100px',
       '--thumb-card-size':'360px','--font-scale':'1.1','--anim-speed':'0.5','--glass-blur':'0px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
     },
   },
 ];
@@ -106,6 +124,15 @@ function openDevPanel() {
     D.closing = false;
   }
 
+  // 自动收起其他面板
+  document.getElementById('settings-panel')?.classList.remove('settings-panel--open');
+  const shortcutsOverlay = document.getElementById('shortcuts-overlay');
+  if (shortcutsOverlay?.classList.contains('shortcuts-overlay--open')) {
+    shortcutsOverlay.classList.remove('shortcuts-overlay--open');
+    const sp = shortcutsOverlay.querySelector('.shortcuts-panel');
+    if (sp) { sp.classList.remove('shortcuts-panel--out'); }
+  }
+
   overlay.classList.add('dev-overlay--open');
   panel.classList.remove('dev-panel--out');
   lockBodyScroll();
@@ -123,6 +150,8 @@ function closeDevPanel() {
 
   panel.classList.add('dev-panel--out');
   overlay.classList.remove('dev-overlay--open');
+  document.getElementById('dev-gp-float')?.classList.remove('dev-gp-float--open');
+  document.getElementById('dev-reset-overlay')?.classList.remove('dev-reset-overlay--open');
 
   const cleanup = () => {
     clearTimeout(D._closeFallback);
@@ -239,6 +268,13 @@ function renderVisualGroup() {
       ${makeColorRow('--text-3', '三级文字', style)}
     </div>
     <div class="dev-section">
+      <div class="dev-section__title">毛玻璃颜色</div>
+      ${makeGlassColorRow('--glass-bg', '玻璃背景', style)}
+      ${makeGlassColorRow('--glass-bg-hover', '玻璃悬停', style)}
+      ${makeGlassColorRow('--glass-border', '玻璃边框', style)}
+      ${makeGlassColorRow('--glass-border-bright', '玻璃亮边框', style)}
+    </div>
+    <div class="dev-section">
       <div class="dev-section__title">圆角</div>
       ${makeSliderRow('--radius', '大圆角', style, 0, 40, 'px')}
       ${makeSliderRow('--radius-sm', '小圆角', style, 0, 30, 'px')}
@@ -248,6 +284,16 @@ function renderVisualGroup() {
       <div class="dev-section__title">布局</div>
       ${makeSliderRow('--thumb-card-size', '缩略图尺寸', style, 120, 600, 'px')}
       ${makeSliderRow('--font-scale', '字号缩放', style, 0.8, 1.5, 'x', 0.05, 2)}
+    </div>
+    <div class="dev-section">
+      <div class="dev-section__title">字体</div>
+      ${makeTextInputRow('--font-display', '标题字体', style)}
+      ${makeTextInputRow('--font-body', '正文字体', style)}
+    </div>
+    <div class="dev-section">
+      <div class="dev-section__title">缓动曲线</div>
+      ${makeTextInputRow('--ease-out', '缓出', style)}
+      ${makeTextInputRow('--ease-spring', '弹簧', style)}
     </div>
     <div class="dev-section">
       <div class="dev-section__title">动画</div>
@@ -296,6 +342,33 @@ function makeSliderRow(key, label, style, min, max, unit, step, decimals) {
     <input type="range" class="dev-slider" data-css="${key}" min="${min}" max="${max}" step="${s}" value="${num}">
     <span class="dev-row__value" data-display="${key}" data-unit="${unit}" data-decimals="${d}">${num.toFixed(d)}${unit}</span>
     <button class="dev-btn" data-reset="${key}" title="重置">↺</button>
+  </div>`;
+}
+
+function rgbaToHexAlpha(rgba) {
+  const m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+  if (!m) return { hex: '#888888', alpha: 1 };
+  const hex = '#' + [m[1],m[2],m[3]].map(v => parseInt(v).toString(16).padStart(2,'0')).join('');
+  return { hex, alpha: m[4] !== undefined ? parseFloat(m[4]) : 1 };
+}
+
+function makeGlassColorRow(key, label, style) {
+  const val = style.getPropertyValue(key).trim();
+  const { hex, alpha } = rgbaToHexAlpha(val);
+  return `<div class="dev-row">
+    <span class="dev-row__label">${label}</span>
+    <input type="color" class="dev-glass-color" data-css="${key}" data-alpha="${alpha}" value="${hex}">
+    <input type="range" class="dev-glass-alpha" data-css="${key}" min="0" max="1" step="0.01" value="${alpha}">
+    <span class="dev-row__value" data-glass-val="${key}">${alpha.toFixed(2)}</span>
+    <button class="dev-btn" data-reset="${key}" title="重置">↺</button>
+  </div>`;
+}
+
+function makeTextInputRow(key, label, style) {
+  const val = style.getPropertyValue(key).trim();
+  return `<div class="dev-row dev-row--col">
+    <span class="dev-row__label">${label}</span>
+    <input type="text" class="dev-input dev-input--text" data-css-text="${key}" value="${val}" spellcheck="false">
   </div>`;
 }
 
@@ -479,6 +552,66 @@ function bindVisualControls(el) {
       }
     });
   }
+
+  // 毛玻璃颜色（rgba 颜色 + alpha 滑块联动）
+  el.querySelectorAll('.dev-glass-color').forEach(colorInput => {
+    const key = colorInput.dataset.css;
+    function updateGlassColor() {
+      const hex = colorInput.value;
+      const alpha = parseFloat(colorInput.dataset.alpha);
+      const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+      const rgba = `rgba(${r},${g},${b},${alpha})`;
+      document.documentElement.style.setProperty(key, rgba);
+      const valEl = el.querySelector(`[data-glass-val="${key}"]`);
+      if (valEl) valEl.textContent = alpha.toFixed(2);
+    }
+    colorInput.addEventListener('input', updateGlassColor);
+  });
+  el.querySelectorAll('.dev-glass-alpha').forEach(alphaInput => {
+    const key = alphaInput.dataset.css;
+    alphaInput.addEventListener('input', () => {
+      const alpha = parseFloat(alphaInput.value);
+      const colorInput = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
+      if (colorInput) {
+        colorInput.dataset.alpha = alpha;
+        const hex = colorInput.value;
+        const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+        document.documentElement.style.setProperty(key, `rgba(${r},${g},${b},${alpha})`);
+        const valEl = el.querySelector(`[data-glass-val="${key}"]`);
+        if (valEl) valEl.textContent = alpha.toFixed(2);
+      }
+    });
+  });
+
+  // 文本输入（字体、缓动曲线）
+  el.querySelectorAll('.dev-input--text').forEach(input => {
+    input.addEventListener('input', () => {
+      document.documentElement.style.setProperty(input.dataset.cssText, input.value);
+    });
+  });
+
+  // 重置按钮扩展：支持毛玻璃颜色和文本输入
+  el.querySelectorAll('.dev-btn[data-reset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.reset;
+      const def = CSS_DEFAULTS[key];
+      if (!def) return;
+      // 毛玻璃颜色重置
+      const glassColor = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
+      if (glassColor) {
+        const { hex, alpha } = rgbaToHexAlpha(def);
+        glassColor.value = hex;
+        glassColor.dataset.alpha = alpha;
+        const alphaSlider = el.querySelector(`.dev-glass-alpha[data-css="${key}"]`);
+        if (alphaSlider) alphaSlider.value = alpha;
+        const valEl = el.querySelector(`[data-glass-val="${key}"]`);
+        if (valEl) valEl.textContent = alpha.toFixed(2);
+      }
+      // 文本输入重置
+      const textInput = el.querySelector(`.dev-input--text[data-css-text="${key}"]`);
+      if (textInput) textInput.value = def;
+    });
+  });
 }
 
 // ═══════════════════════════════════════════
@@ -511,10 +644,29 @@ function renderPerfGroup() {
       <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">加载时间</span><span class="dev-stat__value" id="dev-load-time">--</span></div>
     </div>
     <div class="dev-section">
+      <div class="dev-section__title">存储</div>
+      <div class="dev-stat"><span class="dev-stat__label">localStorage</span><span class="dev-stat__value" id="dev-storage-size">--</span></div>
+    </div>
+    <div class="dev-section">
+      <div class="dev-section__title">Tauri 命令</div>
+      <div class="dev-console" id="dev-invoke-log" style="height:120px"></div>
+    </div>
+    <div class="dev-section">
       <div class="dev-section__title">控制台</div>
+      <div class="dev-row" style="margin-bottom:4px">
+        <span class="dev-row__label">日志捕获</span>
+        <button class="dev-btn" id="dev-console-clear" style="font-size:0.65rem">清除</button>
+      </div>
       <div class="dev-console" id="dev-console"></div>
     </div>
   `;
+
+  // 控制台清除按钮
+  document.getElementById('dev-console-clear')?.addEventListener('click', () => {
+    D.consoleBuffer.length = 0;
+    const consoleEl = document.getElementById('dev-console');
+    if (consoleEl) consoleEl.innerHTML = '';
+  });
 }
 
 function startFPSMeter() {
@@ -573,6 +725,15 @@ function startPerfMonitor() {
     }
     if (domNodes) domNodes.textContent = document.getElementsByTagName('*').length;
     if (domImgs) domImgs.textContent = document.querySelectorAll('img').length;
+    const storageEl = document.getElementById('dev-storage-size');
+    if (storageEl) {
+      let total = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        total += k.length + (localStorage.getItem(k) || '').length;
+      }
+      storageEl.textContent = (total / 1024).toFixed(1) + ' KB';
+    }
     if (loadTime) {
       const [nav] = performance.getEntriesByType('navigation');
       if (nav && nav.loadEventEnd) {
@@ -583,7 +744,7 @@ function startPerfMonitor() {
     }
   }
   update();
-  D.perfInterval = setInterval(update, 1000);
+  D.perfInterval = setInterval(() => { update(); updateInvokeLogUI(); }, 1000);
 }
 
 function startConsoleCapture() {
@@ -618,13 +779,30 @@ function stopConsoleCapture() {
   }
 }
 
+function hasSelectionIn(el) {
+  const sel = window.getSelection();
+  return sel && sel.rangeCount > 0 && el.contains(sel.anchorNode);
+}
+
 function updateConsoleUI() {
   const el = document.getElementById('dev-console');
-  if (!el) return;
+  if (!el || hasSelectionIn(el)) return;
   const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
   el.innerHTML = D.consoleBuffer.map(l =>
     `<div class="dev-console__line dev-console__line--${l.type}">[${new Date(l.time).toLocaleTimeString()}] ${l.text}</div>`
   ).join('');
+  if (wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+
+function updateInvokeLogUI() {
+  const el = document.getElementById('dev-invoke-log');
+  if (!el || hasSelectionIn(el)) return;
+  const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
+  el.innerHTML = D.invokeLog.map(l => {
+    const cls = l.ok ? 'dev-console__line--info' : 'dev-console__line--error';
+    const status = l.ok ? `${l.ms}ms` : 'FAIL';
+    return `<div class="dev-console__line ${cls}">[${new Date(l.time).toLocaleTimeString()}] ${l.cmd} — ${status}</div>`;
+  }).join('');
   if (wasAtBottom) el.scrollTop = el.scrollHeight;
 }
 
@@ -644,26 +822,42 @@ function renderGamepadGroup() {
       <div class="dev-section__title">连接</div>
       <div class="dev-stat"><span class="dev-stat__label" id="dev-gp-connected">未连接</span></div>
       <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">ID</span><span class="dev-stat__value" id="dev-gp-id">--</span></div>
+      <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">控制器</span><span class="dev-stat__value" id="dev-gp-layout">--</span></div>
+    </div>
+    <div class="dev-section">
+      <div class="dev-section__title">状态机</div>
+      <div class="dev-state-row"><span class="dev-state-row__label">模式</span><span class="dev-state-row__value" id="dev-st-mode">--</span></div>
+      <div class="dev-state-row"><span class="dev-state-row__label">区域</span><span class="dev-state-row__value" id="dev-st-zone">--</span></div>
+      <div class="dev-state-row"><span class="dev-state-row__label">输入</span><span class="dev-state-row__value" id="dev-st-input">--</span></div>
+      <div class="dev-state-row"><span class="dev-state-row__label">焦点</span><span class="dev-state-row__value" id="dev-st-focus">--</span></div>
+      <div class="dev-state-row"><span class="dev-state-row__label">元素</span><span class="dev-state-row__value" id="dev-st-els">--</span></div>
+      <div class="dev-state-row"><span class="dev-state-row__label">冷却</span><span class="dev-state-row__value" id="dev-st-cooldown">--</span></div>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">按钮</div>
-      <div class="dev-gp-grid" id="dev-gp-btn-grid"></div>
+      <div class="dev-row dev-row--col" data-gp-zone="buttons">
+        <div class="dev-gp-grid" id="dev-gp-btn-grid"></div>
+      </div>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">摇杆 & 扳机</div>
-      <div class="dev-row" style="gap:24px">
-        <div>
-          <div class="dev-stick" id="dev-stick-l"><div class="dev-stick__cross-h"></div><div class="dev-stick__cross-v"></div><div class="dev-stick__dot" style="left:50%;top:50%"></div></div>
-          <div class="dev-stick__label">左摇杆</div>
+      <div class="dev-row dev-row--col" data-gp-zone="sticks" style="gap:12px">
+        <div style="display:flex;gap:24px;justify-content:center">
+          <div>
+            <div class="dev-stick" id="dev-stick-l"><div class="dev-stick__deadzone"></div><div class="dev-stick__cross-h"></div><div class="dev-stick__cross-v"></div><div class="dev-stick__dot" style="left:50%;top:50%"></div></div>
+            <div class="dev-stick__label">左摇杆</div>
+            <div class="dev-axis-label" id="dev-axis-l">X: 0.00  Y: 0.00</div>
+          </div>
+          <div>
+            <div class="dev-stick" id="dev-stick-r"><div class="dev-stick__deadzone"></div><div class="dev-stick__cross-h"></div><div class="dev-stick__cross-v"></div><div class="dev-stick__dot" style="left:50%;top:50%"></div></div>
+            <div class="dev-stick__label">右摇杆</div>
+            <div class="dev-axis-label" id="dev-axis-r">X: 0.00  Y: 0.00</div>
+          </div>
         </div>
-        <div>
-          <div class="dev-stick" id="dev-stick-r"><div class="dev-stick__cross-h"></div><div class="dev-stick__cross-v"></div><div class="dev-stick__dot" style="left:50%;top:50%"></div></div>
-          <div class="dev-stick__label">右摇杆</div>
+        <div style="display:flex;gap:20px">
+          <div style="flex:2"><div class="dev-row__label" style="margin-bottom:4px">LT</div><div class="dev-trigger"><div class="dev-trigger__fill" id="dev-trigger-lt" style="width:0%"></div></div></div>
+          <div style="flex:2"><div class="dev-row__label" style="margin-bottom:4px">RT</div><div class="dev-trigger"><div class="dev-trigger__fill" id="dev-trigger-rt" style="width:0%"></div></div></div>
         </div>
-      </div>
-      <div class="dev-row" style="margin-top:12px;gap:16px">
-        <div style="flex:1"><div class="dev-row__label" style="margin-bottom:4px">LT</div><div class="dev-trigger"><div class="dev-trigger__fill" id="dev-trigger-lt" style="width:0%"></div></div></div>
-        <div style="flex:1"><div class="dev-row__label" style="margin-bottom:4px">RT</div><div class="dev-trigger"><div class="dev-trigger__fill" id="dev-trigger-rt" style="width:0%"></div></div></div>
       </div>
     </div>
     <div class="dev-section">
@@ -672,11 +866,51 @@ function renderGamepadGroup() {
     </div>
   `;
 
-  // 初始化按钮网格
+  // 初始化按钮网格（动态显示所有按钮）
   const grid = el.querySelector('#dev-gp-btn-grid');
   if (grid) {
-    grid.innerHTML = GP_BTN_NAMES.map(n => `<div class="dev-gp-btn" data-btn="${n}">${n}</div>`).join('');
+    const gps = navigator.getGamepads();
+    const gp = Array.from(gps).find(g => g);
+    const count = gp ? gp.buttons.length : 16;
+    const names = [];
+    for (let i = 0; i < count; i++) {
+      names.push(GP_BTN_NAMES[i] || `B${i}`);
+    }
+    grid.innerHTML = names.map((n, i) => `<div class="dev-gp-btn" data-btn="${n}" data-idx="${i}">${n}</div>`).join('');
   }
+}
+
+// 手柄悬浮窗实时更新
+let _gpFloatRaf = null;
+function startGpFloatPoll(zone) {
+  if (_gpFloatRaf) cancelAnimationFrame(_gpFloatRaf);
+  function tick() {
+    const float = document.getElementById('dev-gp-float');
+    if (!float?.classList.contains('dev-gp-float--open')) { _gpFloatRaf = null; return; }
+    const gp = navigator.getGamepads()[0];
+    if (!gp) { _gpFloatRaf = requestAnimationFrame(tick); return; }
+    if (zone === 'buttons') {
+      float.querySelectorAll('.dev-gp-btn').forEach(el => {
+        const idx = parseInt(el.dataset.idx);
+        el.classList.toggle('dev-gp-btn--on', !isNaN(idx) && idx < gp.buttons.length && gp.buttons[idx].pressed);
+      });
+    } else if (zone === 'sticks') {
+      const dotL = float.querySelector('#dev-stick-l .dev-stick__dot');
+      const dotR = float.querySelector('#dev-stick-r .dev-stick__dot');
+      if (dotL) { dotL.style.left = (50 + gp.axes[0] * 50) + '%'; dotL.style.top = (50 + gp.axes[1] * 50) + '%'; }
+      if (dotR) { dotR.style.left = (50 + gp.axes[2] * 50) + '%'; dotR.style.top = (50 + gp.axes[3] * 50) + '%'; }
+      const lt = float.querySelector('#dev-trigger-lt');
+      const rt = float.querySelector('#dev-trigger-rt');
+      if (lt) lt.style.width = Math.round((gp.buttons[6]?.value || 0) * 100) + '%';
+      if (rt) rt.style.width = Math.round((gp.buttons[7]?.value || 0) * 100) + '%';
+      const axL = float.querySelector('#dev-axis-l');
+      const axR = float.querySelector('#dev-axis-r');
+      if (axL) axL.textContent = `X: ${(gp.axes[0] || 0).toFixed(2)}  Y: ${(gp.axes[1] || 0).toFixed(2)}`;
+      if (axR) axR.textContent = `X: ${(gp.axes[2] || 0).toFixed(2)}  Y: ${(gp.axes[3] || 0).toFixed(2)}`;
+    }
+    _gpFloatRaf = requestAnimationFrame(tick);
+  }
+  _gpFloatRaf = requestAnimationFrame(tick);
 }
 
 function startGamepadVizPoll() {
@@ -691,17 +925,52 @@ function startGamepadVizPoll() {
     const connEl = document.getElementById('dev-gp-connected');
     const idEl = document.getElementById('dev-gp-id');
 
+    // 状态机视图（从 gamepad.js 暴露的状态快照读取）
+    const st = window.__lensGamepadState;
+    if (st) {
+      const modeEl = document.getElementById('dev-st-mode');
+      const zoneEl = document.getElementById('dev-st-zone');
+      const inputEl = document.getElementById('dev-st-input');
+      const focusEl = document.getElementById('dev-st-focus');
+      const elsEl = document.getElementById('dev-st-els');
+      const cdEl = document.getElementById('dev-st-cooldown');
+      if (modeEl) modeEl.textContent = st.mode || '--';
+      if (zoneEl) zoneEl.textContent = st.zone || '--';
+      if (inputEl) { inputEl.textContent = st.input || '--'; inputEl.style.color = st.input === 'gamepad' ? 'var(--accent)' : 'var(--text-3)'; }
+      if (focusEl) {
+        const idx = st.mode === 'dev' ? st.devIdx : st.mode === 'settings' ? st.settingsIdx : st.gridIdx;
+        focusEl.textContent = `idx=${idx}`;
+      }
+      if (elsEl) {
+        const count = st.mode === 'dev' ? st.devEls : st.mode === 'settings' ? st.settingsEls : st.gridEls;
+        elsEl.textContent = `${Array.isArray(count) ? count.length : 0} 个`;
+      }
+      if (cdEl) {
+        const remaining = Math.max(0, (st.cooldownUntil || 0) - performance.now());
+        cdEl.textContent = remaining > 0 ? Math.ceil(remaining) + 'ms' : '无';
+      }
+    }
+
     if (gp) {
       if (connEl) { connEl.textContent = '已连接'; connEl.style.color = 'var(--accent)'; }
       if (idEl) idEl.textContent = gp.id;
+
+      // 控制器类型
+      const layoutEl = document.getElementById('dev-gp-layout');
+      if (layoutEl) {
+        const gid = gp.id.toLowerCase();
+        if (gid.includes('xbox') || gid.includes('xinput')) layoutEl.textContent = 'Xbox';
+        else if (gid.includes('ps4') || gid.includes('ps5') || gid.includes('playstation')) layoutEl.textContent = 'PlayStation';
+        else if (gid.includes('switch') || gid.includes('nintendo')) layoutEl.textContent = 'Switch';
+        else layoutEl.textContent = gp.id.slice(0, 30);
+      }
 
       // 按钮网格
       const grid = document.getElementById('dev-gp-btn-grid');
       if (grid) {
         grid.querySelectorAll('.dev-gp-btn').forEach(el => {
-          const name = el.dataset.btn;
-          const idx = GP_BTN_NAMES.indexOf(name);
-          const pressed = idx >= 0 && idx < gp.buttons.length && gp.buttons[idx].pressed;
+          const idx = parseInt(el.dataset.idx);
+          const pressed = !isNaN(idx) && idx < gp.buttons.length && gp.buttons[idx].pressed;
           el.classList.toggle('dev-gp-btn--on', pressed);
         });
       }
@@ -709,6 +978,12 @@ function startGamepadVizPoll() {
       // 摇杆
       updateStick('dev-stick-l', gp.axes[0], gp.axes[1]);
       updateStick('dev-stick-r', gp.axes[2], gp.axes[3]);
+
+      // 轴值
+      const axisL = document.getElementById('dev-axis-l');
+      const axisR = document.getElementById('dev-axis-r');
+      if (axisL) axisL.textContent = `X: ${(gp.axes[0] || 0).toFixed(2)}  Y: ${(gp.axes[1] || 0).toFixed(2)}`;
+      if (axisR) axisR.textContent = `X: ${(gp.axes[2] || 0).toFixed(2)}  Y: ${(gp.axes[3] || 0).toFixed(2)}`;
 
       // 扳机
       const ltEl = document.getElementById('dev-trigger-lt');
@@ -749,12 +1024,84 @@ function updateStick(id, x, y) {
 
 function updateGPLog() {
   const el = document.getElementById('dev-gp-log');
-  if (!el) return;
+  if (!el || hasSelectionIn(el)) return;
   const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
   el.innerHTML = D.gpEventLog.map(l =>
     `<div class="dev-console__line dev-console__line--info">[${new Date(l.time).toLocaleTimeString()}] ${l.text}</div>`
   ).join('');
   if (wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+
+// ── 手柄提示面板 ──
+function gpIcon(name) {
+  return `<img src="./assets/icons/btn-${name}.svg" class="dev-hints__icon" alt="${name}">`;
+}
+
+function updateDevHints() {
+  const el = document.getElementById('dev-hints-list');
+  if (!el) return;
+  const st = window.__lensGamepadState;
+  const devEls = st?.devEls || [];
+  const devIdx = st?.devIdx ?? 0;
+  const cur = devEls[devIdx];
+  const navCount = document.querySelectorAll('#dev-nav .dev-nav__tab').length;
+  const isNav = devIdx < navCount;
+
+  const rsHint = [[gpIcon('rs')], '翻页'];
+  const resetConfirm = st?.resetConfirm;
+  const xHint = resetConfirm ? [[gpIcon('x')], '确认复位？'] : [[gpIcon('x')], '复位全部'];
+
+  let hints;
+  if (isNav) {
+    const exitHint = [[gpIcon('b')], '关闭'];
+    hints = [
+      [[gpIcon('dpad-up'), gpIcon('dpad-down')], '切换标签'],
+      [[gpIcon('dpad-right')], '进入内容'],
+      [[gpIcon('lb'), gpIcon('rb')], '切换标签'],
+      [[gpIcon('a')], '选择'],
+      xHint, rsHint,
+      exitHint,
+    ];
+  } else if (cur && cur._slider) {
+    hints = [
+      [[gpIcon('dpad-up'), gpIcon('dpad-down')], '切换控件'],
+      [[gpIcon('dpad-left'), gpIcon('dpad-right')], '调整数值'],
+      [[gpIcon('a')], '复位'],
+      [[gpIcon('lb'), gpIcon('rb')], '切换标签'],
+      xHint, rsHint,
+      [[gpIcon('b')], '返回'],
+    ];
+  } else if (cur && cur._color) {
+    hints = [
+      [[gpIcon('dpad-up'), gpIcon('dpad-down')], '切换控件'],
+      [[gpIcon('dpad-left'), gpIcon('dpad-right')], '调整颜色'],
+      [[gpIcon('lb'), gpIcon('rb')], '切换标签'],
+      xHint, rsHint,
+      [[gpIcon('b')], '返回'],
+    ];
+  } else if (cur && cur._text) {
+    hints = [
+      [[gpIcon('dpad-up'), gpIcon('dpad-down')], '切换控件'],
+      [[gpIcon('dpad-left'), gpIcon('dpad-right')], '切换预设'],
+      [[gpIcon('lb'), gpIcon('rb')], '切换标签'],
+      xHint, rsHint,
+      [[gpIcon('b')], '返回'],
+    ];
+  } else {
+    const isZone = cur?.dataset?.gpZone;
+    hints = [
+      [[gpIcon('dpad-up'), gpIcon('dpad-down')], '切换控件'],
+      [[gpIcon('dpad-left')], '返回标签'],
+      [[gpIcon('lb'), gpIcon('rb')], '切换标签'],
+      [[gpIcon('a')], isZone ? '放大' : '点击'],
+      xHint, rsHint,
+      [[gpIcon('b')], '返回'],
+    ];
+  }
+
+  el.innerHTML = hints.map(([icons, desc]) =>
+    `<div class="dev-hints__row"><span class="dev-hints__btn">${icons.join('')}</span><span class="dev-hints__desc">${desc}</span></div>`
+  ).join('');
 }
 
 // ═══════════════════════════════════════════
@@ -829,10 +1176,8 @@ function exportPreset(preset) {
 
 async function importPreset() {
   try {
-    const { open } = await import('@tauri-apps/plugin-dialog');
     const selected = await open({ filters: [{ name: '预设', extensions: ['json'] }], multiple: false });
     if (selected) {
-      const { invoke } = await import('@tauri-apps/api/core');
       const content = await invoke('read_text_file', { path: selected });
       const preset = JSON.parse(content);
       if (!preset.vars) throw new Error('无效预设格式');
@@ -891,6 +1236,21 @@ function syncVisualControls() {
       display.textContent = num.toFixed(d) + unit;
     }
   });
+  // 毛玻璃颜色同步
+  el.querySelectorAll('.dev-glass-color[data-css]').forEach(c => {
+    const val = style.getPropertyValue(c.dataset.css).trim();
+    const { hex, alpha } = rgbaToHexAlpha(val);
+    c.value = hex;
+    c.dataset.alpha = alpha;
+    const alphaSlider = el.querySelector(`.dev-glass-alpha[data-css="${c.dataset.css}"]`);
+    if (alphaSlider) alphaSlider.value = alpha;
+    const valEl = el.querySelector(`[data-glass-val="${c.dataset.css}"]`);
+    if (valEl) valEl.textContent = alpha.toFixed(2);
+  });
+  // 文本输入同步
+  el.querySelectorAll('.dev-input--text[data-css-text]').forEach(input => {
+    input.value = style.getPropertyValue(input.dataset.cssText).trim();
+  });
 }
 
 function renderPresetsGroup() {
@@ -927,8 +1287,9 @@ function renderPresetsGroup() {
   html += `
     <div class="dev-section">
       <div class="dev-section__title">导入/导出</div>
-      <div class="dev-row" style="gap:8px">
+      <div class="dev-row" style="gap:8px;flex-wrap:wrap">
         <button class="dev-btn" id="dev-preset-import">导入文件</button>
+        <button class="dev-btn" id="dev-preset-export-all">导出全部</button>
         <button class="dev-btn dev-btn--danger" id="dev-preset-reset">重置全部</button>
       </div>
     </div>
@@ -948,6 +1309,16 @@ function renderPresetsGroup() {
   }
 
   document.getElementById('dev-preset-import')?.addEventListener('click', importPreset);
+  document.getElementById('dev-preset-export-all')?.addEventListener('click', () => {
+    const userPresets = getPresets();
+    if (userPresets.length === 0) return;
+    const blob = new Blob([JSON.stringify(userPresets, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'lens-presets-all.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
   document.getElementById('dev-preset-reset')?.addEventListener('click', () => {
     loadPreset(BUILTIN_PRESETS[0]);
   });
@@ -982,19 +1353,21 @@ function renderPresetsGroup() {
 
 function makePresetCard(preset, activeId, showActions) {
   const vars = preset.vars || {};
-  const accent = vars['--accent'] || '#c8a87c';
-  const bg = vars['--bg'] || '#0a0a08';
-  const text = vars['--text'] || '#e8e4e0';
+  const swatchKeys = ['--accent','--bg','--bg-deep','--text','--text-2','--text-3'];
   const isActive = activeId === preset.id;
+  const timeStr = preset.id && !preset.builtin
+    ? new Date(parseInt(preset.id, 36)).toLocaleDateString()
+    : '';
 
   return `
     <div class="dev-preset-card${isActive ? ' dev-preset-card--active' : ''}" data-id="${preset.id}">
       <div class="dev-preset-card__swatches">
-        <span class="dev-preset-card__swatch" style="background:${accent}" title="accent"></span>
-        <span class="dev-preset-card__swatch" style="background:${bg}" title="bg"></span>
-        <span class="dev-preset-card__swatch" style="background:${text}" title="text"></span>
+        ${swatchKeys.map(k => `<span class="dev-preset-card__swatch" style="background:${vars[k] || '#888'}" title="${k}"></span>`).join('')}
       </div>
-      <span class="dev-preset-card__name">${preset.name}</span>
+      <div class="dev-preset-card__info">
+        <span class="dev-preset-card__name">${preset.name}</span>
+        ${timeStr ? `<span class="dev-preset-card__time">${timeStr}</span>` : ''}
+      </div>
       ${preset.builtin ? '<span class="dev-preset-card__badge">内置</span>' : ''}
       ${showActions ? `
         <div class="dev-preset-card__actions">
@@ -1043,6 +1416,36 @@ export function initDevPanel() {
 
   // 暴露全局 toggle 供 gamepad.js 调用
   window.__lensToggleDev = toggleDevPanel;
+  // 暴露 invoke 日志缓冲供 main.js 写入
+  window.__lensInvokeLog = D.invokeLog;
+  // 暴露手柄提示更新供 gamepad.js 调用
+  window.__lensUpdateDevHints = updateDevHints;
+  // 暴露渲染完成标志供 gamepad.js 检测
+  window.__lensDevRendered = () => document.querySelector('.dev-group--active .dev-slider') !== null;
+  // 暴露 CSS 默认值供 gamepad.js 复位使用
+  window.__lensCSSDefaults = BUILTIN_PRESETS[0].vars;
+  // 暴露手柄悬浮放大
+  window.__lensGpFloat = (zone) => {
+    const float = document.getElementById('dev-gp-float');
+    const content = document.getElementById('dev-gp-float-content');
+    if (!float || !content) return;
+    const source = document.querySelector(`[data-gp-zone="${zone}"]`);
+    if (!source) return;
+    content.innerHTML = source.innerHTML;
+    // 复制按钮网格的 data 属性
+    if (zone === 'buttons') {
+      const srcGrid = source.querySelector('.dev-gp-grid');
+      const dstGrid = content.querySelector('.dev-gp-grid');
+      if (srcGrid && dstGrid) {
+        dstGrid.innerHTML = srcGrid.innerHTML;
+      }
+    }
+    float.classList.add('dev-gp-float--open');
+    // 启动悬浮窗的实时更新
+    startGpFloatPoll(zone);
+  };
+  // 暴露一键复位
+  window.__lensResetAll = () => loadPreset(BUILTIN_PRESETS[0]);
 
   console.log('[DevPanel] 初始化完成 — Ctrl+Shift+D 打开');
 }

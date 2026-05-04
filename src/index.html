@@ -249,10 +249,10 @@
     <div class="dev-panel" id="dev-panel">
       <button class="dev-panel__close" id="dev-panel-close" aria-label="关闭开发者面板">&#x2715;</button>
       <nav class="dev-nav" id="dev-nav">
-        <button class="dev-nav__tab dev-nav__tab--active" data-group="visual"><span class="dev-nav__icon">&#x1F3A8;</span>视觉</button>
-        <button class="dev-nav__tab" data-group="perf"><span class="dev-nav__icon">&#x1F4CA;</span>性能</button>
-        <button class="dev-nav__tab" data-group="gamepad"><span class="dev-nav__icon">&#x1F3AE;</span>手柄</button>
-        <button class="dev-nav__tab" data-group="presets"><span class="dev-nav__icon">&#x1F4BE;</span>预设</button>
+        <button class="dev-nav__tab dev-nav__tab--active" data-group="visual"><svg class="dev-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>视觉</button>
+        <button class="dev-nav__tab" data-group="perf"><svg class="dev-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>性能</button>
+        <button class="dev-nav__tab" data-group="gamepad"><svg class="dev-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4m-2-2v4"/><circle cx="17" cy="9" r="1"/><circle cx="17" cy="13" r="1"/><path d="M2 9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9z"/><path d="M14 7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V7z"/></svg>手柄</button>
+        <button class="dev-nav__tab" data-group="presets"><svg class="dev-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>预设</button>
       </nav>
       <div class="dev-content" id="dev-content">
         <div class="dev-group dev-group--active" id="dev-group-visual"></div>
@@ -262,6 +262,29 @@
       </div>
     </div>
   </div>
+
+  <!-- ====== 手柄可视化悬浮窗 ====== -->
+  <div class="dev-gp-float" id="dev-gp-float">
+    <div class="dev-gp-float__content" id="dev-gp-float-content"></div>
+    <div class="dev-gp-float__bar"><div class="dev-gp-float__fill" id="dev-gp-float-bar"></div></div>
+    <div class="dev-gp-float__hint">长按B关闭</div>
+  </div>
+
+  <!-- ====== 复位确认弹窗 ====== -->
+  <div class="dev-reset-overlay" id="dev-reset-overlay">
+    <div class="dev-reset-box">
+      <div class="dev-reset-box__title">复位全部设置</div>
+      <div class="dev-reset-box__desc">长按 X 确认复位</div>
+      <div class="dev-reset-box__bar"><div class="dev-reset-box__fill" id="dev-reset-bar"></div></div>
+      <div class="dev-reset-box__hint">按 B 取消</div>
+    </div>
+  </div>
+
+  <!-- ====== 手柄提示悬浮窗 ====== -->
+  <aside class="dev-hints" id="dev-hints">
+    <div class="dev-hints__title">手柄</div>
+    <div class="dev-hints__list" id="dev-hints-list"></div>
+  </aside>
 
   <script type="module" src="main.js"></script>
 </body>
