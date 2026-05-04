@@ -10,6 +10,7 @@
     border: 0.5px solid rgba(220,200,180,0.10);
     border-radius: var(--radius-pill);
     box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    text-shadow: 0 0 6px rgba(10,10,8,0.5);
     opacity: 0;
     transition: opacity 0.5s var(--ease-out);
   }
@@ -17,8 +18,8 @@
 
   .toolbar__btn {
     font-family: var(--font-display);
-    font-size: 0.72rem; font-weight: 400; font-style: italic;
-    letter-spacing: 0.1em; color: rgba(220,200,180,0.45);
+    font-size: 0.78rem; font-weight: 400; font-style: italic;
+    letter-spacing: 0.1em; color: rgba(220,200,180,0.65);
     padding: 7px 20px;
     border-radius: var(--radius-pill);
     background: transparent;

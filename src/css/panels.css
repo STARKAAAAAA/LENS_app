@@ -112,7 +112,7 @@
     font-family: var(--font-body);
     font-size: 0.7rem; font-weight: 400;
     letter-spacing: 0.04em;
-    color: var(--text-3);
+    color: var(--text-2);
     padding: 4px 12px;
     border-radius: 6px;
     background: transparent;
@@ -122,7 +122,7 @@
     min-width: 28px; text-align: center;
   }
   .density-btn:hover {
-    color: var(--text-2);
+    color: var(--text);
     background: rgba(200,168,124,0.08);
   }
   .density-btn--active {
@@ -133,7 +133,7 @@
 
   /* ========== 快捷键面板（液态玻璃弹出） ========== */
   .shortcuts-overlay {
-    position: fixed; inset: 0; z-index: 3000;
+    position: fixed; inset: 0; z-index: 20001;
     background: rgba(6,6,5,0.5);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -146,7 +146,7 @@
   }
   .shortcuts-panel {
     position: fixed; top: 48px; right: 16px;
-    z-index: 3001;
+    z-index: 20002;
     min-width: 280px;
     background: rgba(30,28,26,0.94);
     backdrop-filter: blur(30px) saturate(180%);
@@ -207,6 +207,13 @@
   body.gamepad-active .shortcuts__section--kbd { display: none; }
   body.gamepad-active .shortcuts__section--gamepad { display: block; }
 
+  /* 手柄区文字使用 Xbox 字体 */
+  .shortcuts__section--gamepad .shortcuts__row span {
+    font-family: 'Xbox', 'Arial Black', Impact, sans-serif;
+    font-size: 0.7rem; font-weight: 400;
+    letter-spacing: 0.06em;
+  }
+
   /* Xbox 风格按钮图标 */
   .gp-icon {
     width: 22px; height: 22px;
@@ -214,6 +221,11 @@
     display: block;
   }
   .gp-icon + .gp-icon { margin-left: 4px; }
+  .shortcuts__divider {
+    height: 1px;
+    margin: 8px 0;
+    background: rgba(200,168,124,0.25);
+  }
   .shortcuts__hint {
     font-family: var(--font-body);
     font-size: 0.62rem; color: var(--text-3);

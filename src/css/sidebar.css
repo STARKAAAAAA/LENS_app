@@ -12,12 +12,29 @@
     /* 启动后始终可交互 */
   }
 
-  /* ========== 毛玻璃侧边栏 ========== */
-  .sidebar {
+  /* ========== 侧边栏外层容器（负责 transform + 定位）========== */
+  .sidebar-frame {
     position: fixed;
     left: 8px; top: 12px; bottom: 12px;
     width: 240px;
     z-index: 200;
+    pointer-events: none;
+    transform: translateX(-100%);
+    transition: transform 0.5s var(--ease-out);
+    /* 毛玻璃补偿：暗色微光环确保文字在亮背景上可辨 */
+    text-shadow: 0 0 8px rgba(10,10,8,0.5);
+
+    &.sidebar--peek {
+      transform: translateX(calc(-100% + 14px));
+    }
+    &.sidebar--open {
+      transform: translateX(0);
+    }
+  }
+
+  /* ========== 毛玻璃侧边栏（填充容器，负责视觉）========== */
+  .sidebar {
+    width: 100%; height: 100%;
     display: flex; flex-direction: column;
     background: rgba(220,200,180,0.08);
     backdrop-filter: blur(24px);
@@ -27,19 +44,6 @@
     user-select: none;
     -webkit-user-select: none;
     pointer-events: auto;
-
-    transform: translateX(-100%);
-    transition: transform 0.5s var(--ease-out);
-
-    /* 靠近时探出 14px */
-    &.sidebar--peek {
-      transform: translateX(calc(-100% + 14px));
-    }
-
-    /* 点击展开 */
-    &.sidebar--open {
-      transform: translateX(0);
-    }
 
     /* 未展开时：内容虚化 + 不可交互 */
     & .sidebar__header,
@@ -51,9 +55,9 @@
       transition: opacity 0.6s var(--ease-out), filter 0.6s var(--ease-out);
     }
 
-    &.sidebar--open .sidebar__header,
-    &.sidebar--open .sidebar__list,
-    &.sidebar--open .sidebar__add {
+    .sidebar-frame.sidebar--open & .sidebar__header,
+    .sidebar-frame.sidebar--open & .sidebar__list,
+    .sidebar-frame.sidebar--open & .sidebar__add {
       opacity: 1;
       filter: blur(0);
       pointer-events: auto;
@@ -69,12 +73,11 @@
       position: relative; z-index: 2;
       flex-shrink: 0;
 
-      & .sidebar__header-icon { opacity: 0.4; }
+      & .sidebar__header-icon { opacity: 0.55; }
     }
 
     & .sidebar__list {
       flex: 1;
-      overflow-y: auto;
       overflow-y: auto;
       overflow-x: visible;
       padding: 6px 10px 4px;
@@ -117,7 +120,7 @@
       & .sidebar__item-icon {
         flex-shrink: 0;
         width: 14px; height: 14px;
-        color: var(--text-3);
+        color: var(--text-2);
         transition: color 0.3s ease;
       }
 
@@ -128,9 +131,9 @@
 
       & .sidebar__item-name {
         flex: 1;
-        font-size: 0.8rem; font-weight: 400;
+        font-size: 0.85rem; font-weight: 400;
         letter-spacing: 0.03em;
-        color: var(--text-2);
+        color: var(--text);
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         transition: color 0.3s ease;
         position: relative; z-index: 1;
@@ -164,7 +167,7 @@
     & .sidebar__empty {
       padding: 24px 16px;
       text-align: center;
-      font-size: 0.72rem; color: var(--text-3);
+      font-size: 0.78rem; color: var(--text-2);
       letter-spacing: 0.05em;
       line-height: 1.6;
     }
@@ -175,7 +178,7 @@
       padding: 10px 0;
       font-size: 0.78rem; font-weight: 500;
       letter-spacing: 0.06em;
-      color: var(--text-2);
+      color: var(--text);
       border-radius: var(--radius-pill);
       background: rgba(220,200,180,0.08);
       backdrop-filter: blur(16px);
@@ -197,22 +200,15 @@
     }
   }
 
-  /* ========== 角落 Logo（class 驱动跟随侧边栏）========== */
+  /* ========== 角落 Logo（挂在 .sidebar 内，跟随 transform 动画）========== */
   #corner-logo {
-    transition: left 0.5s cubic-bezier(0.16,1,0.3,1);
     &:hover { color: var(--accent) !important; }
   }
-  #lens-glow {
-    transition: left 0.5s cubic-bezier(0.16,1,0.3,1);
-  }
-  /* 侧边栏打开时 logo/glow 移到侧边栏右侧 */
-  #corner-logo.logo--shifted { left: 258px !important; }
-  #lens-glow.logo--shifted  { left: 236px !important; }
 
   /* 路径标签 */
   #dir-label {
     position: fixed; bottom: 12px; left: 12px; z-index: 100;
-    font-size: 0.6rem; color: rgba(220,200,180,0.25);
+    font-size: 0.65rem; color: rgba(220,200,180,0.5);
     letter-spacing: 0.06em;
     max-width: 40vw;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

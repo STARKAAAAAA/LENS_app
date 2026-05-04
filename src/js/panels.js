@@ -87,7 +87,9 @@ export function initShortcutsPanel({ featureToggles }) {
   function openShortcuts() {
     shortcutsOverlay.classList.add('shortcuts-overlay--open');
     shortcutsPanel.classList.remove('shortcuts-panel--out');
-    document.body.style.overflow = 'hidden';
+    // 共享 overflow 锁（与 dev panel 协调）
+    const lock = window.__lensOverflowLock = (window.__lensOverflowLock || 0) + 1;
+    if (lock === 1) document.body.style.overflow = 'hidden';
   }
   function closeShortcuts() {
     if (shortcutsClosing) return;
@@ -98,7 +100,8 @@ export function initShortcutsPanel({ featureToggles }) {
       shortcutsPanel.removeEventListener('animationend', onEnd);
       shortcutsPanel.classList.remove('shortcuts-panel--out');
       shortcutsClosing = false;
-      document.body.style.overflow = '';
+      window.__lensOverflowLock = Math.max(0, (window.__lensOverflowLock || 0) - 1);
+      if (window.__lensOverflowLock === 0) document.body.style.overflow = '';
     };
     shortcutsPanel.addEventListener('animationend', onEnd);
   }
@@ -122,6 +125,9 @@ export function initShortcutsPanel({ featureToggles }) {
     if (e.key === '?' && featureToggles.shortcuts) {
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      // 灯箱或幻灯片激活时不打开快捷键面板
+      if (document.getElementById('lightbox')?.classList.contains('active')) return;
+      if (document.getElementById('slideshow')?.classList.contains('active')) return;
       e.preventDefault();
       toggleShortcuts();
     }

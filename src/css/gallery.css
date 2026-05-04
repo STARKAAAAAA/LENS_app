@@ -49,7 +49,7 @@
       font-size: 0.85rem; font-style: italic;
       font-weight: 300;
       letter-spacing: 0.2em;
-      color: var(--text-3);
+      color: var(--text-2);
       margin-top: 1.2rem;
       opacity: 0; translate: 0 16px;
       transition: all 1s var(--ease-out) 0.3s;
@@ -83,15 +83,6 @@
       box-shadow 0.6s ease,
       border-color 0.5s ease;
     transform-origin: center bottom;
-
-    &::after {
-      content: '';
-      position: absolute; inset: -1px;
-      background: none;
-      border-radius: inherit;
-      pointer-events: none;
-      z-index: 0;
-    }
 
     &:hover {
       transform: translateY(-8px) scale(1.015);
@@ -191,11 +182,6 @@
       color: var(--text-2); margin-top: 0.3rem;
       display: flex; flex-direction: column; align-items: center; gap: 2px;
     }
-    & .category-card__rating {
-      font-size: 0.55rem; letter-spacing: 0.1em;
-      color: var(--accent);
-      margin-top: 1px;
-    }
   }
 
   /* ========== 画廊容器 ========== */
@@ -236,7 +222,7 @@
 
   .gallery__info {
     font-family: var(--font-display);
-    font-size: 0.7rem; font-style: italic;
+    font-size: 0.78rem; font-style: italic;
     letter-spacing: 0.1em;
     color: var(--text-2);
   }
@@ -249,7 +235,7 @@
   .custom-dropdown__trigger {
     display: flex; align-items: center; gap: 8px;
     font-family: var(--font-display);
-    font-size: 0.7rem; font-style: italic; font-weight: 400;
+    font-size: 0.76rem; font-weight: 400;
     letter-spacing: 0.06em;
     color: var(--text-2);
     padding: 6px 14px;
@@ -308,7 +294,7 @@
   }
   .custom-dropdown__option {
     font-family: var(--font-body);
-    font-size: 0.72rem; font-weight: 400;
+    font-size: 0.78rem; font-weight: 400;
     letter-spacing: 0.04em;
     color: var(--text-2);
     padding: 8px 14px;
@@ -482,34 +468,6 @@
     to { transform: translateX(105%); }
   }
 
-  .gallery__more {
-    text-align: center; padding: 4rem 0 2rem;
-  }
-
-  /* 毛玻璃加载按�?*/
-  .load-more-btn {
-    font-family: var(--font-display);
-    font-size: 0.75rem; font-weight: 400; font-style: italic;
-    letter-spacing: 0.2em;
-    color: rgba(220,200,180,0.4);
-    padding: 0.8rem 2.8rem;
-    border-radius: var(--radius-pill);
-    background: rgba(220,200,180,0.05);
-    border: 0.5px solid rgba(220,200,180,0.10);
-    transition: all 0.5s var(--ease-out);
-
-    &:hover {
-      color: var(--text);
-      border-color: rgba(220,200,180,0.22);
-      background: rgba(220,200,180,0.10);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
 
   /* ========== 手柄虚拟焦点 ========== */
   .card--focused {
@@ -598,20 +556,6 @@ body.gamepad-active {
 /* 隐藏副标�?*/
 .hero--focused .hero__subtitle {
   opacity: 0 !important;
-}
-
-/* Xbox 风格手柄按钮图示 */
-.gamepad-btn {
-  display: inline-flex;
-  align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  font-family: var(--font-body);
-  font-size: 10px; font-weight: 700;
-  line-height: 1;
-  color: inherit;
-  flex-shrink: 0;
 }
 
 /* 手柄激活时 �?屏蔽侧边栏鼠�?hover 效果 */

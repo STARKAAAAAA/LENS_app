@@ -13,6 +13,7 @@ export const PHOTO_QUOTES = [
 
 let loadingAnimFrame = null;
 let loadingQuoteInterval = null;
+let loadingQuoteStartTimeout = null;
 let loadingShownAt = 0;
 let loadingScreenDoneResolve = null;
 
@@ -173,7 +174,7 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     quoteEl.textContent = PHOTO_QUOTES[0];
     // 不等入场动画，直接设为可见（入场动画在 450ms 后才触发）
     // 1.5s 后切换轮播过渡模式并开始循环
-    setTimeout(() => {
+    loadingQuoteStartTimeout = setTimeout(() => {
       quoteEl.style.transition = 'opacity 1.2s ease';
       loadingQuoteInterval = setInterval(() => {
         quoteEl.style.opacity = '0';
@@ -230,6 +231,7 @@ export function hideLoadingScreen() {
     setTimeout(() => {
       if (el.parentNode) el.remove();
       if (loadingAnimFrame) { cancelAnimationFrame(loadingAnimFrame); loadingAnimFrame = null; }
+      if (loadingQuoteStartTimeout) { clearTimeout(loadingQuoteStartTimeout); loadingQuoteStartTimeout = null; }
       if (loadingQuoteInterval) { clearInterval(loadingQuoteInterval); loadingQuoteInterval = null; }
       if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
     }, 400);
@@ -294,9 +296,15 @@ export function moveTitleToCorner() {
   if (scroll) scroll.style.opacity = '1';
   if (content) content.classList.add('hero__content--corner');
 
+  // 容器包裹 glow + logo，挂在侧边栏内自动跟随其 transform 动画
+  const wrap = document.createElement('div'); wrap.id = 'corner-logo-wrap';
+  Object.assign(wrap.style, {
+    position:'absolute',left:'calc(100% + 10px)',top:'0',pointerEvents:'none'
+  });
+
   const lensGlow = document.createElement('div'); lensGlow.id = 'lens-glow';
   Object.assign(lensGlow.style, {
-    position:'fixed',zIndex:'9997',left:'6px',top:'2px',width:'110px',height:'44px',
+    position:'absolute',left:'-22px',top:'2px',width:'110px',height:'44px',
     borderRadius:'16px',background:'rgba(200,180,160,0.04)',
     backdropFilter:'blur(40px)',WebkitBackdropFilter:'blur(40px)',
     border:'0.5px solid rgba(200,180,160,0.06)',opacity:'0',transition:'opacity 0.8s ease',
@@ -304,20 +312,25 @@ export function moveTitleToCorner() {
     maskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)',
     WebkitMaskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)'
   });
-  document.body.appendChild(lensGlow);
+  wrap.appendChild(lensGlow);
 
   const logo = document.createElement('div'); logo.id = 'corner-logo'; logo.textContent = 'LENS';
   Object.assign(logo.style, {
-    position:'fixed',zIndex:'10000',left:'28px',top:'10px',
+    position:'absolute',left:'0',top:'10px',
     WebkitAppRegion:'no-drag',
     fontFamily:"var(--font-display), 'Cormorant Garamond', Georgia, serif",
     fontSize:'1.2rem',fontWeight:'300',letterSpacing:'0.18em',
     color:'rgba(220,200,175,0.85)',cursor:'pointer',opacity:'0',scale:'0.8',
     transition:'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1), color 0.3s ease',
-    userSelect:'none',WebkitUserSelect:'none',lineHeight:'1',padding:'4px 0',willChange:'opacity, scale'
+    userSelect:'none',WebkitUserSelect:'none',lineHeight:'1',padding:'4px 0',willChange:'opacity, scale',
+    pointerEvents:'auto'
   });
   logo.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-  document.body.appendChild(logo);
+  wrap.appendChild(logo);
+
+  const sidebarFrame = document.getElementById('sidebar-frame');
+  if (sidebarFrame) sidebarFrame.appendChild(wrap);
+  else document.body.appendChild(wrap);
 
   requestAnimationFrame(() => { lensGlow.style.opacity = '1'; logo.style.opacity = '1'; logo.style.scale = '1'; });
   title.classList.add('hero__title--corner');

@@ -1,5 +1,7 @@
 import { getPhotoRating, gpLightboxZoom, gpLightboxResetZoom, gpSlideshowZoom, gpSlideshowResetZoom } from './lightbox.js';
 
+const sf = () => document.getElementById('sidebar-frame');
+
 // ========== Gamepad Support ==========
 //
 // 架构:
@@ -29,11 +31,13 @@ const BTN = {
   switch: { A:0, B:1, X:2, Y:3, LB:4, RB:5, LT:6, RT:7, BACK:8, START:9, LS:10, RS:11, UP:12, DOWN:13, LEFT:14, RIGHT:15 },
 };
 
-const DEAD_ZONE = 0.15;
-const DPAD_THRESHOLD = 0.3;
+const DEAD_ZONE = 0.25;          // 摇杆死区（提高以过滤漂移/噪声）
+const DPAD_THRESHOLD = 0.35;     // D-pad 模拟阈值
 const FLOAT_LIFT = 5;
-const MOUSE_SWITCH_DIST = 6; // px — 鼠标偏离锚点超过此距离切回鼠标模式
-const OVERLAYS = new Set(['lightbox', 'slideshow', 'settings', 'shortcuts']);
+const MOUSE_SWITCH_DIST = 8;     // px — 鼠标偏离锚点超过此距离切回鼠标模式
+const GP_CONFIRM_FRAMES = 10;    // 需要 N 帧持续输入才确认切换到手柄（~167ms @ 60fps）
+const GP_COOLDOWN_MS = 600;      // 切回鼠标后 N ms 内仅按钮可立即中断冷却
+const OVERLAYS = new Set(['lightbox', 'slideshow', 'settings', 'shortcuts', 'dev']);
 let _savedBrowseIdx = 0; // 从 gallery 返回 browse 时的分类卡位置
 let _listeners = null;   // 事件监听器引用，供 destroyGamepad 移除
 
@@ -56,6 +60,20 @@ const S = {
   sidebarEls: [],          // cached sidebar elements
   toolbarEls: [],          // cached toolbar elements
   settingsEls: [],         // cached settings elements
+  devEls:     [],          // cached dev panel elements
+  devIdx:     0,           // dev panel focus index
+  devNavIdx:  0,           // dev nav tab sub-index
+
+  // START+BACK combo tracking
+  _comboFired:   false,
+  _startWasHeld: false,
+  _backWasHeld:  false,
+  _devGroupCache: null,
+
+  // mouse→gamepad 切换确认（防误触发）
+  _gpConfirmCount: 0,          // 连续手柄输入帧数
+  _gpCooldownUntil: 0,         // 冷却期截止时间戳
+  _focusApplied: false,        // 焦点是否已应用（延迟到首次导航时）
 
   // Saved state
   // Saved state for zone transitions (grid ↔ hero, grid ↔ sidebar)
@@ -86,6 +104,8 @@ const S = {
 // ── Mode Detection (read DOM state) ──
 
 function detectMode() {
+  // dev panel 优先级最高（z-index 最高，始终在最上层）
+  if (document.getElementById('dev-overlay')?.classList.contains('dev-overlay--open')) return 'dev';
   if (document.getElementById('lightbox')?.classList.contains('active')) return 'lightbox';
   if (document.getElementById('slideshow')?.classList.contains('active')) return 'slideshow';
   if (document.getElementById('settings-panel')?.classList.contains('settings-panel--open')) return 'settings';
@@ -114,15 +134,15 @@ function setInput(input) {
     document.body.classList.add('gamepad-active');
     S.prevDX = S.prevDY = 0;
 
-    // 进入合适的 zone
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar?.classList.contains('sidebar--open')) {
-      enterZone('sidebar');
+    // 延迟焦点：只设置 zone + 预建元素，不立即显示视觉焦点
+    // 等到第一次方向输入时才 applyFocus（避免误触发时闪现金边）
+    if (sf()?.classList.contains('sidebar--open')) {
+      S.zone = 'sidebar'; buildSidebarEls();
     } else if (!OVERLAYS.has(S.mode)) {
-      enterZone('grid');
+      S.zone = 'grid'; buildGridEls(); clampGridIdx();
     }
-    refreshFocus();
-    refreshHints(); // overlay 模式下 enterZone 不会被调用，需要手动刷新提示
+    S._focusApplied = false;
+    refreshHints();
   } else {
     // ── gamepad → mouse ──
     releaseFloat();
@@ -134,19 +154,27 @@ function setInput(input) {
     S.sidebarEls = [];
     S.toolbarEls = [];
     S.settingsEls = [];
+    S.devEls = [];
     S.gridIdx = 0;
     S.heroIdx = 0;
     S.sidebarIdx = 0;
     S.toolbarIdx = 0;
     S.settingsIdx = 0;
     S.settingsDensityIdx = 0;
+    S.devIdx = 0;
+    S.devNavIdx = 0;
+    S._comboFired = false;
+    S._startWasHeld = false;
+    S._backWasHeld = false;
+    S._gpConfirmCount = 0;
+    S._devGroupCache = null;
+    S._focusApplied = false;
     S.zone = 'grid';
 
-    const sidebar = document.getElementById('sidebar');
-    sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
-    gpTrackLogoStop(true);
+sf()?.classList.remove('sidebar--open', 'sidebar--peek');
 
     document.body.classList.remove('gamepad-active');
+    S._gpCooldownUntil = performance.now() + GP_COOLDOWN_MS; // 防振荡冷却
     refreshHints();
   }
 }
@@ -157,6 +185,7 @@ function setInput(input) {
 function enterZone(zone) {
   if (S.zone === zone) return;
 
+  S._focusApplied = true; // 主动切换区域 = 确认使用手柄
   releaseFloat();
   clearGlow();
 
@@ -178,10 +207,8 @@ function enterZone(zone) {
     applySidebarFocus();
 
     // 确保 sidebar 完全打开
-    const sidebar = document.getElementById('sidebar');
-    sidebar?.classList.add('sidebar--open');
-    sidebar?.classList.remove('sidebar--peek');
-    gpTrackLogoStart();
+sf()?.classList.add('sidebar--open');
+    sf()?.classList.remove('sidebar--peek');
   } else if (zone === 'toolbar') {
     // 保存当前状态
     S.save.zone = prevZone;
@@ -218,9 +245,7 @@ function enterZone(zone) {
 
     if (prevZone === 'sidebar') {
       S.gridIdx = (S.mode === S.save.mode) ? S.save.gridIdx : 0;
-      const sidebar = document.getElementById('sidebar');
-      sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
-      gpTrackLogoStop(true);
+    sf()?.classList.remove('sidebar--open', 'sidebar--peek');
       S.sidebarEls = [];
     } else if (prevZone === 'hero') {
       S.gridIdx = (S.mode === S.save.mode) ? S.save.gridIdx : 0;
@@ -361,6 +386,26 @@ function applySettingsFocus() {
   }
 }
 
+function buildDevEls() {
+  S.devEls = [];
+  // 导航标签
+  document.querySelectorAll('#dev-nav .dev-nav__tab').forEach(el => S.devEls.push(el));
+  // 当前活跃 group 内的所有可聚焦控件
+  const activeGroup = document.querySelector('.dev-group--active');
+  if (activeGroup) {
+    activeGroup.querySelectorAll('.dev-toggle, .dev-btn, .dev-input, .dev-preset-card, .dev-slider, .dev-color').forEach(el => S.devEls.push(el));
+  }
+}
+
+function applyDevFocus() {
+  S.devEls.forEach(el => el.classList.remove('hero--focused'));
+  const el = S.devEls[S.devIdx];
+  if (el) {
+    el.classList.add('hero--focused');
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 // refreshFocus — mode/zone 变化后刷新焦点视觉
 function refreshFocus() {
   if (S.zone === 'grid') {
@@ -392,10 +437,8 @@ function countGridCols() {
 function navigate(dir) {
   // 非左方向键取消 sidebar peek
   if (dir !== 'left') {
-    const sb = document.getElementById('sidebar');
-    if (sb?.classList.contains('sidebar--peek') && !sb.classList.contains('sidebar--open')) {
-      sb.classList.remove('sidebar--peek');
-      gpTrackLogoStop(true);
+    if (sf()?.classList.contains('sidebar--peek') && !sf()?.classList.contains('sidebar--open')) {
+      sf()?.classList.remove('sidebar--peek');
     }
   }
 
@@ -519,15 +562,15 @@ function trySidebarPeek() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
 
-  if (sidebar.classList.contains('sidebar--open')) {
+  if (sf()?.classList.contains('sidebar--open')) {
     // 已打开（如鼠标打开的）→ 直接接管
     enterZone('sidebar');
-  } else if (sidebar.classList.contains('sidebar--peek')) {
+  } else if (sf()?.classList.contains('sidebar--peek')) {
     // 第二次左 → 完全展开
     enterZone('sidebar');
   } else {
     // 第一次左 → 探出（仅探出，logo 不动，匹配鼠标行为）
-    sidebar.classList.add('sidebar--peek');
+    sf()?.classList.add('sidebar--peek');
   }
 }
 
@@ -630,6 +673,12 @@ function actionA() {
     return;
   }
   if (m === 'shortcuts') { safeClick(document.getElementById('shortcuts-overlay')); return; }
+  if (m === 'dev') {
+    if (S.devEls.length === 0) buildDevEls();
+    const el = S.devEls[S.devIdx];
+    if (el) safeClick(el);
+    return;
+  }
 
   // 非 overlay 模式按 zone 分发
   if (S.zone === 'sidebar') { safeClick(S.sidebarEls[S.sidebarIdx]); return; }
@@ -653,6 +702,7 @@ function actionB() {
   // overlay 模式优先
   if (m === 'settings')  { document.getElementById('settings-panel')?.classList.remove('settings-panel--open'); return; }
   if (m === 'shortcuts') { safeClick(document.getElementById('shortcuts-overlay')); return; }
+  if (m === 'dev')       { window.__lensToggleDev?.(); return; }
   if (m === 'lightbox')  { safeClick(document.querySelector('.lightbox__close')); return; }
   if (m === 'slideshow') { safeClick(document.getElementById('sl-exit')); return; }
 
@@ -819,24 +869,22 @@ function refreshHints() {
   if (lbActive) {
     const lb = document.getElementById('lightbox');
     if (!lb) return;
+    // LB/RB 固定定位按钮提示
     lb.insertAdjacentHTML('beforeend',
       `<span class="gp-hint gp-hint--lb-fixed"><img src="/assets/icons/btn-lb.svg"><span>上一张</span></span>` +
       `<span class="gp-hint gp-hint--rb-fixed"><img src="/assets/icons/btn-rb.svg"><span>下一张</span></span>`
     );
-    // 全部提示统一放在内容区下面（block 布局，自然换行）
-    const content = lb.querySelector('.lightbox__content');
-    if (content) {
-      const hintRow = document.createElement('div');
-      hintRow.className = 'gp-stick-row';
-      hintRow.innerHTML =
-        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-lt.svg"><span>-1星</span></span>' +
-        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rt.svg"><span>+1星</span></span>' +
-        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-x.svg"><span>收藏</span></span>' +
-        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-ls.svg"><span>移动</span></span>' +
-        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs.svg"><span>缩放</span></span>' +
-        '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs-press.svg"><span>复位</span></span>';
-      content.appendChild(hintRow);
-    }
+    // 加减星等操作提示 — 固定在窗口左下角
+    const hintRow = document.createElement('div');
+    hintRow.className = 'gp-stick-row';
+    hintRow.innerHTML =
+      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-lt.svg"><span>-1星</span></span>' +
+      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rt.svg"><span>+1星</span></span>' +
+      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-x.svg"><span>收藏</span></span>' +
+      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-ls.svg"><span>移动</span></span>' +
+      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs.svg"><span>缩放</span></span>' +
+      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs-press.svg"><span>复位</span></span>';
+    document.body.appendChild(hintRow);
   }
 
   // ── Slideshow ──
@@ -873,11 +921,6 @@ function refreshHints() {
     }
   }
 }
-
-// ── LENS Logo 随动追踪（照搬 main.js trackLogo 的 rAF 逻辑）──
-
-function gpTrackLogoStart() { window.__lensStartLogo?.(); }
-function gpTrackLogoStop(reset) { if (reset) window.__lensStopLogo?.(); }
 
 // ── Debounce (rising-edge trigger) ──
 
@@ -938,9 +981,14 @@ function poll() {
 
       S.mode = mode;
 
-      // settings 进入/退出时管理元素列表
+      // settings 进入/退出时管理元素列表（仅手柄模式应用焦点）
       if (mode === 'settings') {
-        buildSettingsEls(); S.settingsIdx = 0; applySettingsFocus();
+        buildSettingsEls(); S.settingsIdx = 0;
+        if (S.input === 'gamepad') applySettingsFocus();
+      }
+      if (mode === 'dev') {
+        buildDevEls(); S.devIdx = 0; S.devNavIdx = 0;
+        if (S.input === 'gamepad') applyDevFocus();
       }
       if (wasOverlay && !isOverlay) {
         // 退出叠加模式：恢复位置
@@ -962,19 +1010,44 @@ function poll() {
       }
 
       if (!isOverlay && S.zone === 'grid') {
-        buildGridEls(); clampGridIdx(); applyGridFocus();
+        buildGridEls(); clampGridIdx();
+        // 仅手柄模式应用视觉焦点（鼠标模式下 mode 变化不应显示金边）
+        if (S.input === 'gamepad' && S._focusApplied) applyGridFocus();
       }
       refreshHints(); // 模式切换时更新肩键提示
     }
 
-    // ── mouse → gamepad detection ──
+    // ── mouse → gamepad detection（持续确认 + 冷却期） ──
     if (S.input === 'mouse') {
-      const hasInput = Math.abs(lx) > DEAD_ZONE || Math.abs(ly) > DEAD_ZONE
-        || active.buttons.some(b => b?.pressed);
-      if (hasInput) {
+      const inCooldown = performance.now() < S._gpCooldownUntil;
+      const anyButton = active.buttons.some(b => b?.pressed);
+      const stickActive = Math.abs(lx) > DEAD_ZONE || Math.abs(ly) > DEAD_ZONE;
+
+      // 按钮按下 = 明确用户意图，立即中断冷却并切换
+      if (anyButton) {
+        S._gpCooldownUntil = 0; // 取消冷却
         setInput('gamepad');
+        S._gpConfirmCount = 0;
         // Fall through to process this frame
+      } else if (inCooldown) {
+        // 冷却期内无按钮：忽略摇杆输入（防鼠标移动后立即被摇杆噪声切回）
+        S._gpConfirmCount = 0;
+        S.raf = requestAnimationFrame(poll);
+        return;
+      } else if (stickActive) {
+        // 冷却期外摇杆：累加确认帧
+        S._gpConfirmCount++;
+        if (S._gpConfirmCount >= GP_CONFIRM_FRAMES) {
+          setInput('gamepad');
+          S._gpConfirmCount = 0;
+          // Fall through to process this frame
+        } else {
+          S.raf = requestAnimationFrame(poll);
+          return;
+        }
       } else {
+        // 无输入：衰减计数
+        S._gpConfirmCount = Math.max(0, S._gpConfirmCount - 2);
         S.raf = requestAnimationFrame(poll);
         return;
       }
@@ -982,71 +1055,87 @@ function poll() {
 
     // ── Navigation (only in non-overlay modes) ──
     if (!isOverlay) {
-      // 上升沿方向检测 (D-pad + 左摇杆)
-      const rawX = (active.buttons[map.LEFT]?.pressed ? -1 : 0)
-                 + (active.buttons[map.RIGHT]?.pressed ? 1 : 0)
-                 + (lx < -DPAD_THRESHOLD ? -1 : 0)
-                 + (lx > DPAD_THRESHOLD ? 1 : 0);
-      const rawY = (active.buttons[map.UP]?.pressed ? -1 : 0)
-                 + (active.buttons[map.DOWN]?.pressed ? 1 : 0)
-                 + (ly < -DPAD_THRESHOLD ? -1 : 0)
-                 + (ly > DPAD_THRESHOLD ? 1 : 0);
-
-      const dx = (Math.abs(lx) < DEAD_ZONE
-        && !active.buttons[map.LEFT]?.pressed
-        && !active.buttons[map.RIGHT]?.pressed) ? 0 : rawX;
-      const dy = (Math.abs(ly) < DEAD_ZONE
-        && !active.buttons[map.UP]?.pressed
-        && !active.buttons[map.DOWN]?.pressed) ? 0 : rawY;
-
-      // ── 下拉菜单拦截 ──
-      const openMenu = document.querySelector('.custom-dropdown__menu--open');
-      if (openMenu) {
-        const opts = openMenu.querySelectorAll('.custom-dropdown__option');
-        // 上升沿：按一次移动一次（和正常导航一致）
-        if (dy < 0 && S.prevDY >= 0 && opts.length > 0) {
-          const cur = openMenu.querySelector('.custom-dropdown__option.hero--focused') || openMenu.querySelector('.custom-dropdown__option--sel');
-          let oi = Array.from(opts).indexOf(cur);
-          if (oi < 0) oi = 0;
-          oi = Math.max(0, oi - 1);
-          opts.forEach(o => o.classList.remove('hero--focused'));
-          opts[oi].classList.add('hero--focused');
+      // 延迟焦点：首次方向输入时应用视觉焦点（避免误触发时闪现金边）
+      if (!S._focusApplied) {
+        const hasDir = (active.buttons[map.UP]?.pressed || active.buttons[map.DOWN]?.pressed
+                     || active.buttons[map.LEFT]?.pressed || active.buttons[map.RIGHT]?.pressed
+                     || Math.abs(lx) > DPAD_THRESHOLD || Math.abs(ly) > DPAD_THRESHOLD);
+        if (hasDir) {
+          S._focusApplied = true;
+          S.prevDX = 0; S.prevDY = 0; // 重置上升沿，防止下帧误导航
+          if (S.zone === 'grid') applyGridFocus();
+          else if (S.zone === 'sidebar') applySidebarFocus();
+          else if (S.zone === 'hero') applyHeroFocus();
+          else if (S.zone === 'toolbar') applyToolbarFocus();
         }
-        if (dy > 0 && S.prevDY <= 0 && opts.length > 0) {
-          const cur = openMenu.querySelector('.custom-dropdown__option.hero--focused') || openMenu.querySelector('.custom-dropdown__option--sel');
-          let oi = Array.from(opts).indexOf(cur);
-          if (oi < 0) oi = 0;
-          oi = Math.min(opts.length - 1, oi + 1);
-          opts.forEach(o => o.classList.remove('hero--focused'));
-          opts[oi].classList.add('hero--focused');
-        }
-        // LEFT/RIGHT 关闭菜单回 hero
-        if ((dx < 0 && S.prevDX >= 0) || (dx > 0 && S.prevDX <= 0)) {
-          openMenu.classList.remove('custom-dropdown__menu--open');
-          document.querySelector('.custom-dropdown__trigger--open')?.classList.remove('custom-dropdown__trigger--open');
-          if (dx < 0) S.heroIdx = Math.max(0, S.heroIdx - 1);
-          if (dx > 0) S.heroIdx = Math.min(S.heroEls.length - 1, S.heroIdx + 1);
-          applyHeroFocus();
-        }
-      } else {
-        if (dx < 0 && S.prevDX >= 0) navigate('left');
-        if (dx > 0 && S.prevDX <= 0) navigate('right');
-        if (dy < 0 && S.prevDY >= 0) navigate('up');
-        if (dy > 0 && S.prevDY <= 0) navigate('down');
+        // 不 return：跳过导航但允许按钮处理继续
       }
-      S.prevDX = dx;
-      S.prevDY = dy;
 
-      // ── Float (摇杆微动，仅 grid/hero/sidebar) ──
-      const dpadX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
-      const dpadY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0);
-      const floatX = Math.abs(lx) > 0.08 ? lx : dpadX;
-      const floatY = Math.abs(ly) > 0.08 ? ly : dpadY;
+      if (S._focusApplied) {
+        // 上升沿方向检测 (D-pad + 左摇杆)
+        const rawX = (active.buttons[map.LEFT]?.pressed ? -1 : 0)
+                   + (active.buttons[map.RIGHT]?.pressed ? 1 : 0)
+                   + (lx < -DPAD_THRESHOLD ? -1 : 0)
+                   + (lx > DPAD_THRESHOLD ? 1 : 0);
+        const rawY = (active.buttons[map.UP]?.pressed ? -1 : 0)
+                   + (active.buttons[map.DOWN]?.pressed ? 1 : 0)
+                   + (ly < -DPAD_THRESHOLD ? -1 : 0)
+                   + (ly > DPAD_THRESHOLD ? 1 : 0);
 
-      if (Math.abs(floatX) > 0.08 || Math.abs(floatY) > 0.08) {
-        applyFloat(floatX, floatY);
-      } else if (S.floatCard) {
-        releaseFloat();
+        const dx = (Math.abs(lx) < DEAD_ZONE
+          && !active.buttons[map.LEFT]?.pressed
+          && !active.buttons[map.RIGHT]?.pressed) ? 0 : rawX;
+        const dy = (Math.abs(ly) < DEAD_ZONE
+          && !active.buttons[map.UP]?.pressed
+          && !active.buttons[map.DOWN]?.pressed) ? 0 : rawY;
+
+        // ── 下拉菜单拦截 ──
+        const openMenu = document.querySelector('.custom-dropdown__menu--open');
+        if (openMenu) {
+          const opts = openMenu.querySelectorAll('.custom-dropdown__option');
+          if (dy < 0 && S.prevDY >= 0 && opts.length > 0) {
+            const cur = openMenu.querySelector('.custom-dropdown__option.hero--focused') || openMenu.querySelector('.custom-dropdown__option--sel');
+            let oi = Array.from(opts).indexOf(cur);
+            if (oi < 0) oi = 0;
+            oi = Math.max(0, oi - 1);
+            opts.forEach(o => o.classList.remove('hero--focused'));
+            opts[oi].classList.add('hero--focused');
+          }
+          if (dy > 0 && S.prevDY <= 0 && opts.length > 0) {
+            const cur = openMenu.querySelector('.custom-dropdown__option.hero--focused') || openMenu.querySelector('.custom-dropdown__option--sel');
+            let oi = Array.from(opts).indexOf(cur);
+            if (oi < 0) oi = 0;
+            oi = Math.min(opts.length - 1, oi + 1);
+            opts.forEach(o => o.classList.remove('hero--focused'));
+            opts[oi].classList.add('hero--focused');
+          }
+          if ((dx < 0 && S.prevDX >= 0) || (dx > 0 && S.prevDX <= 0)) {
+            openMenu.classList.remove('custom-dropdown__menu--open');
+            document.querySelector('.custom-dropdown__trigger--open')?.classList.remove('custom-dropdown__trigger--open');
+            if (dx < 0) S.heroIdx = Math.max(0, S.heroIdx - 1);
+            if (dx > 0) S.heroIdx = Math.min(S.heroEls.length - 1, S.heroIdx + 1);
+            applyHeroFocus();
+          }
+        } else {
+          if (dx < 0 && S.prevDX >= 0) navigate('left');
+          if (dx > 0 && S.prevDX <= 0) navigate('right');
+          if (dy < 0 && S.prevDY >= 0) navigate('up');
+          if (dy > 0 && S.prevDY <= 0) navigate('down');
+        }
+        S.prevDX = dx;
+        S.prevDY = dy;
+
+        // ── Float (摇杆微动，仅 grid/hero/sidebar) ──
+        const dpadX = (active.buttons[map.LEFT]?.pressed ? -1 : 0) + (active.buttons[map.RIGHT]?.pressed ? 1 : 0);
+        const dpadY = (active.buttons[map.UP]?.pressed ? -1 : 0) + (active.buttons[map.DOWN]?.pressed ? 1 : 0);
+        const floatX = Math.abs(lx) > 0.08 ? lx : dpadX;
+        const floatY = Math.abs(ly) > 0.08 ? ly : dpadY;
+
+        if (Math.abs(floatX) > 0.08 || Math.abs(floatY) > 0.08) {
+          applyFloat(floatX, floatY);
+        } else if (S.floatCard) {
+          releaseFloat();
+        }
       }
     } else if (mode === 'settings') {
       // ── Settings overlay ──
@@ -1093,6 +1182,57 @@ function poll() {
         }
         S.prevDX = sdx;
       }
+    } else if (mode === 'dev') {
+      // ── Dev panel overlay ──
+      // 检测 tab 切换（group 变化）→ 重建元素列表
+      const curGroup = document.querySelector('.dev-nav__tab--active')?.dataset.group;
+      if (curGroup && curGroup !== S._devGroupCache) {
+        S._devGroupCache = curGroup;
+        buildDevEls(); S.devIdx = 0;
+      }
+      if (S.devEls.length === 0) { buildDevEls(); S.devIdx = 0; S.devNavIdx = 0; }
+
+      const rawSY = (active.buttons[map.UP]?.pressed ? -1 : 0)
+                  + (active.buttons[map.DOWN]?.pressed ? 1 : 0)
+                  + (ly < -DPAD_THRESHOLD ? -1 : 0)
+                  + (ly > DPAD_THRESHOLD ? 1 : 0);
+      const sdy = (Math.abs(ly) < DEAD_ZONE
+        && !active.buttons[map.UP]?.pressed
+        && !active.buttons[map.DOWN]?.pressed) ? 0 : rawSY;
+
+      if (sdy < 0 && S.prevDY >= 0) {
+        S.devIdx = Math.max(0, S.devIdx - 1);
+        applyDevFocus();
+      }
+      if (sdy > 0 && S.prevDY <= 0) {
+        S.devIdx = Math.min(S.devEls.length - 1, S.devIdx + 1);
+        applyDevFocus();
+      }
+      S.prevDY = sdy;
+
+      // LEFT/RIGHT 在 nav tab 和 content 间切换焦点
+      const rawSX = (active.buttons[map.LEFT]?.pressed ? -1 : 0)
+                  + (active.buttons[map.RIGHT]?.pressed ? 1 : 0)
+                  + (lx < -DPAD_THRESHOLD ? -1 : 0)
+                  + (lx > DPAD_THRESHOLD ? 1 : 0);
+      const sdx = (Math.abs(lx) < DEAD_ZONE
+        && !active.buttons[map.LEFT]?.pressed
+        && !active.buttons[map.RIGHT]?.pressed) ? 0 : rawSX;
+
+      if (sdx !== 0 && Math.abs(sdx) > 0) {
+        // 在 nav tab（前 4 个）和内容控件间跳转
+        const navCount = document.querySelectorAll('#dev-nav .dev-nav__tab').length;
+        if (S.devIdx < navCount && sdx > 0) {
+          // 从 nav 跳到第一个内容控件
+          if (navCount < S.devEls.length) S.devIdx = navCount;
+          applyDevFocus();
+        } else if (S.devIdx >= navCount && sdx < 0) {
+          // 从内容跳回 nav
+          S.devIdx = Math.min(navCount - 1, S.devEls.length - 1);
+          applyDevFocus();
+        }
+      }
+      S.prevDX = sdx;
     }
 
     // ── Buttons (always processed, regardless of overlay) ──
@@ -1106,8 +1246,19 @@ function poll() {
     btnRT(active.buttons[map.RT]?.pressed);
     btnLS(active.buttons[map.LS]?.pressed);
     btnRS(active.buttons[map.RS]?.pressed);
-    btnStart(active.buttons[map.START]?.pressed);
-    btnBack(active.buttons[map.BACK]?.pressed);
+    // START+BACK — 手动上升沿检测（带组合键支持）
+    // 不使用 debounce，因为组合键需要同步两个按钮状态
+    const startHeld = active.buttons[map.START]?.pressed;
+    const backHeld = active.buttons[map.BACK]?.pressed;
+    if (startHeld && backHeld) {
+      if (!S._comboFired) { window.__lensToggleDev?.(); S._comboFired = true; }
+    } else {
+      S._comboFired = false;
+      if (startHeld && !S._startWasHeld) actionStart();
+      if (backHeld && !S._backWasHeld) actionBack();
+    }
+    S._startWasHeld = startHeld;
+    S._backWasHeld = backHeld;
     // D-pad LEFT/RIGHT 在 lightbox/slideshow 中翻页
     btnDpadL(active.buttons[map.LEFT]?.pressed);
     btnDpadR(active.buttons[map.RIGHT]?.pressed);
@@ -1187,11 +1338,9 @@ export function destroyGamepad() {
   clearGlow();
   if (S.glow.el) { S.glow.el.remove(); S.glow.el = null; }
   releaseFloat();
-  gpTrackLogoStop(true);
 
   // Clear sidebar state
-  const sidebar = document.getElementById('sidebar');
-  sidebar?.classList.remove('sidebar--open', 'sidebar--peek');
+  sf()?.classList.remove('sidebar--open', 'sidebar--peek');
 
   // Clear focus classes
   document.body.classList.remove('gamepad-active');
@@ -1202,11 +1351,16 @@ export function destroyGamepad() {
   // Reset all state
   S.input = 'mouse'; S.mode = 'browse'; S.zone = 'grid';
   S.gridIdx = 0; S.heroIdx = 0; S.sidebarIdx = 0; S.toolbarIdx = 0; S.settingsIdx = 0; S.settingsDensityIdx = 0;
-  S.gridEls = []; S.heroEls = []; S.sidebarEls = []; S.toolbarEls = []; S.settingsEls = [];
+  S.devIdx = 0; S.devNavIdx = 0;
+  S.gridEls = []; S.heroEls = []; S.sidebarEls = []; S.toolbarEls = []; S.settingsEls = []; S.devEls = [];
+  S._comboFired = false; S._startWasHeld = false; S._backWasHeld = false;
+  S._devGroupCache = null;
+  S._gpConfirmCount = 0; S._gpCooldownUntil = 0; S._focusApplied = false;
   S.save = { zone: null, mode: null, gridIdx: 0, heroIdx: 0 };
   S.ovSave = { mode: null, gridIdx: 0 };
   S.anchor = { x: 0, y: 0 };
   S.prevDX = 0; S.prevDY = 0;
   S.clicking = false;
+  S.floatCard = null;
   _savedBrowseIdx = 0;
 }

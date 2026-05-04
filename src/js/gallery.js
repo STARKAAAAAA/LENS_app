@@ -5,18 +5,6 @@ import { loadRatings } from './lightbox.js';
 
 // ========== 分类卡片 ==========
 
-// getCategoryAvgRating(cat, { data, loadRatings })
-export function getCategoryAvgRating(cat, data) {
-  const ratings = loadRatings();
-  const photos = data.byCategory[cat] || [];
-  let sum = 0, count = 0;
-  photos.forEach(p => {
-    const r = ratings[p.path];
-    if (r && r.stars > 0) { sum += r.stars; count++; }
-  });
-  return count > 0 ? Math.round(sum / count) : 0;
-}
-
 // buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOpenCategory })
 export function buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOpenCategory }) {
   categoriesEl.innerHTML = '';
@@ -377,36 +365,44 @@ export async function openCategory(cat, ctx) {
   if (state.categoryTransitioning) return;
   state.categoryTransitioning = true;
 
-  categoriesEl.classList.add('categories--out');
-  await new Promise(r => setTimeout(r, 350));
+  try {
+    categoriesEl.classList.add('categories--out');
+    await new Promise(r => setTimeout(r, 350));
 
-  const currentPhotos = data.byCategory[cat] || [];
-  setCategory(cat, currentPhotos);
-  sectionTitle.textContent = cat;
-  categoriesEl.style.display = 'none';
-  categoriesEl.classList.remove('categories--out');
+    const currentPhotos = data.byCategory[cat] || [];
+    setCategory(cat, currentPhotos);
+    sectionTitle.textContent = cat;
+    categoriesEl.style.display = 'none';
+    categoriesEl.classList.remove('categories--out');
 
-  rebuildHero(currentPhotos);
+    rebuildHero(currentPhotos);
 
-  // 排序、筛选并渲染
-  const photos = getSortedFilteredPhotos();
-  buildGalleryGridDOM(photos);
-  renderGalleryDropdowns();
+    // 排序、筛选并渲染
+    const photos = getSortedFilteredPhotos();
+    buildGalleryGridDOM(photos);
+    renderGalleryDropdowns();
 
-  // 预加载全部图片，完成后才显示
-  await showLoadingScreen(`加载中... 0 / ${photos.length}`);
-  const imgs = galleryGrid.querySelectorAll('img');
-  await preloadImages(Array.from(imgs), (n, t) => {
-    updateLoadingScreen(`加载中... ${n} / ${t}`);
-  });
-  hideLoadingScreen();
+    // 预加载全部图片，完成后才显示
+    await showLoadingScreen(`加载中... 0 / ${photos.length}`);
+    const imgs = galleryGrid.querySelectorAll('img');
+    await preloadImages(Array.from(imgs), (n, t) => {
+      updateLoadingScreen(`加载中... ${n} / ${t}`);
+    });
+    hideLoadingScreen();
 
-  galleryEl.classList.remove('gallery--out');
-  galleryEl.style.display = 'block';
+    galleryEl.classList.remove('gallery--out');
+    galleryEl.style.display = 'block';
 
-  state.categoryTransitioning = false;
-  const galleryRect = galleryEl.getBoundingClientRect();
-  window.scrollTo({ top: window.scrollY + galleryRect.top - 40, behavior: 'smooth' });
+    const galleryRect = galleryEl.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + galleryRect.top - 40, behavior: 'smooth' });
+  } catch (err) {
+    console.error('打开分类失败:', cat, err);
+    hideLoadingScreen();
+    categoriesEl.style.display = '';
+    categoriesEl.classList.remove('categories--out');
+  } finally {
+    state.categoryTransitioning = false;
+  }
 }
 
 // ========== Apple TV-style 3D card tilt & shine ==========

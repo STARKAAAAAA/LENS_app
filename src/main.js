@@ -13,6 +13,7 @@ import { buildCategoryCardsDOM, buildGalleryGridDOM, renderGalleryDropdowns, ref
 import { initLightbox, initSlideshow, loadRatings } from './js/lightbox.js';
 import { initSettingsPanel, initShortcutsPanel } from './js/panels.js';
 import { initGamepad } from './js/gamepad.js';
+import { initDevPanel } from './js/dev-panel.js';
 
 // ===== App =====
 document.addEventListener('DOMContentLoaded', async () => {
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sectionTitle = document.getElementById('section-title');
   const sidebarList = document.getElementById('sidebar-list');
   const sidebar = document.getElementById('sidebar');
+  const sidebarFrame = document.getElementById('sidebar-frame');
   const sidebarTrigger = document.getElementById('sidebar-trigger');
 
   initTitlebar();
@@ -53,60 +55,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---- Sidebar interaction (stays in main.js) ----
   let sidebarClicked = false;
 
-  // 全局 logo 追踪（单一 rAF，鼠标和手柄共用）
-  let _logoTrackRaf = null;
-  function startLogoTrack() {
-    if (_logoTrackRaf) return;
-    function track() {
-      const logo = document.getElementById('corner-logo');
-      const glow = document.getElementById('lens-glow');
-      const sr = sidebar.getBoundingClientRect();
-      const open = sidebar.classList.contains('sidebar--open') && sr.right > 20;
-      if (!open || !logo) { _logoTrackRaf = null; logo && (logo.style.left = '28px'); glow && (glow.style.left = '6px'); return; }
-      const delta = sr.right + 10 - 28;
-      logo.style.left = (28 + delta) + 'px';
-      if (glow) glow.style.left = (6 + delta) + 'px';
-      _logoTrackRaf = requestAnimationFrame(track);
-    }
-    _logoTrackRaf = requestAnimationFrame(track);
-  }
-  function stopLogoTrack() {
-    if (_logoTrackRaf) { cancelAnimationFrame(_logoTrackRaf); _logoTrackRaf = null; }
-    const logo = document.getElementById('corner-logo');
-    const glow = document.getElementById('lens-glow');
-    if (logo) { logo.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)'; logo.style.left = '28px'; }
-    if (glow) { glow.style.transition = 'left 0.5s cubic-bezier(0.16,1,0.3,1)'; glow.style.left = '6px'; }
-  }
-  window.__lensStartLogo = startLogoTrack;
-  window.__lensStopLogo = stopLogoTrack;
-
-  // 侧边栏打开/关闭时自动启动/停止追踪
-  new MutationObserver(() => {
-    if (sidebar.classList.contains('sidebar--open')) startLogoTrack();
-    else stopLogoTrack();
-  }).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-
   function peekSidebar() {
     clearTimeout(sidebarHideTimer);
-    if (!sidebarClicked) { sidebar.classList.add('sidebar--peek'); sidebarTrigger.style.pointerEvents = 'none'; }
+    if (!sidebarClicked) { sidebarFrame.classList.add('sidebar--peek'); sidebarTrigger.style.pointerEvents = 'none'; }
   }
   function openSidebar() {
     clearTimeout(sidebarHideTimer);
     sidebarClicked = true;
-    sidebar.classList.add('sidebar--open'); sidebar.classList.remove('sidebar--peek');
+    sidebarFrame.classList.add('sidebar--open'); sidebarFrame.classList.remove('sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'none';
   }
   function hideSidebarNow() {
     clearTimeout(sidebarHideTimer);
     sidebarClicked = false;
-    sidebar.classList.remove('sidebar--open', 'sidebar--peek');
+    sidebarFrame.classList.remove('sidebar--open', 'sidebar--peek');
     sidebarTrigger.style.pointerEvents = 'auto';
   }
   function hideSidebar() {
     sidebarHideTimer = setTimeout(() => {
       if (!sidebar.matches(':hover')) {
         sidebarClicked = false;
-        sidebar.classList.remove('sidebar--open', 'sidebar--peek');
+        sidebarFrame.classList.remove('sidebar--open', 'sidebar--peek');
         sidebarTrigger.style.pointerEvents = 'auto';
       }
     }, 500);
@@ -122,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   sidebarTrigger.addEventListener('mouseleave', () => {
     if (!sidebarClicked) {
       sidebarHideTimer = setTimeout(() => {
-        if (!sidebar.matches(':hover')) { sidebar.classList.remove('sidebar--peek'); sidebarTrigger.style.pointerEvents = 'auto'; }
+        if (!sidebar.matches(':hover')) { sidebarFrame.classList.remove('sidebar--peek'); sidebarTrigger.style.pointerEvents = 'auto'; }
       }, 200);
     }
   });
@@ -426,6 +395,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initScrollReveal();
   initCardTilt();
   initGamepad();
+  initDevPanel();
   updateCacheDisplay();
 
   // ---- UI visibility after startup ----

@@ -28,6 +28,8 @@
   <!-- ====== 侧边栏触发区 ====== -->
   <div class="sidebar-trigger" id="sidebar-trigger"></div>
 
+  <!-- ====== 侧边栏外层容器（transform 在此，logo 挂此） ====== -->
+  <div class="sidebar-frame" id="sidebar-frame">
   <!-- ====== 侧边栏 (Finder 风格, 悬浮圆角) ====== -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar__header">
@@ -44,6 +46,7 @@
       <span>添加文件夹</span>
     </div>
   </aside>
+  </div><!-- /sidebar-frame -->
 
   <!-- ====== 主内容区 ====== -->
   <div class="main-area">
@@ -87,7 +90,7 @@
     <button class="lightbox__prev">‹</button>
     <button class="lightbox__next">›</button>
     <div class="lightbox__content">
-      <img class="lightbox__img" src="" alt="">
+      <img class="lightbox__img" alt="">
       <div class="lightbox__title"></div>
       <div class="lightbox__counter"></div>
       <div class="lightbox__rating" id="lightbox-rating">
@@ -123,7 +126,7 @@
   <!-- ====== 幻灯片 ====== -->
   <div class="slideshow" id="slideshow">
     <div class="slideshow__img-wrap">
-      <img class="slideshow__img" id="slideshow-img" src="" alt="">
+      <img class="slideshow__img" id="slideshow-img" alt="">
     </div>
     <div class="slideshow__controls" id="slideshow-controls">
       <span class="slideshow__counter" id="slideshow-counter"></span>
@@ -211,6 +214,8 @@
           <div class="shortcuts__row"><kbd>双击</kbd><span>放大 / 还原</span></div>
           <div class="shortcuts__row"><kbd>拖拽</kbd><span>平移图片</span></div>
         </div>
+        <div class="shortcuts__divider"></div>
+        <div class="shortcuts__row"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>D</kbd><span>开发者面板</span></div>
       </div>
       <div class="shortcuts__section shortcuts__section--gamepad">
         <h3 class="shortcuts__title">手柄</h3>
@@ -230,8 +235,31 @@
           <div class="shortcuts__row"><img src="./assets/icons/btn-start.svg" class="gp-icon" alt="START"><span>设置</span></div>
           <div class="shortcuts__row"><img src="./assets/icons/btn-back.svg" class="gp-icon" alt="BACK"><span>快捷键面板</span></div>
         </div>
+        <div class="shortcuts__divider"></div>
+        <div class="shortcuts__grid">
+          <div class="shortcuts__row"><img src="./assets/icons/btn-start.svg" class="gp-icon" alt="START"><img src="./assets/icons/btn-back.svg" class="gp-icon" alt="BACK"><span>开发者面板</span></div>
+        </div>
       </div>
-      <p class="shortcuts__hint">按  B 或 Esc 关闭</p>
+      <p class="shortcuts__hint">按 B 或 Esc 关闭</p>
+    </div>
+  </div>
+
+  <!-- ====== 开发者面板 ====== -->
+  <div class="dev-overlay" id="dev-overlay">
+    <div class="dev-panel" id="dev-panel">
+      <button class="dev-panel__close" id="dev-panel-close" aria-label="关闭开发者面板">&#x2715;</button>
+      <nav class="dev-nav" id="dev-nav">
+        <button class="dev-nav__tab dev-nav__tab--active" data-group="visual"><span class="dev-nav__icon">&#x1F3A8;</span>视觉</button>
+        <button class="dev-nav__tab" data-group="perf"><span class="dev-nav__icon">&#x1F4CA;</span>性能</button>
+        <button class="dev-nav__tab" data-group="gamepad"><span class="dev-nav__icon">&#x1F3AE;</span>手柄</button>
+        <button class="dev-nav__tab" data-group="presets"><span class="dev-nav__icon">&#x1F4BE;</span>预设</button>
+      </nav>
+      <div class="dev-content" id="dev-content">
+        <div class="dev-group dev-group--active" id="dev-group-visual"></div>
+        <div class="dev-group" id="dev-group-perf"></div>
+        <div class="dev-group" id="dev-group-gamepad"></div>
+        <div class="dev-group" id="dev-group-presets"></div>
+      </div>
     </div>
   </div>
 

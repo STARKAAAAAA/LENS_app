@@ -3,7 +3,7 @@
   src: url('../assets/fonts/Aldrich.ttf');
   font-weight: 400;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 /* 备选：Windows 自带类似 Xbox 的粗几何字体 */
 @font-face {
