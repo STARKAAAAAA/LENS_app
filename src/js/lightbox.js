@@ -160,6 +160,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     lbTitle.textContent = item.dataset.title;
     lbCounter.textContent = `${idx + 1} / ${items.length}`;
     lightbox.classList.add('active');
+    window.__lensOverflowLock = (window.__lensOverflowLock || 0) + 1;
     document.body.style.overflow = 'hidden';
     loadLightboxExif(item.dataset.path);
     updateRatingUI(item.dataset.path);
@@ -167,7 +168,8 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
   }
   function close() {
     lightbox.classList.remove('active');
-    document.body.style.overflow = '';
+    window.__lensOverflowLock = Math.max(0, (window.__lensOverflowLock || 0) - 1);
+    if (window.__lensOverflowLock === 0) document.body.style.overflow = '';
     resetZoom();
     lbImg.style.opacity = '';
     lbImg.src = '';

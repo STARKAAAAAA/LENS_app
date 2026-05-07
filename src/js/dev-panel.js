@@ -3,6 +3,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 
 // dev panel 使用独立的预设系统，不依赖 toggles.js
 
@@ -10,7 +11,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 const D = {
   open: false,
   closing: false,
-  activeGroup: 'visual',
+  activeGroup: 'presets',
   fpsRaf: null, fpsHistory: [], fpsLastTime: 0,
   consoleBuffer: [],
   consoleOrig: { log: null, warn: null, error: null, debug: null },
@@ -21,6 +22,9 @@ const D = {
   _closeOnEnd: null,
   gpEventLog: [],
   invokeLog: [],
+  perfToggles: { fps: true, metrics: true, invoke: true, console: true },
+  _previewAnimRaf: null,
+  _previewAnimStart: 0,
 };
 const CONSOLE_MAX = 200;
 const FPS_MAX = 60;
@@ -30,6 +34,7 @@ const INVOKE_MAX = 50;
 // localStorage keys
 const PRESETS_KEY = 'lens-dev-presets';
 const ACTIVE_PRESET_KEY = 'lens-dev-active-preset';
+const SESSION_KEY = 'lens-dev-session-vars';
 
 // CSS 变量快照键
 const CSS_VAR_KEYS = [
@@ -37,7 +42,16 @@ const CSS_VAR_KEYS = [
   '--glass-bg','--glass-border','--glass-bg-hover','--glass-border-bright',
   '--radius','--radius-sm','--radius-pill',
   '--thumb-card-size','--font-scale','--anim-speed','--glass-blur',
-  '--font-display','--font-body','--ease-out','--ease-spring',
+  '--font-display','--font-body','--font-weight-display','--font-weight-body',
+  '--letter-spacing-display','--letter-spacing-body',
+  '--font-scale-heading','--line-spacing',
+  '--section-gap','--gap-scale','--card-bg','--card-hover-bg','--card-shadow','--shadow-depth',
+  '--loading-color','--loading-color-dim','--loading-color-soft',
+  '--ease-out','--ease-spring',
+  '--hero-grad-top','--hero-grad-mid','--hero-grad-bot',
+  '--corner-logo-color',
+  '--hero-subtitle-color','--hero-line-color',
+  '--dev-panel-bg',
 ];
 
 // CSS 变量默认值（init 时从 :root 捕获）
@@ -49,13 +63,22 @@ const BUILTIN_PRESETS = [
     id: '__default__', name: '默认', builtin: true,
     vars: {
       '--accent':'#c8a87c','--bg':'#0a0a08','--bg-deep':'#060605',
-      '--text':'#e8e4e0','--text-2':'#9a948e','--text-3':'#8a8580',
+      '--text':'#e8e4e0','--text-2':'#9a948e','--text-3':'#5a5450',
       '--glass-bg':'rgba(220,200,180,0.06)','--glass-border':'rgba(220,200,180,0.10)',
       '--glass-bg-hover':'rgba(220,200,180,0.12)','--glass-border-bright':'rgba(220,200,180,0.20)',
       '--radius':'20px','--radius-sm':'14px','--radius-pill':'100px',
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0.05em','--letter-spacing-body':'0.04em',
+      '--loading-color':'rgba(220,200,180,0.55)','--loading-color-dim':'rgba(220,200,180,0.40)','--loading-color-soft':'rgba(220,200,180,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.7',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(220,200,180,0.015)','--card-hover-bg':'rgba(220,200,180,0.06)',
+      '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
+      '--hero-grad-top':'rgba(255,245,235,1)','--hero-grad-mid':'rgba(220,200,175,0.85)','--hero-grad-bot':'rgba(180,155,130,0.25)',
+      '--corner-logo-color':'rgba(220,200,175,0.85)','--hero-subtitle-color':'rgba(220,200,180,0.3)','--hero-line-color':'rgba(220,200,180,0.35)',
     },
   },
   {
@@ -68,7 +91,14 @@ const BUILTIN_PRESETS = [
       '--radius':'20px','--radius-sm':'14px','--radius-pill':'100px',
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em',
+      '--loading-color':'rgba(240,200,140,0.55)','--loading-color-dim':'rgba(240,200,140,0.40)','--loading-color-soft':'rgba(240,200,140,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.7',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(240,200,140,0.015)','--card-hover-bg':'rgba(240,200,140,0.06)',
+      '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
     },
   },
   {
@@ -81,7 +111,14 @@ const BUILTIN_PRESETS = [
       '--radius':'18px','--radius-sm':'12px','--radius-pill':'100px',
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em',
+      '--loading-color':'rgba(180,190,210,0.55)','--loading-color-dim':'rgba(180,190,210,0.40)','--loading-color-soft':'rgba(180,190,210,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.7',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(180,190,210,0.015)','--card-hover-bg':'rgba(180,190,210,0.06)',
+      '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
     },
   },
   {
@@ -95,9 +132,227 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'360px','--font-scale':'1.1','--anim-speed':'0.5','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-weight-display':'400','--font-weight-body':'400',
+      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.05em',
+      '--loading-color':'rgba(255,255,255,0.55)','--loading-color-dim':'rgba(255,255,255,0.40)','--loading-color-soft':'rgba(255,255,255,0.45)',
+      '--font-scale-heading':'1','--line-spacing':'1.7',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(220,200,180,0.015)','--card-hover-bg':'rgba(220,200,180,0.06)',
+      '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
+    },
+  },
+  {
+    id: '__mono__', name: '极简黑白', builtin: true,
+    vars: {
+      '--accent':'#aaaaaa','--bg':'#080808','--bg-deep':'#040404',
+      '--text':'#f0f0f0','--text-2':'#aaaaaa','--text-3':'#888888',
+      '--glass-bg':'rgba(255,255,255,0.04)','--glass-border':'rgba(255,255,255,0.08)',
+      '--glass-bg-hover':'rgba(255,255,255,0.08)','--glass-border-bright':'rgba(255,255,255,0.15)',
+      '--radius':'12px','--radius-sm':'8px','--radius-pill':'80px',
+      '--thumb-card-size':'260px','--font-scale':'1','--anim-speed':'1.5','--glass-blur':'0px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em',
+      '--loading-color':'rgba(255,255,255,0.55)','--loading-color-dim':'rgba(255,255,255,0.40)','--loading-color-soft':'rgba(255,255,255,0.45)',
+      '--font-scale-heading':'1','--line-spacing':'1.5',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(255,255,255,0.02)','--card-hover-bg':'rgba(255,255,255,0.05)',
+      '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
+    },
+  },
+  {
+    id: '__forest__', name: '暗林深绿', builtin: true,
+    vars: {
+      '--accent':'#7a9a6e','--bg':'#0a0c08','--bg-deep':'#060804',
+      '--text':'#e4e8e0','--text-2':'#8c9488','--text-3':'#788470',
+      '--glass-bg':'rgba(160,200,140,0.06)','--glass-border':'rgba(160,200,140,0.10)',
+      '--glass-bg-hover':'rgba(160,200,140,0.12)','--glass-border-bright':'rgba(160,200,140,0.20)',
+      '--radius':'16px','--radius-sm':'10px','--radius-pill':'90px',
+      '--thumb-card-size':'300px','--font-scale':'0.95','--anim-speed':'1.2','--glass-blur':'6px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0.04em','--letter-spacing-body':'0.03em',
+      '--loading-color':'rgba(160,200,140,0.55)','--loading-color-dim':'rgba(160,200,140,0.40)','--loading-color-soft':'rgba(160,200,140,0.45)',
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.8',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(160,200,140,0.015)','--card-hover-bg':'rgba(160,200,140,0.06)',
+      '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
+    },
+  },
+  {
+    id: '__industrial__', name: '工业粗矿', builtin: true,
+    vars: {
+      '--accent':'#cc9966','--bg':'#0c0c0c','--bg-deep':'#080808',
+      '--text':'#e0e0e0','--text-2':'#a0a0a0','--text-3':'#808080',
+      '--glass-bg':'rgba(200,180,160,0.05)','--glass-border':'rgba(200,180,160,0.10)',
+      '--glass-bg-hover':'rgba(200,180,160,0.10)','--glass-border-bright':'rgba(200,180,160,0.20)',
+      '--radius':'4px','--radius-sm':'2px','--radius-pill':'20px',
+      '--thumb-card-size':'320px','--font-scale':'0.9','--anim-speed':'0.7','--glass-blur':'0px',
+      '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Xbox', 'Segoe UI', sans-serif",
+      '--font-weight-display':'900','--font-weight-body':'400',
+      '--letter-spacing-display':'0.02em','--letter-spacing-body':'0.01em',
+      '--loading-color':'rgba(200,160,120,0.55)','--loading-color-dim':'rgba(200,160,120,0.40)','--loading-color-soft':'rgba(200,160,120,0.45)',
+      '--ease-out':'cubic-bezier(0.5,0,0.5,1)','--ease-spring':'cubic-bezier(0.5,1.2,0.5,1)',
+      '--font-scale-heading':'0.9','--line-spacing':'1.4',
+      '--section-gap':'1rem','--gap-scale':'0.8',
+      '--card-bg':'rgba(200,160,120,0.02)','--card-hover-bg':'rgba(200,160,120,0.06)',
+      '--card-shadow':'0 2px 8px rgba(0,0,0,0.5)','--shadow-depth':'1.5',
+    },
+  },
+  {
+    id: '__mist__', name: '轻雾胶片', builtin: true,
+    vars: {
+      '--accent':'#b8a090','--bg':'#0a0908','--bg-deep':'#080706',
+      '--text':'#e8e4e0','--text-2':'#a09890','--text-3':'#908880',
+      '--glass-bg':'rgba(210,190,170,0.08)','--glass-border':'rgba(210,190,170,0.12)',
+      '--glass-bg-hover':'rgba(210,190,170,0.14)','--glass-border-bright':'rgba(210,190,170,0.24)',
+      '--radius':'24px','--radius-sm':'16px','--radius-pill':'120px',
+      '--thumb-card-size':'340px','--font-scale':'1.05','--anim-speed':'1.8','--glass-blur':'20px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--font-weight-display':'300','--font-weight-body':'300',
+      '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em',
+      '--loading-color':'rgba(210,190,170,0.55)','--loading-color-dim':'rgba(210,190,170,0.40)','--loading-color-soft':'rgba(210,190,170,0.45)',
+      '--ease-out':'cubic-bezier(0.22,1,0.36,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1.05','--line-spacing':'2.0',
+      '--section-gap':'2rem','--gap-scale':'1.2',
+      '--card-bg':'rgba(210,190,170,0.02)','--card-hover-bg':'rgba(210,190,170,0.08)',
+      '--card-shadow':'0 8px 40px rgba(0,0,0,0.4)','--shadow-depth':'0.8',
+    },
+  },
+  {
+    id: '__editorial__', name: '编辑排版', builtin: true,
+    vars: {
+      '--accent':'#b8a080','--bg':'#0c0b09','--bg-deep':'#080706',
+      '--text':'#e8e4de','--text-2':'#a09888','--text-3':'#908070',
+      '--glass-bg':'rgba(210,190,160,0.07)','--glass-border':'rgba(210,190,160,0.12)',
+      '--glass-bg-hover':'rgba(210,190,160,0.13)','--glass-border-bright':'rgba(210,190,160,0.22)',
+      '--radius':'8px','--radius-sm':'6px','--radius-pill':'40px',
+      '--thumb-card-size':'300px','--font-scale':'1.0','--anim-speed':'2.0','--glass-blur':'8px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"Georgia, 'Times New Roman', serif",
+      '--font-weight-display':'300','--font-weight-body':'300',
+      '--letter-spacing-display':'0.14em','--letter-spacing-body':'0.06em',
+      '--loading-color':'rgba(210,190,160,0.55)','--loading-color-dim':'rgba(210,190,160,0.40)','--loading-color-soft':'rgba(210,190,160,0.45)',
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1.15','--line-spacing':'2.2',
+      '--section-gap':'2rem','--gap-scale':'1.5',
+      '--card-bg':'rgba(210,190,160,0.015)','--card-hover-bg':'rgba(210,190,160,0.06)',
+      '--card-shadow':'0 6px 32px rgba(0,0,0,0.35)','--shadow-depth':'0.9',
+    },
+  },
+  {
+    id: '__terminal__', name: '终端矩阵', builtin: true,
+    vars: {
+      '--accent':'#66cc88','--bg':'#0a0a0a','--bg-deep':'#050505',
+      '--text':'#d0d0d0','--text-2':'#909090','--text-3':'#707070',
+      '--glass-bg':'rgba(100,200,130,0.05)','--glass-border':'rgba(100,200,130,0.10)',
+      '--glass-bg-hover':'rgba(100,200,130,0.10)','--glass-border-bright':'rgba(100,200,130,0.18)',
+      '--radius':'2px','--radius-sm':'1px','--radius-pill':'4px',
+      '--thumb-card-size':'240px','--font-scale':'0.85','--anim-speed':'0.5','--glass-blur':'0px',
+      '--font-display':"'Consolas', 'Courier New', 'SF Mono', monospace",'--font-body':"'Consolas', 'Courier New', monospace",
+      '--font-weight-display':'400','--font-weight-body':'400',
+      '--letter-spacing-display':'0','--letter-spacing-body':'0',
+      '--loading-color':'rgba(100,200,130,0.55)','--loading-color-dim':'rgba(100,200,130,0.40)','--loading-color-soft':'rgba(100,200,130,0.45)',
+      '--ease-out':'cubic-bezier(0.5,0,0.5,1)','--ease-spring':'cubic-bezier(0.5,1,0.5,1)',
+      '--font-scale-heading':'0.85','--line-spacing':'1.2',
+      '--section-gap':'1rem','--gap-scale':'0.7',
+      '--card-bg':'rgba(100,200,130,0.02)','--card-hover-bg':'rgba(100,200,130,0.06)',
+      '--card-shadow':'0 2px 8px rgba(0,0,0,0.5)','--shadow-depth':'1.2',
+    },
+  },
+  {
+    id: '__neon__', name: '霓虹夜色', builtin: true,
+    vars: {
+      '--accent':'#ff66cc','--bg':'#080010','--bg-deep':'#040008',
+      '--text':'#f0e0f0','--text-2':'#b0a0b8','--text-3':'#908098',
+      '--glass-bg':'rgba(255,100,200,0.08)','--glass-border':'rgba(255,100,200,0.14)',
+      '--glass-bg-hover':'rgba(255,100,200,0.14)','--glass-border-bright':'rgba(255,100,200,0.24)',
+      '--radius':'16px','--radius-sm':'10px','--radius-pill':'40px',
+      '--thumb-card-size':'280px','--font-scale':'1.0','--anim-speed':'1.2','--glass-blur':'12px',
+      '--font-display':"system-ui, -apple-system, 'Segoe UI', sans-serif",'--font-body':"'Segoe UI', system-ui, sans-serif",
+      '--font-weight-display':'400','--font-weight-body':'400',
+      '--letter-spacing-display':'0.02em','--letter-spacing-body':'0.02em',
+      '--loading-color':'rgba(255,100,200,0.55)','--loading-color-dim':'rgba(255,100,200,0.40)','--loading-color-soft':'rgba(255,100,200,0.45)',
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1.0','--line-spacing':'1.6',
+      '--section-gap':'1.5rem','--gap-scale':'1.3',
+      '--card-bg':'rgba(255,100,200,0.02)','--card-hover-bg':'rgba(255,100,200,0.08)',
+      '--card-shadow':'0 4px 24px rgba(255,100,200,0.2)','--shadow-depth':'1.0',
+    },
+  },
+  {
+    id: '__paper__', name: '暖纸书香', builtin: true,
+    vars: {
+      '--accent':'#8b7355','--bg':'#faf8f0','--bg-deep':'#f0ece0',
+      '--text':'#333028','--text-2':'#6b6050','--text-3':'#908878',
+      '--glass-bg':'rgba(139,115,85,0.08)','--glass-border':'rgba(139,115,85,0.14)',
+      '--glass-bg-hover':'rgba(139,115,85,0.14)','--glass-border-bright':'rgba(139,115,85,0.24)',
+      '--radius':'6px','--radius-sm':'4px','--radius-pill':'18px',
+      '--thumb-card-size':'320px','--font-scale':'1.05','--anim-speed':'1.5','--glass-blur':'4px',
+      '--font-display':"Georgia, 'Times New Roman', serif",'--font-body':"Georgia, 'Times New Roman', serif",
+      '--font-weight-display':'400','--font-weight-body':'400',
+      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em',
+      '--loading-color':'rgba(139,115,85,0.55)','--loading-color-dim':'rgba(139,115,85,0.40)','--loading-color-soft':'rgba(139,115,85,0.45)',
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1.1','--line-spacing':'2.0',
+      '--section-gap':'2rem','--gap-scale':'2.0',
+      '--card-bg':'rgba(139,115,85,0.04)','--card-hover-bg':'rgba(139,115,85,0.12)',
+      '--card-shadow':'0 3px 16px rgba(0,0,0,0.12)','--shadow-depth':'0.6',
+    },
+  },
+  {
+    id: '__void__', name: '极致纯黑', builtin: true,
+    vars: {
+      '--accent':'#aaaaaa','--bg':'#000000','--bg-deep':'#000000',
+      '--text':'#ffffff','--text-2':'#999999','--text-3':'#777777',
+      '--glass-bg':'rgba(255,255,255,0.04)','--glass-border':'rgba(255,255,255,0.08)',
+      '--glass-bg-hover':'rgba(255,255,255,0.08)','--glass-border-bright':'rgba(255,255,255,0.14)',
+      '--radius':'0px','--radius-sm':'0px','--radius-pill':'0px',
+      '--thumb-card-size':'280px','--font-scale':'0.95','--anim-speed':'1.0','--glass-blur':'0px',
+      '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.04em',
+      '--loading-color':'rgba(255,255,255,0.55)','--loading-color-dim':'rgba(255,255,255,0.40)','--loading-color-soft':'rgba(255,255,255,0.45)',
+      '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'0.95','--line-spacing':'1.6',
+      '--section-gap':'1.5rem','--gap-scale':'1.0',
+      '--card-bg':'rgba(255,255,255,0.02)','--card-hover-bg':'rgba(255,255,255,0.05)',
+      '--card-shadow':'0 2px 10px rgba(0,0,0,0.5)','--shadow-depth':'1.0',
+    },
+  },
+  {
+    id: '__brutal__', name: '野兽粗野', builtin: true,
+    vars: {
+      '--accent':'#ff6633','--bg':'#0c0c0c','--bg-deep':'#080808',
+      '--text':'#e0e0e0','--text-2':'#a0a0a0','--text-3':'#808080',
+      '--glass-bg':'rgba(255,100,50,0.06)','--glass-border':'rgba(255,100,50,0.12)',
+      '--glass-bg-hover':'rgba(255,100,50,0.12)','--glass-border-bright':'rgba(255,100,50,0.24)',
+      '--radius':'0px','--radius-sm':'0px','--radius-pill':'0px',
+      '--thumb-card-size':'320px','--font-scale':'0.85','--anim-speed':'0.3','--glass-blur':'0px',
+      '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Arial Black', Impact, 'Helvetica Neue', sans-serif",
+      '--font-weight-display':'900','--font-weight-body':'700',
+      '--letter-spacing-display':'-0.02em','--letter-spacing-body':'-0.01em',
+      '--loading-color':'rgba(255,100,50,0.55)','--loading-color-dim':'rgba(255,100,50,0.40)','--loading-color-soft':'rgba(255,100,50,0.45)',
+      '--ease-out':'cubic-bezier(0.8,0,0.2,1)','--ease-spring':'cubic-bezier(0.8,1.4,0.2,1)',
+      '--font-scale-heading':'0.85','--line-spacing':'1.3',
+      '--section-gap':'0.8rem','--gap-scale':'0.5',
+      '--card-bg':'rgba(255,100,50,0.02)','--card-hover-bg':'rgba(255,100,50,0.08)',
+      '--card-shadow':'0 6px 0 rgba(255,100,50,0.5)','--shadow-depth':'2.0',
     },
   },
 ];
+
+// ── 模块级 applyEffects 防抖（供所有标签页的 reset 按钮等使用）──
+let _applyEffectsTimer = null;
+function scheduleApplyEffects() {
+  clearTimeout(_applyEffectsTimer);
+  _applyEffectsTimer = setTimeout(() => applySpecialVarEffects(), 80);
+}
+window.__lensCancelApplyEffects = () => {
+  clearTimeout(_applyEffectsTimer);
+  _applyEffectsTimer = null;
+};
 
 // ── Open / Close ──
 
@@ -116,12 +371,13 @@ function openDevPanel() {
   const panel = document.getElementById('dev-panel');
   if (!overlay || !panel) return;
 
-  // 如果正在关闭动画中，中断关闭
+  // 如果正在关闭动画中，中断关闭 — 补偿被取消的 unlockBodyScroll
   if (D.closing) {
     D._closeFallback && clearTimeout(D._closeFallback);
     panel.removeEventListener('animationend', D._closeOnEnd);
     panel.classList.remove('dev-panel--out');
     D.closing = false;
+    unlockBodyScroll(); // 中断关闭丢失的 unlock
   }
 
   // 自动收起其他面板
@@ -131,12 +387,15 @@ function openDevPanel() {
     shortcutsOverlay.classList.remove('shortcuts-overlay--open');
     const sp = shortcutsOverlay.querySelector('.shortcuts-panel');
     if (sp) { sp.classList.remove('shortcuts-panel--out'); }
+    unlockBodyScroll(); // 回收快捷键面板的 scroll lock
   }
 
   overlay.classList.add('dev-overlay--open');
   panel.classList.remove('dev-panel--out');
   lockBodyScroll();
   D.open = true;
+  // 重新注入动画速度等特殊样式（关闭面板时 stopAllMonitors 清除了它们）
+  applySpecialVarEffects();
   startAllMonitors();
   switchGroup(D.activeGroup);
 }
@@ -161,6 +420,7 @@ function closeDevPanel() {
     D.open = false;
     unlockBodyScroll();
     stopAllMonitors();
+    stopPreviewAnimations();
   };
 
   const onEnd = (e) => {
@@ -232,6 +492,9 @@ function switchGroup(group) {
     t.classList.toggle('dev-nav__tab--active', t.dataset.group === group));
   document.querySelectorAll('.dev-group').forEach(g =>
     g.classList.toggle('dev-group--active', g.id === `dev-group-${group}`));
+  // 预览面板在视觉和预设标签显示
+  const preview = document.getElementById('dev-preview');
+  if (preview) preview.classList.toggle('dev-preview--hidden', group !== 'visual' && group !== 'presets' && group !== 'hero');
   renderGroup(group);
 }
 
@@ -240,6 +503,7 @@ function switchGroup(group) {
 function renderGroup(group) {
   switch (group) {
     case 'visual':  renderVisualGroup(); break;
+    case 'hero':    renderHeroGroup(); break;
     case 'perf':    renderPerfGroup(); break;
     case 'gamepad': renderGamepadGroup(); break;
     case 'presets': renderPresetsGroup(); break;
@@ -250,6 +514,257 @@ function renderGroup(group) {
 // Group 1: 视觉 — CSS 变量实时调节
 // ═══════════════════════════════════════════
 
+// ── 颜色工具函数（供预览面板使用）──
+function parseRgba(str) {
+  if (!str) return { r:0,g:0,b:0,a:1 };
+  const m = str.match(/rgba?\((\d+),?\s*(\d+),?\s*(\d+),?\s*([\d.]+)?\)/);
+  if (m) return { r:+m[1], g:+m[2], b:+m[3], a:m[4]!==undefined?+m[4]:1 };
+  const hm = str.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (hm) return { r:parseInt(hm[1],16), g:parseInt(hm[2],16), b:parseInt(hm[3],16), a:1 };
+  return { r:0,g:0,b:0,a:1 };
+}
+function interpolateRgba(a, b, t) {
+  const c1=parseRgba(a), c2=parseRgba(b);
+  return `rgba(${Math.round(c1.r+(c2.r-c1.r)*t)},${Math.round(c1.g+(c2.g-c1.g)*t)},${Math.round(c1.b+(c2.b-c1.b)*t)},${(c1.a+(c2.a-c1.a)*t).toFixed(3)})`;
+}
+function hexToRgbDataAttr(hex) {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  return m ? `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}` : '200,168,124';
+}
+
+function buildDevPreview() {
+  const preview = document.getElementById('dev-preview');
+  if (!preview) return;
+  const inner = preview.querySelector('.dev-preview__inner');
+  if (!inner) return;
+
+  const s = getComputedStyle(document.documentElement);
+  const get = (key, fb) => { const v = s.getPropertyValue(key).trim(); return v || fb; };
+
+  const V = {
+    accent: get('--accent','#c8a87c'), bg: get('--bg','#0a0a08'), bgDeep: get('--bg-deep','#060605'),
+    text: get('--text','#e8e4e0'), text2: get('--text-2','#9a948e'), text3: get('--text-3','#5a5450'),
+    glassBg: get('--glass-bg','rgba(220,200,180,0.06)'), glassBorder: get('--glass-border','rgba(220,200,180,0.10)'),
+    glassBgHover: get('--glass-bg-hover','rgba(220,200,180,0.12)'), glassBorderBright: get('--glass-border-bright','rgba(220,200,180,0.20)'),
+    radius: get('--radius','20px'), radiusSm: get('--radius-sm','14px'), radiusPill: get('--radius-pill','100px'),
+    fontDisplay: get('--font-display',"'Cormorant Garamond',Georgia,serif"), fontBody: get('--font-body',"'Cormorant',Georgia,serif"),
+    fontWeightDisplay: get('--font-weight-display','300'), fontWeightBody: get('--font-weight-body','400'),
+    letterSpacingDisplay: get('--letter-spacing-display','0.05em'), letterSpacingBody: get('--letter-spacing-body','0.04em'),
+    headingScale: get('--font-scale-heading','1'), lineSpacing: get('--line-spacing','1.7'),
+    glassBlur: get('--glass-blur','0px'),
+    loadingColor: get('--loading-color','rgba(220,200,180,0.55)'), loadingColorDim: get('--loading-color-dim','rgba(220,200,180,0.40)'),
+    cardBg: get('--card-bg','rgba(220,200,180,0.015)'), cardHoverBg: get('--card-hover-bg','rgba(220,200,180,0.06)'),
+    cardShadow: get('--card-shadow','0 4px 24px rgba(0,0,0,0.3)'),
+    heroGradTop: get('--hero-grad-top','rgba(255,245,235,1)'), heroGradMid: get('--hero-grad-mid','rgba(220,200,175,0.85)'),
+    heroGradBot: get('--hero-grad-bot','rgba(180,155,130,0.25)'), cornerLogoColor: get('--corner-logo-color','rgba(220,200,175,0.85)'),
+    heroSubtitleColor: get('--hero-subtitle-color','rgba(220,200,180,0.3)'), heroLineColor: get('--hero-line-color','rgba(220,200,180,0.35)'),
+    devPanelBg: get('--dev-panel-bg','rgba(10,10,8,0.94)'),
+    accentRgb: hexToRgbDataAttr(get('--accent','#c8a87c')),
+    sectionGap: get('--section-gap','1.5rem'),
+  };
+
+  // 设置 inner 容器内联样式（零 var() 依赖）
+  inner.style.background = V.devPanelBg;
+  inner.style.backdropFilter = 'blur(40px)';
+  inner.style.webkitBackdropFilter = 'blur(40px)';
+  inner.style.border = `0.5px solid ${V.glassBorderBright}`;
+  inner.style.borderRadius = V.radius;
+  inner.style.boxShadow = `0 8px 40px rgba(0,0,0,0.5), 0 0 0 0.5px ${V.glassBorder} inset`;
+
+  const hd = parseFloat(V.headingScale)||1;
+
+  inner.innerHTML = `
+    <div class="dev-preview__header" style="font-family:${V.fontDisplay};font-size:0.8rem;font-weight:400;font-style:italic;letter-spacing:0.1em;color:${V.text};padding-bottom:0.4rem;border-bottom:0.5px solid ${V.glassBorder};">实时预览</div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">卡片样式</div>
+      <div class="dev-preview__card-wrap" style="position:relative;border-radius:${V.radius};">
+        <div class="dev-preview__card-backdrop" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Arial Black',Impact,sans-serif;font-size:3rem;font-weight:900;color:${V.accent};opacity:0.35;letter-spacing:0.3em;pointer-events:none;z-index:0;">TEST</div>
+        <div class="js-prev-card" data-card-bg="${V.cardBg}" data-card-hover-bg="${V.cardHoverBg}" data-glass-border="${V.glassBorder}" data-glass-border-bright="${V.glassBorderBright}" data-glass-blur="${V.glassBlur}" style="position:relative;z-index:1;background:${V.cardBg};border:0.5px solid ${V.glassBorder};border-radius:${V.radius};box-shadow:${V.cardShadow};padding:0.8rem;">
+          <div class="dev-preview__card-label" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.06em;margin-bottom:0.4rem;">示例卡片 — 自动展示毛玻璃效果</div>
+          <div class="dev-preview__card-glass" style="background:${V.glassBg};border:0.5px solid ${V.glassBorder};border-radius:${V.radiusSm};padding:0.6rem;">
+            <div class="dev-preview__card-title" style="font-family:${V.fontDisplay};font-size:${(0.75*hd).toFixed(2)}rem;font-weight:${V.fontWeightDisplay};letter-spacing:${V.letterSpacingDisplay};color:${V.text};margin-bottom:0.25rem;">标题预览</div>
+            <div class="dev-preview__card-body" style="font-family:${V.fontBody};font-size:0.6rem;font-weight:${V.fontWeightBody};letter-spacing:${V.letterSpacingBody};color:${V.text2};line-height:${V.lineSpacing};">正文内容，展示字体样式与排版效果。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">颜色方案</div>
+      <div class="dev-preview__swatches" style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div style="width:26px;height:26px;border-radius:${V.radiusSm};border:0.5px solid ${V.glassBorderBright};background:${V.accent};" title="强调色"></div>
+        <div style="width:26px;height:26px;border-radius:${V.radiusSm};border:0.5px solid ${V.glassBorderBright};background:${V.text};" title="主文字"></div>
+        <div style="width:26px;height:26px;border-radius:${V.radiusSm};border:0.5px solid ${V.glassBorderBright};background:${V.text2};" title="次文字"></div>
+        <div style="width:26px;height:26px;border-radius:${V.radiusSm};border:0.5px solid ${V.glassBorderBright};background:${V.text3};" title="三级文字"></div>
+        <div style="width:26px;height:26px;border-radius:${V.radiusSm};border:0.5px solid ${V.glassBorderBright};background:${V.bg};" title="背景色"></div>
+        <div style="width:26px;height:26px;border-radius:${V.radiusSm};border:0.5px solid ${V.glassBorderBright};background:${V.bgDeep};" title="深色背景"></div>
+      </div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Hero 标题渐变</div>
+      <div style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};font-size:2rem;letter-spacing:0.15em;text-transform:uppercase;text-align:center;line-height:1.2;padding:0.3rem 0;
+        background:linear-gradient(180deg,${V.heroGradTop} 0%,${V.heroGradMid} 40%,${V.heroGradBot} 100%);
+        -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+        filter:drop-shadow(0 2px 12px rgba(0,0,0,0.5));">LENS</div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">角标 / 副标题 / 装饰线</div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:center;padding:0.4rem 0;">
+        <div style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};letter-spacing:${V.letterSpacingDisplay};color:${V.cornerLogoColor};font-size:0.65rem;">LENS <span style="font-size:0.5rem;vertical-align:super;">Beta</span></div>
+        <div style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};font-style:italic;letter-spacing:0.15em;color:${V.heroSubtitleColor};font-size:0.55rem;">Photography Portfolio</div>
+        <div style="width:80px;height:1px;background:linear-gradient(90deg,transparent,${V.heroLineColor},${V.heroLineColor},transparent);margin-top:2px;"></div>
+      </div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">圆角预览</div>
+      <div style="display:flex;gap:8px;align-items:center;padding:0.3rem 0;">
+        <div style="width:44px;height:32px;border-radius:${V.radius};background:${V.glassBg};border:0.5px solid ${V.glassBorderBright};" title="大圆角"></div>
+        <div style="width:44px;height:32px;border-radius:${V.radiusSm};background:${V.glassBg};border:0.5px solid ${V.glassBorderBright};" title="小圆角"></div>
+        <div style="width:44px;height:32px;border-radius:${V.radiusPill};background:${V.glassBg};border:0.5px solid ${V.glassBorderBright};" title="胶囊圆角"></div>
+      </div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Dev 面板背景</div>
+      <div style="width:100%;height:28px;border-radius:${V.radiusSm};background:${V.devPanelBg};border:0.5px solid ${V.glassBorder};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);"></div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">字体预览</div>
+      <div class="dev-preview__text-display" style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};letter-spacing:${V.letterSpacingDisplay};font-size:0.95rem;color:${V.text};margin-bottom:0.3rem;line-height:1.3;">Display 标题字体展示</div>
+      <div class="dev-preview__text-body" style="font-family:${V.fontBody};font-weight:${V.fontWeightBody};letter-spacing:${V.letterSpacingBody};font-size:0.65rem;color:${V.text2};line-height:${V.lineSpacing};">Body 正文字体展示，显示行距与字距效果。</div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">加载预览</div>
+      <div class="dev-preview__loading-capsule" style="width:100%;height:14px;border-radius:${V.radiusPill};background:${V.loadingColorDim};opacity:0.25;position:relative;overflow:hidden;">
+        <div class="js-prev-shimmer" data-loading-color="${V.loadingColor}" style="position:absolute;top:0;left:-40%;width:50%;height:100%;background:${V.loadingColor};border-radius:${V.radiusPill};"></div>
+      </div>
+    </div>
+
+    <div class="dev-preview__section">
+      <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">控件预览</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="js-prev-toggle" data-accent-rgb="${V.accentRgb}" data-text2="${V.text2}" data-glass-bg-hover="${V.glassBgHover}" style="width:34px;height:20px;border-radius:${V.radiusPill};background:${V.glassBgHover};border:0.5px solid ${V.glassBorder};position:relative;flex-shrink:0;">
+          <div class="js-prev-toggle-knob" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:${V.radiusPill};background:${V.text2};"></div>
+        </div>
+        <span class="dev-preview__toggle-label" style="font-family:${V.fontBody};font-size:0.58rem;color:${V.text3};">开关预览</span>
+      </div>
+    </div>
+  `;
+}
+
+// ── JS 动画驱动（替代 CSS @keyframes，零 var() 依赖）──
+function startPreviewAnimations() {
+  stopPreviewAnimations();
+  D._previewAnimStart = performance.now();
+
+  const card = document.querySelector('.js-prev-card');
+  const toggle = document.querySelector('.js-prev-toggle');
+  const toggleKnob = document.querySelector('.js-prev-toggle-knob');
+  const shimmer = document.querySelector('.js-prev-shimmer');
+
+  if (!card && !toggle && !shimmer) return;
+
+  const s = getComputedStyle(document.documentElement);
+  const animSpeed = parseFloat(s.getPropertyValue('--anim-speed').trim()) || 1;
+
+  function tick(now) {
+    if (!D.open) { stopPreviewAnimations(); return; }
+    const elapsed = (now - D._previewAnimStart) * animSpeed;
+
+    // 卡片循环：normal ↔ hover（sin 波，1.2s周期）
+    if (card) {
+      const raw = ((elapsed % 1200) / 1200);
+      const p = (Math.sin(raw * Math.PI * 2 - Math.PI/2) + 1) / 2; // 0→1→0 smooth
+      const blurVal = (parseFloat(card.dataset.glassBlur) || 0) + p * 16;
+      card.style.backdropFilter = `blur(${blurVal}px)`;
+      card.style.webkitBackdropFilter = `blur(${blurVal}px)`;
+      card.style.background = interpolateRgba(card.dataset.cardBg, card.dataset.cardHoverBg, p);
+      card.style.borderColor = interpolateRgba(card.dataset.glassBorder, card.dataset.glassBorderBright, p);
+    }
+
+    // 开关循环：off/on（4段相位，2.4s周期）
+    if (toggle && toggleKnob) {
+      const raw = ((elapsed % 2400) / 2400);
+      const accentRgb = toggle.dataset.accentRgb;
+      const text2 = toggle.dataset.text2;
+      let bgAlpha, borderAlpha, knobL, knobBg, knobShadow;
+      if (raw < 0.35) {
+        bgAlpha=0.12; borderAlpha=0.15; knobL=2; knobBg=text2; knobShadow='none';
+      } else if (raw < 0.50) {
+        const t=(raw-0.35)/0.15;
+        bgAlpha=0.12+t*0.23; borderAlpha=0.15+t*0.25; knobL=2+t*14;
+        knobBg=interpolateRgba(text2,`rgba(${accentRgb},1)`,t); knobShadow='none';
+      } else if (raw < 0.85) {
+        bgAlpha=0.35; borderAlpha=0.4; knobL=16;
+        knobBg=`rgba(${accentRgb},1)`; knobShadow=`0 0 8px rgba(${accentRgb},0.5)`;
+      } else {
+        const t=(raw-0.85)/0.15;
+        bgAlpha=0.35-t*0.23; borderAlpha=0.4-t*0.25; knobL=16-t*14;
+        knobBg=interpolateRgba(`rgba(${accentRgb},1)`,text2,t); knobShadow='none';
+      }
+      toggle.style.background = `rgba(${accentRgb},${bgAlpha.toFixed(2)})`;
+      toggle.style.borderColor = `rgba(${accentRgb},${borderAlpha.toFixed(2)})`;
+      toggleKnob.style.left = knobL + 'px';
+      toggleKnob.style.background = knobBg;
+      toggleKnob.style.boxShadow = knobShadow;
+    }
+
+    // 加载 shimmer：left -40%→100% 横扫（1.8s周期）
+    if (shimmer) {
+      const raw = ((elapsed % 1800) / 1800);
+      shimmer.style.left = (-40 + raw * 140) + '%';
+    }
+
+    D._previewAnimRaf = requestAnimationFrame(tick);
+  }
+
+  D._previewAnimRaf = requestAnimationFrame(tick);
+}
+
+function stopPreviewAnimations() {
+  if (D._previewAnimRaf) {
+    cancelAnimationFrame(D._previewAnimRaf);
+    D._previewAnimRaf = null;
+  }
+}
+
+function renderHeroGroup() {
+  const el = document.getElementById('dev-group-hero');
+  if (!el || el.dataset.rendered) return;
+  el.dataset.rendered = '1';
+
+  const style = getComputedStyle(document.documentElement);
+
+  el.innerHTML = `
+    <div class="dev-section">
+      <div class="dev-section__title">Hero 标题渐变</div>
+      <div class="dev-section__desc">LENS 大标题的金色渐变三段色标。顶部=亮白高光、中部=暖金主色、底部=淡金渐隐</div>
+      ${makeGlassColorRow('--hero-grad-top', '顶部亮色', style, '渐变顶部：明亮暖白高光')}
+      ${makeGlassColorRow('--hero-grad-mid', '中部金色', style, '渐变中部：暖金色，为主要显示色')}
+      ${makeGlassColorRow('--hero-grad-bot', '底部淡色', style, '渐变底部：淡金色，渐隐到透明')}
+    </div>
+    <div class="dev-section">
+      <div class="dev-section__title">角标</div>
+      <div class="dev-section__desc">启动后左上角 "LENS Beta" 文字颜色和悬停色</div>
+      ${makeGlassColorRow('--corner-logo-color', '角标颜色', style, '左上角 "LENS Beta" 文字颜色')}
+    </div>
+    <div class="dev-section">
+      <div class="dev-section__title">副标题与装饰线</div>
+      <div class="dev-section__desc">Hero 标题下方的 "Photography Portfolio" 副标题和金色装饰横线</div>
+      ${makeGlassColorRow('--hero-subtitle-color', '副标题色', style, '"Photography Portfolio" 文字颜色')}
+      ${makeGlassColorRow('--hero-line-color', '装饰线色', style, 'LENS 下方的分隔横线颜色')}
+    </div>
+  `;
+  bindVisualControls(el);
+  buildDevPreview();
+}
+
 function renderVisualGroup() {
   const el = document.getElementById('dev-group-visual');
   if (!el || el.dataset.rendered) return;
@@ -259,56 +774,77 @@ function renderVisualGroup() {
 
   const html = `
     <div class="dev-section">
-      <div class="dev-section__title">颜色</div>
-      ${makeColorRow('--accent', '强调色', style)}
-      ${makeColorRow('--bg', '背景色', style)}
-      ${makeColorRow('--bg-deep', '深色背景', style)}
-      ${makeColorRow('--text', '主文字', style)}
-      ${makeColorRow('--text-2', '次文字', style)}
-      ${makeColorRow('--text-3', '三级文字', style)}
+      <div class="dev-section__title">配色</div>
+      <div class="dev-section__desc">全局色彩方案：强调色用于按钮和交互，文字三级用于标题/正文/辅助信息</div>
+      ${makeColorRow('--accent', '强调色', style, '按钮悬停、激活态、图标的高亮色')}
+      ${makeColorRow('--bg', '背景色', style, '页面主背景色')}
+      ${makeColorRow('--bg-deep', '深色背景', style, '最深区域背景（加载画面等）')}
+      ${makeColorRow('--text', '主文字', style, '标题和重要文字的颜色')}
+      ${makeColorRow('--text-2', '次文字', style, '正文和描述的默认颜色')}
+      ${makeColorRow('--text-3', '三级文字', style, '辅助信息和标签的颜色')}
     </div>
     <div class="dev-section">
-      <div class="dev-section__title">毛玻璃颜色</div>
-      ${makeGlassColorRow('--glass-bg', '玻璃背景', style)}
-      ${makeGlassColorRow('--glass-bg-hover', '玻璃悬停', style)}
-      ${makeGlassColorRow('--glass-border', '玻璃边框', style)}
-      ${makeGlassColorRow('--glass-border-bright', '玻璃亮边框', style)}
+      <div class="dev-section__title">表面</div>
+      <div class="dev-section__desc">毛玻璃面板和卡片的质感：背景透明度、边框、悬停态、阴影深度和模糊强度</div>
+      ${makeGlassColorRow('--glass-bg', '玻璃背景', style, '侧边栏/工具栏/面板的磨砂底色')}
+      ${makeGlassColorRow('--glass-bg-hover', '玻璃悬停', style, '鼠标悬浮时加深的背景色')}
+      ${makeGlassColorRow('--glass-border', '玻璃边框', style, '毛玻璃面板的边缘线条颜色')}
+      ${makeGlassColorRow('--glass-border-bright', '玻璃亮边框', style, '悬浮或激活时的高亮边框')}
+      ${makeGlassColorRow('--card-bg', '卡片背景', style, '照片卡片的默认底色')}
+      ${makeGlassColorRow('--card-hover-bg', '悬停背景', style, '卡片悬浮时的加深背景')}
+      ${makeTextInputRow('--card-shadow', '卡片阴影', style, 'CSS box-shadow 值，如 0 4px 24px rgba(0,0,0,0.3)')}
+      ${makeSliderRow('--shadow-depth', '阴影深度', style, 0, 2.0, 'x', 0.05, 2, '阴影深浅倍率，0=无阴影 2=最深')}
+      ${makeSliderRow('--glass-blur', '模糊量', style, 0, 60, 'px', null, 0, '毛玻璃 backdrop-filter 的 blur 像素值')}
+      ${makeGlassColorRow('--dev-panel-bg', 'Dev面板背景', style, '开发者面板自身的背景色')}
     </div>
     <div class="dev-section">
       <div class="dev-section__title">圆角</div>
-      ${makeSliderRow('--radius', '大圆角', style, 0, 40, 'px')}
-      ${makeSliderRow('--radius-sm', '小圆角', style, 0, 30, 'px')}
-      ${makeSliderRow('--radius-pill', '胶囊圆角', style, 20, 200, 'px')}
+      <div class="dev-section__desc">所有 UI 元素的转角弧度：大圆角影响卡片和面板，小圆角影响按钮和输入框，胶囊圆角影响开关和加载条</div>
+      ${makeSliderRow('--radius', '大圆角', style, 0, 40, 'px', null, 0, '卡片、面板、弹窗等大元素的圆角')}
+      ${makeSliderRow('--radius-sm', '小圆角', style, 0, 30, 'px', null, 0, '按钮、输入框、标签等小元素的圆角')}
+      ${makeSliderRow('--radius-pill', '胶囊圆角', style, 0, 100, 'px', null, 0, '开关、加载条、筛选按钮的胶囊圆角')}
     </div>
     <div class="dev-section">
-      <div class="dev-section__title">布局</div>
-      ${makeSliderRow('--thumb-card-size', '缩略图尺寸', style, 120, 600, 'px')}
-      ${makeSliderRow('--font-scale', '字号缩放', style, 0.8, 1.5, 'x', 0.05, 2)}
+      <div class="dev-section__title">网格与间距</div>
+      <div class="dev-section__desc">照片网格的卡片尺寸、全局字号缩放、元素之间的间距倍率和区块间距</div>
+      ${makeSliderRow('--thumb-card-size', '缩略图尺寸', style, 120, 600, 'px', null, 0, '照片网格中每张卡片的大小')}
+      ${makeSliderRow('--font-scale', '字号缩放', style, 0.8, 1.5, 'x', 0.05, 2, '全局字号倍率，影响所有 rem 单位文字')}
+      ${makeSliderRow('--gap-scale', '间距倍率', style, 0.5, 2.0, 'x', 0.05, 2, '卡片之间的间距缩放 0.5=紧凑 2=宽松')}
+      ${makeSliderRow('--section-gap', '区块间距', style, 0.5, 4, 'rem', 0.25, 2, '各页面区块之间的垂直间距')}
     </div>
     <div class="dev-section">
       <div class="dev-section__title">字体</div>
-      ${makeTextInputRow('--font-display', '标题字体', style)}
-      ${makeTextInputRow('--font-body', '正文字体', style)}
+      <div class="dev-section__desc">标题和正文的字体族、粗细、字距、缩放倍率和行高</div>
+      ${makeTextInputRow('--font-display', '标题字体', style, 'Hero 大标题、分类名称的字体族')}
+      ${makeTextInputRow('--font-body', '正文字体', style, '正文、按钮、标签的字体族')}
+      ${makeSliderRow('--font-weight-display', '标题字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗 900=极粗')}
+      ${makeSliderRow('--font-weight-body', '正文字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗 900=极粗')}
+      ${makeSliderRow('--letter-spacing-display', '标题字距', style, -0.05, 0.3, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      ${makeSliderRow('--letter-spacing-body', '正文字距', style, -0.05, 0.2, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      ${makeSliderRow('--font-scale-heading', '标题缩放', style, 0.7, 1.5, 'x', 0.05, 2, '标题相对于基准字号的倍率')}
+      ${makeSliderRow('--line-spacing', '行高', style, 1.2, 2.4, '', 0.05, 2, '1.2=紧凑 1.7=标准 2.2=宽松')}
     </div>
     <div class="dev-section">
-      <div class="dev-section__title">缓动曲线</div>
-      ${makeTextInputRow('--ease-out', '缓出', style)}
-      ${makeTextInputRow('--ease-spring', '弹簧', style)}
+      <div class="dev-section__title">加载画面</div>
+      <div class="dev-section__desc">启动加载时的文字、提示和轮播金句的颜色（均为暖金基调 rgba，可分别调色相和透明度）</div>
+      ${makeGlassColorRow('--loading-color', '加载文字色', style, '加载进度文字和胶囊光点颜色')}
+      ${makeGlassColorRow('--loading-color-dim', '加载次色', style, '首次加载提示文字的颜色')}
+      ${makeGlassColorRow('--loading-color-soft', '加载柔色', style, '底部轮播金句的颜色')}
     </div>
     <div class="dev-section">
-      <div class="dev-section__title">动画</div>
-      ${makeSliderRow('--anim-speed', '动画速度', style, 0.1, 5, 'x', 0.1, 1)}
+      <div class="dev-section__title">动效</div>
+      <div class="dev-section__desc">过渡动画的缓动曲线和全局动画速度倍率（0=禁用全部动画）</div>
+      ${makeTextInputRow('--ease-out', '缓出', style, 'CSS cubic-bezier 缓出曲线')}
+      ${makeTextInputRow('--ease-spring', '弹簧', style, 'CSS cubic-bezier 弹性曲线')}
+      ${makeSliderRow('--anim-speed', '动画速度', style, 0.1, 5, 'x', 0.1, 1, '全局动画时长倍率：0=停用 0.5=快速 1=正常 2=慢速')}
       <div class="dev-row">
         <span class="dev-row__label">全部动画</span>
         <button class="dev-toggle dev-toggle--on" id="dev-toggle-anim" data-key="anim"></button>
       </div>
     </div>
     <div class="dev-section">
-      <div class="dev-section__title">毛玻璃</div>
-      ${makeSliderRow('--glass-blur', '模糊量', style, 0, 60, 'px')}
-    </div>
-    <div class="dev-section">
       <div class="dev-section__title">调试</div>
+      <div class="dev-section__desc">开发辅助工具：可视化元素边界、网格对齐、盒模型层级、溢出检测和层级标签</div>
       <div class="dev-row">
         <span class="dev-row__label">元素轮廓</span>
         <button class="dev-toggle" id="dev-toggle-outline" data-key="outline"></button>
@@ -317,28 +853,51 @@ function renderVisualGroup() {
         <span class="dev-row__label">网格线</span>
         <button class="dev-toggle" id="dev-toggle-grid-lines" data-key="grid-lines"></button>
       </div>
+      <div class="dev-row" style="margin-top:4px">
+        <span class="dev-row__label">盒模型层</span>
+        <button class="dev-toggle" id="dev-toggle-box-model" data-key="box-model"></button>
+      </div>
+      <div class="dev-row" style="margin-top:4px">
+        <span class="dev-row__label">overflow 标记</span>
+        <button class="dev-toggle" id="dev-toggle-overflow" data-key="overflow"></button>
+      </div>
+      <div class="dev-row" style="margin-top:4px">
+        <span class="dev-row__label">图片信息</span>
+        <button class="dev-toggle" id="dev-toggle-img-info" data-key="img-info"></button>
+      </div>
+      <div class="dev-row" style="margin-top:4px">
+        <span class="dev-row__label">z-index 标签</span>
+        <button class="dev-toggle" id="dev-toggle-z-index" data-key="z-index"></button>
+      </div>
     </div>
   `;
   el.innerHTML = html;
   bindVisualControls(el);
+  buildDevPreview();
 }
 
-function makeColorRow(key, label, style) {
+function makeColorRow(key, label, style, tip) {
   const val = style.getPropertyValue(key).trim();
+  // rgba 转 hex 供 <input type="color"> 显示（color input 不接受 rgba）
+  const isRgba = val.startsWith('rgba');
+  const hex = isRgba ? rgbaToHexAlpha(val).hex : val;
+  const tipAttr = tip ? ` title="${tip}"` : '';
   return `<div class="dev-row">
-    <span class="dev-row__label">${label}</span>
-    <input type="color" class="dev-color" data-css="${key}" value="${val}">
+    <span class="dev-row__label"${tipAttr}>${label}</span>
+    <input type="color" class="dev-color" data-css="${key}" value="${hex}">
     <span class="dev-row__value">${val}</span>
+    <button class="dev-btn" data-reset="${key}" title="复位">↺</button>
   </div>`;
 }
 
-function makeSliderRow(key, label, style, min, max, unit, step, decimals) {
+function makeSliderRow(key, label, style, min, max, unit, step, decimals, tip) {
   const raw = style.getPropertyValue(key).trim();
   const num = parseFloat(raw) || min;
   const s = step || (max - min > 100 ? 5 : 1);
   const d = decimals != null ? decimals : (s < 1 ? 2 : 0);
+  const tipAttr = tip ? ` title="${tip}"` : '';
   return `<div class="dev-row">
-    <span class="dev-row__label">${label}</span>
+    <span class="dev-row__label"${tipAttr}>${label}</span>
     <input type="range" class="dev-slider" data-css="${key}" min="${min}" max="${max}" step="${s}" value="${num}">
     <span class="dev-row__value" data-display="${key}" data-unit="${unit}" data-decimals="${d}">${num.toFixed(d)}${unit}</span>
     <button class="dev-btn" data-reset="${key}" title="重置">↺</button>
@@ -352,11 +911,12 @@ function rgbaToHexAlpha(rgba) {
   return { hex, alpha: m[4] !== undefined ? parseFloat(m[4]) : 1 };
 }
 
-function makeGlassColorRow(key, label, style) {
+function makeGlassColorRow(key, label, style, tip) {
   const val = style.getPropertyValue(key).trim();
   const { hex, alpha } = rgbaToHexAlpha(val);
+  const tipAttr = tip ? ` title="${tip}"` : '';
   return `<div class="dev-row">
-    <span class="dev-row__label">${label}</span>
+    <span class="dev-row__label"${tipAttr}>${label}</span>
     <input type="color" class="dev-glass-color" data-css="${key}" data-alpha="${alpha}" value="${hex}">
     <input type="range" class="dev-glass-alpha" data-css="${key}" min="0" max="1" step="0.01" value="${alpha}">
     <span class="dev-row__value" data-glass-val="${key}">${alpha.toFixed(2)}</span>
@@ -364,10 +924,11 @@ function makeGlassColorRow(key, label, style) {
   </div>`;
 }
 
-function makeTextInputRow(key, label, style) {
+function makeTextInputRow(key, label, style, tip) {
   const val = style.getPropertyValue(key).trim();
+  const tipAttr = tip ? ` title="${tip}"` : '';
   return `<div class="dev-row dev-row--col">
-    <span class="dev-row__label">${label}</span>
+    <span class="dev-row__label"${tipAttr}>${label}</span>
     <input type="text" class="dev-input dev-input--text" data-css-text="${key}" value="${val}" spellcheck="false">
   </div>`;
 }
@@ -441,6 +1002,8 @@ function bindVisualControls(el) {
         const valEl = color.parentElement.querySelector('.dev-row__value');
         if (valEl) valEl.textContent = def;
       }
+      autoSaveSession();
+      scheduleApplyEffects();
     });
   });
   // 动画开关 — 注入/移除全局 animation/transition 禁用样式
@@ -468,6 +1031,7 @@ function bindVisualControls(el) {
       if (slider) slider.value = on ? 1 : 0;
       const display = el.querySelector('[data-display="--anim-speed"]');
       if (display) display.textContent = on ? '1.0x' : '0.0x';
+      autoSaveSession();
     });
   }
 
@@ -529,7 +1093,7 @@ function bindVisualControls(el) {
       const on = outlineToggle.classList.toggle('dev-toggle--on');
       if (on) {
         const s = document.createElement('style'); s.id = 'dev-outline-style';
-        s.textContent = `* { outline: 0.5px solid rgba(200,168,124,0.15) !important; }`;
+        s.textContent = `* { outline: 0.5px solid rgba(var(--accent-rgb), 0.15) !important; }`;
         document.head.appendChild(s);
       } else {
         const s = document.getElementById('dev-outline-style');
@@ -544,10 +1108,82 @@ function bindVisualControls(el) {
       const on = gridToggle.classList.toggle('dev-toggle--on');
       if (on) {
         const s = document.createElement('style'); s.id = 'dev-grid-style';
-        s.textContent = `.main-area, .portfolio { background-image: linear-gradient(rgba(200,168,124,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(200,168,124,0.04) 1px, transparent 1px); background-size: 20px 20px; }`;
+        s.textContent = `.main-area, .portfolio { background-image: linear-gradient(rgba(var(--accent-rgb), 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--accent-rgb), 0.04) 1px, transparent 1px); background-size: 20px 20px; }`;
         document.head.appendChild(s);
       } else {
         const s = document.getElementById('dev-grid-style');
+        if (s) s.remove();
+      }
+    });
+  }
+
+  // 盒模型层开关 — 鼠标悬停时显示盒模型
+  let boxModelObserver = null;
+  const boxModelToggle = el.querySelector('#dev-toggle-box-model');
+  if (boxModelToggle) {
+    boxModelToggle.addEventListener('click', () => {
+      const on = boxModelToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-box-model-style';
+        s.textContent = `.dev-bm-hover{position:relative}.dev-bm-hover::before{content:'';position:absolute;inset:0;background:rgba(0,0,255,0.06);z-index:99999;pointer-events:none}.dev-bm-hover::after{content:'';position:absolute;inset:-4px;border:1px dashed rgba(0,255,0,0.35);z-index:99998;pointer-events:none}`;
+        document.head.appendChild(s);
+        // MutationObserver 持续给 body 加 class 让所有元素都有 :hover 效果不可行
+        // 改为注入 style 用 *:hover 规则
+        const s2 = document.createElement('style'); s2.id = 'dev-box-model-hover';
+        s2.textContent = `body.dev-bm-active *:hover{outline:1px solid rgba(0,120,255,0.4)!important;background:rgba(0,120,255,0.04)!important}`;
+        document.head.appendChild(s2);
+        document.body.classList.add('dev-bm-active');
+      } else {
+        ['dev-box-model-style','dev-box-model-hover'].forEach(id => { const s=document.getElementById(id); if(s)s.remove(); });
+        document.body.classList.remove('dev-bm-active');
+      }
+    });
+  }
+
+  // overflow 标记开关
+  const overflowToggle = el.querySelector('#dev-toggle-overflow');
+  if (overflowToggle) {
+    overflowToggle.addEventListener('click', () => {
+      const on = overflowToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-overflow-style';
+        s.textContent = `*{--_dev-of: none}[style*="overflow:hidden"],*[style*="overflow: hidden"]{outline:2px solid rgba(255,60,60,0.4)!important;outline-offset:-1px}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-overflow-style');
+        if (s) s.remove();
+      }
+    });
+  }
+
+  // 图片信息开关
+  const imgInfoToggle = el.querySelector('#dev-toggle-img-info');
+  if (imgInfoToggle) {
+    imgInfoToggle.addEventListener('click', () => {
+      const on = imgInfoToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-img-info-style';
+        s.textContent = `img{position:relative}img::after{content:attr(src);position:absolute;top:0;left:0;font-size:10px;color:#fff;background:rgba(0,0,0,0.7);padding:2px 6px;z-index:99999;pointer-events:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-img-info-style');
+        if (s) s.remove();
+      }
+    });
+  }
+
+  // z-index 标签开关
+  const zIndexToggle = el.querySelector('#dev-toggle-z-index');
+  if (zIndexToggle) {
+    zIndexToggle.addEventListener('click', () => {
+      const on = zIndexToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        // 注入 CSS 显示 z-index > 0 元素的标签
+        const s = document.createElement('style'); s.id = 'dev-z-index-style';
+        s.textContent = `[style*="z-index:"]::before{content:'z:' attr(style);position:absolute;top:0;left:0;font-size:9px;color:#ff0;background:rgba(0,0,0,0.8);padding:1px 4px;z-index:999999;pointer-events:none;font-family:monospace;white-space:nowrap;border-radius:2px}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-z-index-style');
         if (s) s.remove();
       }
     });
@@ -583,11 +1219,65 @@ function bindVisualControls(el) {
     });
   });
 
+  // --gap-scale：注入 style 覆盖 .portfolio 和 .categories 间距
+  const gapScaleSlider = el.querySelector('.dev-slider[data-css="--gap-scale"]');
+  if (gapScaleSlider) {
+    gapScaleSlider.addEventListener('input', () => {
+      const val = parseFloat(gapScaleSlider.value);
+      document.documentElement.style.setProperty('--gap-scale', String(val));
+      let s = document.getElementById('dev-gap-style');
+      if (s) s.remove();
+      s = document.createElement('style'); s.id = 'dev-gap-style';
+      s.textContent = `.portfolio { padding: calc(8rem * ${val}) calc(3rem * ${val}) calc(6rem * ${val}); } .categories { gap: calc(16px * ${val}); }`;
+      document.head.appendChild(s);
+    });
+  }
+
+  // --shadow-depth：注入 style 覆盖全局 box-shadow
+  const shadowDepthSlider = el.querySelector('.dev-slider[data-css="--shadow-depth"]');
+  if (shadowDepthSlider) {
+    shadowDepthSlider.addEventListener('input', () => {
+      const val = parseFloat(shadowDepthSlider.value);
+      document.documentElement.style.setProperty('--shadow-depth', String(val));
+      let s = document.getElementById('dev-shadow-style');
+      if (s) s.remove();
+      s = document.createElement('style'); s.id = 'dev-shadow-style';
+      s.textContent = `.toolbar,.dev-panel,.sidebar,.settings-panel,.category-card,.back-to-top,.shortcuts-panel{box-shadow:0 calc(4px*${val}) calc(24px*${val}) rgba(0,0,0,calc(0.3*${val}))!important}`;
+      document.head.appendChild(s);
+    });
+  }
+
+  // --font-scale-heading：注入 style 覆盖标题字号
+  const fsHeadingSlider = el.querySelector('.dev-slider[data-css="--font-scale-heading"]');
+  if (fsHeadingSlider) {
+    fsHeadingSlider.addEventListener('input', () => {
+      const val = parseFloat(fsHeadingSlider.value);
+      document.documentElement.style.setProperty('--font-scale-heading', String(val));
+      let s = document.getElementById('dev-heading-style');
+      if (s) s.remove();
+      s = document.createElement('style'); s.id = 'dev-heading-style';
+      s.textContent = `.portfolio__title{font-size:calc(clamp(1.8rem,4.5vw,3.2rem)*${val})}.portfolio__desc{font-size:calc(0.85rem*${val})}.category-card__name{font-size:calc(0.85rem*${val})}`;
+      document.head.appendChild(s);
+    });
+  }
+
   // 文本输入（字体、缓动曲线）
   el.querySelectorAll('.dev-input--text').forEach(input => {
     input.addEventListener('input', () => {
       document.documentElement.style.setProperty(input.dataset.cssText, input.value);
+      autoSaveSession();
     });
+  });
+
+  // 全局委托：任何控件变动自动保存 + 更新直接样式
+  el.addEventListener('input', (e) => {
+    if (e.target.closest('.dev-slider, .dev-color, .dev-glass-color, .dev-glass-alpha, .dev-input--text')) {
+      autoSaveSession();
+      scheduleApplyEffects();
+    }
+  });
+  el.addEventListener('change', (e) => {
+    if (e.target.closest('.dev-color, .dev-glass-color')) { autoSaveSession(); scheduleApplyEffects(); }
   });
 
   // 重置按钮扩展：支持毛玻璃颜色和文本输入
@@ -610,6 +1300,8 @@ function bindVisualControls(el) {
       // 文本输入重置
       const textInput = el.querySelector(`.dev-input--text[data-css-text="${key}"]`);
       if (textInput) textInput.value = def;
+      autoSaveSession();
+      scheduleApplyEffects();
     });
   });
 }
@@ -624,40 +1316,57 @@ function renderPerfGroup() {
   el.dataset.rendered = '1';
 
   el.innerHTML = `
-    <div class="dev-section">
-      <div class="dev-section__title">帧率</div>
-      <div class="dev-fps-chart" id="dev-fps-chart"></div>
-      <div class="dev-row" style="margin-top:4px">
-        <span class="dev-row__label">FPS</span>
-        <span class="dev-row__value" id="dev-fps-val">--</span>
+    <div class="dev-section dev-section--compact">
+      <div class="dev-section__title">监控开关</div>
+      <div class="dev-row" style="gap:8px;flex-wrap:wrap">
+        <button class="dev-chip-toggle dev-chip-toggle--on" data-perf="fps">FPS 图表</button>
+        <button class="dev-chip-toggle dev-chip-toggle--on" data-perf="metrics">内存/DOM</button>
+        <button class="dev-chip-toggle dev-chip-toggle--on" data-perf="invoke">Tauri 调用</button>
+        <button class="dev-chip-toggle dev-chip-toggle--on" data-perf="console">控制台</button>
       </div>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">内存</div>
-      <div class="dev-stat"><span class="dev-stat__label">已用堆</span><span class="dev-stat__value" id="dev-mem-used">--</span></div>
-      <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">总堆</span><span class="dev-stat__value" id="dev-mem-total">--</span></div>
-    </div>
-    <div class="dev-section">
-      <div class="dev-section__title">DOM</div>
-      <div class="dev-stat"><span class="dev-stat__label">总节点</span><span class="dev-stat__value" id="dev-dom-nodes">--</span></div>
-      <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">图片</span><span class="dev-stat__value" id="dev-dom-imgs">--</span></div>
-      <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">加载时间</span><span class="dev-stat__value" id="dev-load-time">--</span></div>
-    </div>
-    <div class="dev-section">
-      <div class="dev-section__title">存储</div>
-      <div class="dev-stat"><span class="dev-stat__label">localStorage</span><span class="dev-stat__value" id="dev-storage-size">--</span></div>
-    </div>
-    <div class="dev-section">
-      <div class="dev-section__title">Tauri 命令</div>
-      <div class="dev-console" id="dev-invoke-log" style="height:120px"></div>
-    </div>
-    <div class="dev-section">
-      <div class="dev-section__title">控制台</div>
-      <div class="dev-row" style="margin-bottom:4px">
-        <span class="dev-row__label">日志捕获</span>
-        <button class="dev-btn" id="dev-console-clear" style="font-size:0.65rem">清除</button>
+    <div class="dev-perf-section" data-perf-section="fps">
+      <div class="dev-section">
+        <div class="dev-section__title">帧率</div>
+        <div class="dev-fps-chart" id="dev-fps-chart"></div>
+        <div class="dev-row" style="margin-top:4px">
+          <span class="dev-row__label">FPS</span>
+          <span class="dev-row__value" id="dev-fps-val">--</span>
+        </div>
       </div>
-      <div class="dev-console" id="dev-console"></div>
+    </div>
+    <div class="dev-perf-section" data-perf-section="metrics">
+      <div class="dev-section">
+        <div class="dev-section__title">内存</div>
+        <div class="dev-stat"><span class="dev-stat__label">已用堆</span><span class="dev-stat__value" id="dev-mem-used">--</span></div>
+        <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">总堆</span><span class="dev-stat__value" id="dev-mem-total">--</span></div>
+      </div>
+      <div class="dev-section">
+        <div class="dev-section__title">DOM</div>
+        <div class="dev-stat"><span class="dev-stat__label">总节点</span><span class="dev-stat__value" id="dev-dom-nodes">--</span></div>
+        <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">图片</span><span class="dev-stat__value" id="dev-dom-imgs">--</span></div>
+        <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">加载时间</span><span class="dev-stat__value" id="dev-load-time">--</span></div>
+      </div>
+      <div class="dev-section">
+        <div class="dev-section__title">存储</div>
+        <div class="dev-stat"><span class="dev-stat__label">localStorage</span><span class="dev-stat__value" id="dev-storage-size">--</span></div>
+      </div>
+    </div>
+    <div class="dev-perf-section" data-perf-section="invoke">
+      <div class="dev-section">
+        <div class="dev-section__title">Tauri 命令</div>
+        <div class="dev-console" id="dev-invoke-log" style="height:120px"></div>
+      </div>
+    </div>
+    <div class="dev-perf-section" data-perf-section="console">
+      <div class="dev-section">
+        <div class="dev-section__title">控制台</div>
+        <div class="dev-row" style="margin-bottom:4px">
+          <span class="dev-row__label">日志捕获</span>
+          <button class="dev-btn" id="dev-console-clear" style="font-size:0.65rem">清除</button>
+        </div>
+        <div class="dev-console" id="dev-console"></div>
+      </div>
     </div>
   `;
 
@@ -666,6 +1375,30 @@ function renderPerfGroup() {
     D.consoleBuffer.length = 0;
     const consoleEl = document.getElementById('dev-console');
     if (consoleEl) consoleEl.innerHTML = '';
+  });
+
+  // 监控开关 chip-toggle 绑定
+  el.querySelectorAll('.dev-chip-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('dev-chip-toggle--on');
+      D.perfToggles[btn.dataset.perf] = btn.classList.contains('dev-chip-toggle--on');
+      applyPerfToggles();
+    });
+  });
+}
+
+function applyPerfToggles() {
+  const t = D.perfToggles;
+  if (!t.fps && D.fpsRaf) { cancelAnimationFrame(D.fpsRaf); D.fpsRaf = null; }
+  if (t.fps && !D.fpsRaf && D.open) startFPSMeter();
+  if (!t.metrics && D.perfInterval) { clearInterval(D.perfInterval); D.perfInterval = null; }
+  if (t.metrics && !D.perfInterval && D.open) startPerfMonitor();
+  if (!t.console && D.consoleOrig.log) stopConsoleCapture();
+  if (t.console && !D.consoleOrig.log && D.open) startConsoleCapture();
+  // 折叠动画
+  ['fps','metrics','invoke','console'].forEach(key => {
+    const el = document.querySelector(`.dev-perf-section[data-perf-section="${key}"]`);
+    if (el) el.classList.toggle('dev-perf-section--folded', !t[key]);
   });
 }
 
@@ -744,7 +1477,7 @@ function startPerfMonitor() {
     }
   }
   update();
-  D.perfInterval = setInterval(() => { update(); updateInvokeLogUI(); }, 1000);
+  D.perfInterval = setInterval(() => { update(); if (D.perfToggles.invoke) updateInvokeLogUI(); }, 1000);
 }
 
 function startConsoleCapture() {
@@ -1033,7 +1766,30 @@ function updateGPLog() {
 }
 
 // ── 手柄提示面板 ──
+// ── 手柄图标：原始 SVG 内联，currentColor 自动跟随预设 ──
+const GP_SVG = {
+  'a': '<svg class="dev-hints__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"> <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.2"/> <text x="12" y="16.5" text-anchor="middle" font-family="\'Segoe UI\',Arial,sans-serif" font-size="12" font-weight="700" fill="currentColor">A</text> </svg>',
+  'b': '<svg class="dev-hints__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"> <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.2"/> <text x="12" y="16.5" text-anchor="middle" font-family="\'Segoe UI\',Arial,sans-serif" font-size="12" font-weight="700" fill="currentColor">B</text> </svg>',
+  'back': '<svg class="dev-hints__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"> <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.2"/> <rect x="6" y="7" width="6" height="5" rx="0.5" fill="currentColor"/> <rect x="10" y="10" width="6" height="5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.2"/> </svg>',
+  'dpad-down': '<svg class="dev-hints__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="12" y="28" width="8" height="8" rx="0.5" transform="rotate(-90 12 28)" fill="currentColor"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M11 19.2C11 19.0895 10.9105 19 10.8 19L5.2 19C5.08954 19 5 18.9105 5 18.8L5 13.2C5 13.0895 5.08954 13 5.2 13L11.5 13C12.3284 13 13 12.3284 13 11.5L13 5.2C13 5.08954 13.0895 5 13.2 5L18.8 5C18.9105 5 19 5.08954 19 5.2L19 11.5C19 12.3284 19.6716 13 20.5 13L26.8 13C26.9105 13 27 13.0895 27 13.2L27 18.8C27 18.9105 26.9105 19 26.8 19L21.2 19C21.0895 19 21 19.0895 21 19.2L21 19.8C21 19.9105 21.0895 20 21.2 20L27.5 20C27.7761 20 28 19.7761 28 19.5L28 12.5C28 12.2239 27.7761 12 27.5 12L20.5 12C20.2239 12 20 11.7761 20 11.5L20 4.5C20 4.22386 19.7761 4 19.5 4L12.5 4C12.2239 4 12 4.22386 12 4.5L12 11.5C12 11.7761 11.7761 12 11.5 12L4.5 12C4.22386 12 4 12.2239 4 12.5L4 19.5C4 19.7761 4.22386 20 4.5 20L10.8 20C10.9105 20 11 19.9105 11 19.8L11 19.2Z" fill="currentColor"/> </svg>',
+  'dpad-left': '<svg class="dev-hints__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect x="4" y="12" width="8" height="8" rx="0.5" fill="currentColor"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M12.8 11C12.9105 11 13 10.9105 13 10.8V5.2C13 5.08954 13.0895 5 13.2 5H18.8C18.9105 5 19 5.08954 19 5.2V11.5C19 12.3284 19.6716 13 20.5 13H26.8C26.9105 13 27 13.0895 27 13.2V18.8C27 18.9105 26.9105 19 26.8 19H20.5C19.6716 19 19 19.6716 19 20.5V26.8C19 26.9105 18.9105 27 18.8 27H13.2C13.0895 27 13 26.9105 13 26.8V21.2C13 21.0895 12.9105 21 12.8 21H12.2C12.0895 21 12 21.0895 12 21.2V27.5C12 27.7761 12.2239 28 12.5 28H19.5C19.7761 28 20 27.7761 20 27.5V20.5C20 20.2239 20.2239 20 20.5 20H27.5C27.7761 20 28 19.7761 28 19.5V12.5C28 12.2239 27.7761 12 27.5 12H20.5C20.2239 12 20 11.7761 20 11.5V4.5C20 4.22386 19.7761 4 19.5 4H12.5C12.2239 4 12 4.22386 12 4.5V10.8C12 10.9105 12.0895 11 12.2 11H12.8Z" fill="currentColor"/> </svg>',
+  'dpad-right': '<svg class="dev-hints__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect width="8" height="8" rx="0.5" transform="matrix(-1 0 0 1 28 12)" fill="currentColor"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M19.2 11C19.0895 11 19 10.9105 19 10.8V5.2C19 5.08954 18.9105 5 18.8 5H13.2C13.0895 5 13 5.08954 13 5.2V11.5C13 12.3284 12.3284 13 11.5 13H5.2C5.08954 13 5 13.0895 5 13.2V18.8C5 18.9105 5.08954 19 5.2 19H11.5C12.3284 19 13 19.6716 13 20.5V26.8C13 26.9105 13.0895 27 13.2 27H18.8C18.9105 27 19 26.9105 19 26.8V21.2C19 21.0895 19.0895 21 19.2 21H19.8C19.9105 21 20 21.0895 20 21.2V27.5C20 27.7761 19.7761 28 19.5 28H12.5C12.2239 28 12 27.7761 12 27.5V20.5C12 20.2239 11.7761 20 11.5 20H4.5C4.22386 20 4 19.7761 4 19.5V12.5C4 12.2239 4.22386 12 4.5 12H11.5C11.7761 12 12 11.7761 12 11.5V4.5C12 4.22386 12.2239 4 12.5 4H19.5C19.7761 4 20 4.22386 20 4.5V10.8C20 10.9105 19.9105 11 19.8 11H19.2Z" fill="currentColor"/> </svg>',
+  'dpad-up': '<svg class="dev-hints__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect width="8" height="8" rx="0.5" transform="matrix(4.37114e-08 1 1 -4.37114e-08 12 4)" fill="currentColor"/> <path fill-rule="evenodd" clip-rule="evenodd" d="M11 12.8C11 12.9105 10.9105 13 10.8 13L5.2 13C5.08954 13 5 13.0895 5 13.2L5 18.8C5 18.9105 5.08954 19 5.2 19L11.5 19C12.3284 19 13 19.6716 13 20.5L13 26.8C13 26.9105 13.0895 27 13.2 27L18.8 27C18.9105 27 19 26.9105 19 26.8L19 20.5C19 19.6716 19.6716 19 20.5 19L26.8 19C26.9105 19 27 18.9105 27 18.8L27 13.2C27 13.0895 26.9105 13 26.8 13L21.2 13C21.0895 13 21 12.9105 21 12.8L21 12.2C21 12.0895 21.0895 12 21.2 12L27.5 12C27.7761 12 28 12.2239 28 12.5L28 19.5C28 19.7761 27.7761 20 27.5 20L20.5 20C20.2239 20 20 20.2239 20 20.5L20 27.5C20 27.7761 19.7761 28 19.5 28L12.5 28C12.2239 28 12 27.7761 12 27.5L12 20.5C12 20.2239 11.7761 20 11.5 20L4.5 20C4.22386 20 4 19.7761 4 19.5L4 12.5C4 12.2239 4.22386 12 4.5 12L10.8 12C10.9105 12 11 12.0895 11 12.2L11 12.8Z" fill="currentColor"/> </svg>',
+  'lb': '<svg class="dev-hints__icon" viewBox="0 0 39 22" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M0.560165 9.22469L0.111878 19.4485C0.0508985 20.8392 1.16193 22 2.55398 22H33.3939C34.5346 22 35.5236 21.2111 35.7772 20.099L38.6453 7.51976C38.8609 6.57455 38.4974 5.59129 37.7189 5.01349L31.666 0.52086C31.2825 0.236228 30.8212 0.0684723 30.344 0.0481076C16.6251 -0.53743 5.98773 4.35606 1.51272 7.4406C0.925611 7.84528 0.591401 8.51231 0.560165 9.22469Z" fill="currentColor"/> <mask id="path-2-outside-1_2_166" maskUnits="userSpaceOnUse" x="13.7138" y="5" fill="black"> <rect fill="white" x="13.7138" y="5"/> <path d="M21.164 18H14.0751V6.09668H16.7562V15.8252H21.164V18ZM22.7743 18V6.09668H27.1073C28.4354 6.09668 29.4564 6.34017 30.1703 6.82715C30.8842 7.31413 31.2411 8.00033 31.2411 8.88574C31.2411 9.52767 31.0225 10.0894 30.5853 10.5708C30.1537 11.0522 29.6003 11.387 28.9252 11.5752V11.6084C29.7719 11.7135 30.447 12.0262 30.9506 12.5464C31.4597 13.0666 31.7142 13.7002 31.7142 14.4473C31.7142 15.5374 31.3241 16.4035 30.5438 17.0454C29.7636 17.6818 28.6983 18 27.348 18H22.7743ZM25.4555 8.07227V10.8945H26.6342C27.1876 10.8945 27.622 10.7617 27.9374 10.4961C28.2584 10.2249 28.4188 9.85417 28.4188 9.38379C28.4188 8.50944 27.7658 8.07227 26.4599 8.07227H25.4555ZM25.4555 12.8867V16.0244H26.9081C27.5279 16.0244 28.0121 15.8805 28.3607 15.5928C28.7149 15.305 28.892 14.9121 28.892 14.4141C28.892 13.9382 28.7177 13.5646 28.369 13.2935C28.0259 13.0223 27.5445 12.8867 26.9247 12.8867H25.4555Z"/> </mask> <path d="M21.164 18H14.0751V6.09668H16.7562V15.8252H21.164V18ZM22.7743 18V6.09668H27.1073C28.4354 6.09668 29.4564 6.34017 30.1703 6.82715C30.8842 7.31413 31.2411 8.00033 31.2411 8.88574C31.2411 9.52767 31.0225 10.0894 30.5853 10.5708C30.1537 11.0522 29.6003 11.387 28.9252 11.5752V11.6084C29.7719 11.7135 30.447 12.0262 30.9506 12.5464C31.4597 13.0666 31.7142 13.7002 31.7142 14.4473C31.7142 15.5374 31.3241 16.4035 30.5438 17.0454C29.7636 17.6818 28.6983 18 27.348 18H22.7743ZM25.4555 8.07227V10.8945H26.6342C27.1876 10.8945 27.622 10.7617 27.9374 10.4961C28.2584 10.2249 28.4188 9.85417 28.4188 9.38379C28.4188 8.50944 27.7658 8.07227 26.4599 8.07227H25.4555ZM25.4555 12.8867V16.0244H26.9081C27.5279 16.0244 28.0121 15.8805 28.3607 15.5928C28.7149 15.305 28.892 14.9121 28.892 14.4141C28.892 13.9382 28.7177 13.5646 28.369 13.2935C28.0259 13.0223 27.5445 12.8867 26.9247 12.8867H25.4555Z" fill="#1C212A"/> <path d="M21.164 18V18.1H21.264V18H21.164ZM14.0751 18H13.9751V18.1H14.0751V18ZM14.0751 6.09668V5.99668H13.9751V6.09668H14.0751ZM16.7562 6.09668H16.8562V5.99668H16.7562V6.09668ZM16.7562 15.8252H16.6562V15.9252H16.7562V15.8252ZM21.164 15.8252H21.264V15.7252H21.164V15.8252ZM21.164 17.9H14.0751V18.1H21.164V17.9ZM14.1751 18V6.09668H13.9751V18H14.1751ZM14.0751 6.19668H16.7562V5.99668H14.0751V6.19668ZM16.6562 6.09668V15.8252H16.8562V6.09668H16.6562ZM16.7562 15.9252H21.164V15.7252H16.7562V15.9252ZM21.064 15.8252V18H21.264V15.8252H21.064ZM22.7743 18H22.6743V18.1H22.7743V18ZM22.7743 6.09668V5.99668H22.6743V6.09668H22.7743ZM30.5853 10.5708L30.5113 10.5036L30.5109 10.504L30.5853 10.5708ZM28.9252 11.5752L28.8983 11.4789L28.8252 11.4993V11.5752H28.9252ZM28.9252 11.6084H28.8252V11.6967L28.9129 11.7076L28.9252 11.6084ZM30.9506 12.5464L30.8787 12.6159L30.8791 12.6163L30.9506 12.5464ZM30.5438 17.0454L30.607 17.1229L30.6074 17.1226L30.5438 17.0454ZM25.4555 8.07227V7.97227H25.3555V8.07227H25.4555ZM25.4555 10.8945H25.3555V10.9945H25.4555V10.8945ZM27.9374 10.4961L28.0018 10.5726L28.0019 10.5725L27.9374 10.4961ZM25.4555 12.8867V12.7867H25.3555V12.8867H25.4555ZM25.4555 16.0244H25.3555V16.1244H25.4555V16.0244ZM28.3607 15.5928L28.2977 15.5152L28.2971 15.5157L28.3607 15.5928ZM28.369 13.2935L28.307 13.3719L28.3076 13.3724L28.369 13.2935ZM22.8743 18V6.09668H22.6743V18H22.8743ZM22.7743 6.19668H27.1073V5.99668H22.7743V6.19668ZM27.1073 6.19668C28.4254 6.19668 29.4234 6.43869 30.114 6.90976L30.2267 6.74454C29.4895 6.24165 28.4455 5.99668 27.1073 5.99668V6.19668ZM30.114 6.90976C30.7997 7.37757 31.1411 8.03241 31.1411 8.88574H31.3411C31.3411 7.96824 30.9686 7.25069 30.2267 6.74454L30.114 6.90976ZM31.1411 8.88574C31.1411 9.50246 30.932 10.0403 30.5113 10.5036L30.6594 10.638C31.113 10.1384 31.3411 9.55288 31.3411 8.88574H31.1411ZM30.5109 10.504C30.093 10.9701 29.5567 11.2954 28.8983 11.4789L28.952 11.6715C29.6439 11.4787 30.2144 11.1344 30.6598 10.6376L30.5109 10.504ZM28.8252 11.5752V11.6084H29.0252V11.5752H28.8252ZM28.9129 11.7076C29.7411 11.8105 30.3937 12.115 30.8787 12.6159L31.0224 12.4768C30.5002 11.9374 29.8026 11.6166 28.9375 11.5092L28.9129 11.7076ZM30.8791 12.6163C31.3694 13.1173 31.6142 13.7256 31.6142 14.4473H31.8142C31.8142 13.6748 31.55 13.0159 31.022 12.4764L30.8791 12.6163ZM31.6142 14.4473C31.6142 15.5102 31.2355 16.3469 30.4803 16.9682L30.6074 17.1226C31.4127 16.4601 31.8142 15.5646 31.8142 14.4473H31.6142ZM30.4806 16.9679C29.7235 17.5855 28.6831 17.9 27.348 17.9V18.1C28.7135 18.1 29.8037 17.7782 30.607 17.1229L30.4806 16.9679ZM27.348 17.9H22.7743V18.1H27.348V17.9ZM25.3555 8.07227V10.8945H25.5555V8.07227H25.3555ZM25.4555 10.9945H26.6342V10.7945H25.4555V10.9945ZM26.6342 10.9945C27.203 10.9945 27.663 10.8579 28.0018 10.5726L27.873 10.4196C27.5809 10.6655 27.1721 10.7945 26.6342 10.7945V10.9945ZM28.0019 10.5725C28.3482 10.2799 28.5188 9.87965 28.5188 9.38379H28.3188C28.3188 9.82868 28.1685 10.17 27.8729 10.4197L28.0019 10.5725ZM28.5188 9.38379C28.5188 8.91766 28.3424 8.55653 27.9847 8.31705C27.6341 8.08233 27.1209 7.97227 26.4599 7.97227V8.17227C27.1048 8.17227 27.5711 8.28079 27.8735 8.48324C28.1688 8.68094 28.3188 8.97556 28.3188 9.38379H28.5188ZM26.4599 7.97227H25.4555V8.17227H26.4599V7.97227ZM25.3555 12.8867V16.0244H25.5555V12.8867H25.3555ZM25.4555 16.1244H26.9081V15.9244H25.4555V16.1244ZM26.9081 16.1244C27.5425 16.1244 28.0522 15.9771 28.4244 15.6699L28.2971 15.5157C27.972 15.784 27.5132 15.9244 26.9081 15.9244V16.1244ZM28.4238 15.6704C28.8037 15.3617 28.992 14.9391 28.992 14.4141H28.792C28.792 14.8851 28.6261 15.2483 28.2977 15.5152L28.4238 15.6704ZM28.992 14.4141C28.992 13.9101 28.8055 13.5063 28.4304 13.2145L28.3076 13.3724C28.6298 13.623 28.792 13.9663 28.792 14.4141H28.992ZM28.431 13.215C28.0642 12.9251 27.5578 12.7867 26.9247 12.7867V12.9867C27.5312 12.9867 27.9876 13.1195 28.307 13.3719L28.431 13.215ZM26.9247 12.7867H25.4555V12.9867H26.9247V12.7867Z" fill="#1C212A" mask="url(#path-2-outside-1_2_166)"/> </svg>',
+  'ls': '<svg class="dev-hints__icon" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="17" cy="17" r="12" fill="currentColor"/> <circle cx="17" cy="17" r="11.0769" fill="#1C212A"/> <circle cx="17" cy="17" r="10.1538" fill="currentColor"/> <mask id="path-4-outside-1_2_143" maskUnits="userSpaceOnUse" x="14" y="10" width="8" height="14" fill="black"> <rect fill="white" x="14" y="10" width="8" height="14"/> <path d="M21.4502 23H14.3613V11.0967H17.0425V20.8252H21.4502V23Z"/> </mask> <path d="M21.4502 23H14.3613V11.0967H17.0425V20.8252H21.4502V23Z" fill="#1C212A"/> <path d="M21.4502 23V23.1H21.5502V23H21.4502ZM14.3613 23H14.2613V23.1H14.3613V23ZM14.3613 11.0967V10.9967H14.2613V11.0967H14.3613ZM17.0425 11.0967H17.1425V10.9967H17.0425V11.0967ZM17.0425 20.8252H16.9425V20.9252H17.0425V20.8252ZM21.4502 20.8252H21.5502V20.7252H21.4502V20.8252ZM21.4502 22.9H14.3613V23.1H21.4502V22.9ZM14.4613 23V11.0967H14.2613V23H14.4613ZM14.3613 11.1967H17.0425V10.9967H14.3613V11.1967ZM16.9425 11.0967V20.8252H17.1425V11.0967H16.9425ZM17.0425 20.9252H21.4502V20.7252H17.0425V20.9252ZM21.3502 20.8252V23H21.5502V20.8252H21.3502Z" fill="#1C212A" mask="url(#path-4-outside-1_2_143)"/> <path d="M23.9533 5.44186C19.0575 2.945 15.6776 2.93463 10.1359 5.46188C10.0238 5.51297 9.92522 5.3469 10.0258 5.27589L17.4386 0.0433595C17.475 0.0176779 17.5239 0.0191496 17.5587 0.0469694L24.0739 5.25915C24.1696 5.33571 24.0624 5.49754 23.9533 5.44186Z" fill="currentColor"/> <path d="M23.9533 28.5581C19.0575 31.055 15.6776 31.0654 10.1359 28.5381C10.0238 28.487 9.92522 28.6531 10.0258 28.7241L17.4386 33.9566C17.475 33.9823 17.5239 33.9809 17.5587 33.953L24.0739 28.7409C24.1696 28.6643 24.0624 28.5025 23.9533 28.5581Z" fill="currentColor"/> <path d="M28.5581 10.5467C31.055 15.4425 31.0654 18.8224 28.5381 24.3641C28.487 24.4762 28.6531 24.5748 28.7241 24.4742L33.9566 17.0614C33.9823 17.025 33.9809 16.9761 33.953 16.9413L28.7409 10.4261C28.6643 10.3304 28.5025 10.4376 28.5581 10.5467Z" fill="currentColor"/> <path d="M5.44186 10.5467C2.945 15.4425 2.93463 18.8224 5.46188 24.3641C5.51297 24.4762 5.3469 24.5748 5.27589 24.4742L0.0433595 17.0614C0.0176779 17.025 0.0191496 16.9761 0.0469694 16.9413L5.25915 10.4261C5.33571 10.3304 5.49754 10.4376 5.44186 10.5467Z" fill="currentColor"/> </svg>',
+  'ls-press': '<svg class="dev-hints__icon" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect y="10" width="34" height="16" rx="8" fill="currentColor"/> <rect x="9" y="26" width="16" height="4" fill="currentColor"/> <mask id="path-3-outside-1_2_235" maskUnits="userSpaceOnUse" x="14" y="11.5" width="8" height="14" fill="black"> <rect fill="white" x="14" y="11.5" width="8" height="14"/> <path d="M21.4502 24.5H14.3613V12.5967H17.0425V22.3252H21.4502V24.5Z"/> </mask> <path d="M21.4502 24.5H14.3613V12.5967H17.0425V22.3252H21.4502V24.5Z" fill="#1C212A"/> <path d="M21.4502 24.5V24.6H21.5502V24.5H21.4502ZM14.3613 24.5H14.2613V24.6H14.3613V24.5ZM14.3613 12.5967V12.4967H14.2613V12.5967H14.3613ZM17.0425 12.5967H17.1425V12.4967H17.0425V12.5967ZM17.0425 22.3252H16.9425V22.4252H17.0425V22.3252ZM21.4502 22.3252H21.5502V22.2252H21.4502V22.3252ZM21.4502 24.4H14.3613V24.6H21.4502V24.4ZM14.4613 24.5V12.5967H14.2613V24.5H14.4613ZM14.3613 12.6967H17.0425V12.4967H14.3613V12.6967ZM16.9425 12.5967V22.3252H17.1425V12.5967H16.9425ZM17.0425 22.4252H21.4502V22.2252H17.0425V22.4252ZM21.3502 22.3252V24.5H21.5502V22.3252H21.3502Z" fill="#1C212A" mask="url(#path-3-outside-1_2_235)"/> <path d="M17 10L20.4641 5.5H13.5359L17 10Z" fill="currentColor"/> </svg>',
+  'lt': '<svg class="dev-hints__icon" viewBox="-2 -6 37 44" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M30.7968 0H6.96407C5.5154 0 4.53936 1.50178 4.97039 2.88485C8.04102 12.7377 4.72677 22.5714 1.60882 28.152C0.909864 29.403 1.56319 31.0564 2.97511 31.3014C24.5858 35.0499 31.7462 22.8169 32.6025 15.9295C33.2488 10.7312 32.9611 4.72824 32.7517 1.79756C32.6786 0.774478 31.8225 0 30.7968 0Z" fill="currentColor"/> <mask id="path-2-outside-1_2_178" maskUnits="userSpaceOnUse" x="11.5" y="5" fill="black"> <rect fill="white" x="11.5" y="5"/> <path d="M18.9502 18H11.8613V6.09668H14.5425V15.8252H18.9502V18ZM27.7905 8.27979H24.3955V18H21.7061V8.27979H18.3276V6.09668H27.7905V8.27979Z"/> </mask> <path d="M18.9502 18H11.8613V6.09668H14.5425V15.8252H18.9502V18ZM27.7905 8.27979H24.3955V18H21.7061V8.27979H18.3276V6.09668H27.7905V8.27979Z" fill="#1C212A"/> <path d="M18.9502 18V18.1H19.0502V18H18.9502ZM11.8613 18H11.7613V18.1H11.8613V18ZM11.8613 6.09668V5.99668H11.7613V6.09668H11.8613ZM14.5425 6.09668H14.6425V5.99668H14.5425V6.09668ZM14.5425 15.8252H14.4425V15.9252H14.5425V15.8252ZM18.9502 15.8252H19.0502V15.7252H18.9502V15.8252ZM18.9502 17.9H11.8613V18.1H18.9502V17.9ZM11.9613 18V6.09668H11.7613V18H11.9613ZM11.8613 6.19668H14.5425V5.99668H11.8613V6.19668ZM14.4425 6.09668V15.8252H14.6425V6.09668H14.4425ZM14.5425 15.9252H18.9502V15.7252H14.5425V15.9252ZM18.8502 15.8252V18H19.0502V15.8252H18.8502ZM27.7905 8.27979V8.37979H27.8905V8.27979H27.7905ZM24.3955 8.27979V8.17979H24.2955V8.27979H24.3955ZM24.3955 18V18.1H24.4955V18H24.3955ZM21.7061 18H21.6061V18.1H21.7061V18ZM21.7061 8.27979H21.8061V8.17979H21.7061V8.27979ZM18.3276 8.27979H18.2276V8.37979H18.3276V8.27979ZM18.3276 6.09668V5.99668H18.2276V6.09668H18.3276ZM27.7905 6.09668H27.8905V5.99668H27.7905V6.09668ZM27.7905 8.17979H24.3955V8.37979H27.7905V8.17979ZM24.2955 8.27979V18H24.4955V8.27979H24.2955ZM24.3955 17.9H21.7061V18.1H24.3955V17.9ZM21.8061 18V8.27979H21.6061V18H21.8061ZM21.7061 8.17979H18.3276V8.37979H21.7061V8.17979ZM18.4276 8.27979V6.09668H18.2276V8.27979H18.4276ZM18.3276 6.19668H27.7905V5.99668H18.3276V6.19668ZM27.6905 6.09668V8.27979H27.8905V6.09668H27.6905Z" fill="#1C212A" mask="url(#path-2-outside-1_2_178)"/> </svg>',
+  'rb': '<svg class="dev-hints__icon" viewBox="0 0 39 22" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M38.4399 9.22469L38.8882 19.4485C38.9491 20.8392 37.8381 22 36.4461 22H5.60612C4.46545 22 3.47641 21.2111 3.22284 20.099L0.354691 7.51976C0.139175 6.57455 0.502621 5.59129 1.2811 5.01349L7.33406 0.52086C7.71755 0.236228 8.17886 0.0684723 8.656 0.0481076C22.375 -0.53743 33.0123 4.35606 37.4873 7.4406C38.0744 7.84528 38.4086 8.51231 38.4399 9.22469Z" fill="currentColor"/> <mask id="path-2-outside-1_2_170" maskUnits="userSpaceOnUse" x="7.631" y="5" fill="black"> <rect fill="white" x="7.631" y="5"/> <path d="M17.9782 18H14.8986L13.0475 14.937C12.9092 14.7046 12.7763 14.4971 12.6491 14.3145C12.5218 14.1318 12.3917 13.9769 12.2589 13.8496C12.1317 13.7168 11.9961 13.6172 11.8522 13.5508C11.7138 13.4788 11.5617 13.4429 11.3957 13.4429H10.6735V18H7.99233V6.09668H12.2423C15.131 6.09668 16.5753 7.17578 16.5753 9.33398C16.5753 9.74902 16.5117 10.1336 16.3844 10.4878C16.2571 10.8364 16.0773 11.1519 15.8449 11.4341C15.6124 11.7163 15.3302 11.9598 14.9982 12.1646C14.6717 12.3693 14.3065 12.5298 13.9025 12.646V12.6792C14.0796 12.7345 14.2511 12.8258 14.4171 12.9531C14.5832 13.0749 14.7436 13.2188 14.8986 13.3848C15.0535 13.5508 15.2002 13.7306 15.3385 13.9243C15.4824 14.1125 15.6124 14.2979 15.7287 14.4805L17.9782 18ZM10.6735 8.10547V11.4175H11.8356C12.4111 11.4175 12.8732 11.2515 13.2218 10.9194C13.576 10.5819 13.7531 10.1641 13.7531 9.66602C13.7531 8.62565 13.1305 8.10547 11.8854 8.10547H10.6735ZM19.0988 18V6.09668H23.4318C24.7599 6.09668 25.7809 6.34017 26.4948 6.82715C27.2086 7.31413 27.5656 8.00033 27.5656 8.88574C27.5656 9.52767 27.347 10.0894 26.9098 10.5708C26.4782 11.0522 25.9248 11.387 25.2497 11.5752V11.6084C26.0963 11.7135 26.7715 12.0262 27.275 12.5464C27.7842 13.0666 28.0387 13.7002 28.0387 14.4473C28.0387 15.5374 27.6486 16.4035 26.8683 17.0454C26.088 17.6818 25.0228 18 23.6725 18H19.0988ZM21.7799 8.07227V10.8945H22.9586C23.512 10.8945 23.9464 10.7617 24.2619 10.4961C24.5828 10.2249 24.7433 9.85417 24.7433 9.38379C24.7433 8.50944 24.0903 8.07227 22.7843 8.07227H21.7799ZM21.7799 12.8867V16.0244H23.2326C23.8524 16.0244 24.3366 15.8805 24.6852 15.5928C25.0394 15.305 25.2165 14.9121 25.2165 14.4141C25.2165 13.9382 25.0421 13.5646 24.6935 13.2935C24.3504 13.0223 23.869 12.8867 23.2492 12.8867H21.7799Z"/> </mask> <path d="M17.9782 18H14.8986L13.0475 14.937C12.9092 14.7046 12.7763 14.4971 12.6491 14.3145C12.5218 14.1318 12.3917 13.9769 12.2589 13.8496C12.1317 13.7168 11.9961 13.6172 11.8522 13.5508C11.7138 13.4788 11.5617 13.4429 11.3957 13.4429H10.6735V18H7.99233V6.09668H12.2423C15.131 6.09668 16.5753 7.17578 16.5753 9.33398C16.5753 9.74902 16.5117 10.1336 16.3844 10.4878C16.2571 10.8364 16.0773 11.1519 15.8449 11.4341C15.6124 11.7163 15.3302 11.9598 14.9982 12.1646C14.6717 12.3693 14.3065 12.5298 13.9025 12.646V12.6792C14.0796 12.7345 14.2511 12.8258 14.4171 12.9531C14.5832 13.0749 14.7436 13.2188 14.8986 13.3848C15.0535 13.5508 15.2002 13.7306 15.3385 13.9243C15.4824 14.1125 15.6124 14.2979 15.7287 14.4805L17.9782 18ZM10.6735 8.10547V11.4175H11.8356C12.4111 11.4175 12.8732 11.2515 13.2218 10.9194C13.576 10.5819 13.7531 10.1641 13.7531 9.66602C13.7531 8.62565 13.1305 8.10547 11.8854 8.10547H10.6735ZM19.0988 18V6.09668H23.4318C24.7599 6.09668 25.7809 6.34017 26.4948 6.82715C27.2086 7.31413 27.5656 8.00033 27.5656 8.88574C27.5656 9.52767 27.347 10.0894 26.9098 10.5708C26.4782 11.0522 25.9248 11.387 25.2497 11.5752V11.6084C26.0963 11.7135 26.7715 12.0262 27.275 12.5464C27.7842 13.0666 28.0387 13.7002 28.0387 14.4473C28.0387 15.5374 27.6486 16.4035 26.8683 17.0454C26.088 17.6818 25.0228 18 23.6725 18H19.0988ZM21.7799 8.07227V10.8945H22.9586C23.512 10.8945 23.9464 10.7617 24.2619 10.4961C24.5828 10.2249 24.7433 9.85417 24.7433 9.38379C24.7433 8.50944 24.0903 8.07227 22.7843 8.07227H21.7799ZM21.7799 12.8867V16.0244H23.2326C23.8524 16.0244 24.3366 15.8805 24.6852 15.5928C25.0394 15.305 25.2165 14.9121 25.2165 14.4141C25.2165 13.9382 25.0421 13.5646 24.6935 13.2935C24.3504 13.0223 23.869 12.8867 23.2492 12.8867H21.7799Z" fill="#1C212A"/> <path d="M17.9782 18V18.11H18.179L18.0709 17.9408L17.9782 18ZM14.8986 18L14.8044 18.0569L14.8365 18.11H14.8986V18ZM13.0475 14.937L12.953 14.9933L12.9534 14.9939L13.0475 14.937ZM12.2589 13.8496L12.1794 13.9258L12.1828 13.929L12.2589 13.8496ZM11.8522 13.5508L11.8014 13.6485L11.8061 13.6507L11.8522 13.5508ZM10.6735 13.4429V13.3329H10.5635V13.4429H10.6735ZM10.6735 18V18.11H10.7835V18H10.6735ZM7.99233 18H7.88233V18.11H7.99233V18ZM7.99233 6.09668V5.98668H7.88233V6.09668H7.99233ZM16.3844 10.4878L16.4878 10.5255L16.4879 10.525L16.3844 10.4878ZM14.9982 12.1646L14.9405 12.0709L14.9397 12.0714L14.9982 12.1646ZM13.9025 12.646L13.8721 12.5403L13.7925 12.5632V12.646H13.9025ZM13.9025 12.6792H13.7925V12.7601L13.8697 12.7842L13.9025 12.6792ZM14.4171 12.9531L14.3502 13.0404L14.3521 13.0418L14.4171 12.9531ZM15.3385 13.9243L15.249 13.9883L15.2511 13.9911L15.3385 13.9243ZM15.7287 14.4805L15.6359 14.5395L15.636 14.5397L15.7287 14.4805ZM10.6735 8.10547V7.99547H10.5635V8.10547H10.6735ZM10.6735 11.4175H10.5635V11.5275H10.6735V11.4175ZM13.2218 10.9194L13.2977 10.9991L13.2977 10.9991L13.2218 10.9194ZM17.9782 17.89H14.8986V18.11H17.9782V17.89ZM14.9927 17.9431L13.1417 14.8801L12.9534 14.9939L14.8044 18.0569L14.9927 17.9431ZM13.142 14.8807C13.0026 14.6465 12.8684 14.4367 12.7393 14.2516L12.5588 14.3774C12.6843 14.5574 12.8157 14.7627 12.953 14.9933L13.142 14.8807ZM12.7393 14.2516C12.6087 14.0642 12.4741 13.9034 12.335 13.7702L12.1828 13.929C12.3094 14.0504 12.4349 14.1995 12.5588 14.3774L12.7393 14.2516ZM12.3384 13.7735C12.2031 13.6323 12.0565 13.5239 11.8983 13.4509L11.8061 13.6507C11.9356 13.7104 12.0602 13.8013 12.1795 13.9257L12.3384 13.7735ZM11.9029 13.4532C11.7479 13.3726 11.5782 13.3329 11.3957 13.3329V13.5529C11.5452 13.5529 11.6798 13.5851 11.8014 13.6484L11.9029 13.4532ZM11.3957 13.3329H10.6735V13.5529H11.3957V13.3329ZM10.5635 13.4429V18H10.7835V13.4429H10.5635ZM10.6735 17.89H7.99233V18.11H10.6735V17.89ZM8.10233 18V6.09668H7.88233V18H8.10233ZM7.99233 6.20668H12.2423V5.98668H7.99233V6.20668ZM12.2423 6.20668C13.6762 6.20668 14.7315 6.47505 15.4263 6.99413C16.115 7.5087 16.4653 8.28188 16.4653 9.33398H16.6853C16.6853 8.22788 16.3135 7.38241 15.5579 6.81788C14.8084 6.25786 13.6972 5.98668 12.2423 5.98668V6.20668ZM16.4653 9.33398C16.4653 9.73764 16.4035 10.1095 16.2809 10.4506L16.4879 10.525C16.6199 10.1577 16.6853 9.76041 16.6853 9.33398H16.4653ZM16.2811 10.4501C16.158 10.7872 15.9843 11.0917 15.76 11.3642L15.9298 11.504C16.1702 11.212 16.3563 10.8857 16.4878 10.5255L16.2811 10.4501ZM15.76 11.3642C15.5357 11.6364 15.2629 11.8721 14.9405 12.0709L15.0559 12.2582C15.3976 12.0475 15.6892 11.7962 15.9298 11.504L15.76 11.3642ZM14.9397 12.0714C14.6227 12.2702 14.2671 12.4267 13.8721 12.5403L13.9329 12.7517C14.3459 12.6329 14.7207 12.4684 15.0566 12.2577L14.9397 12.0714ZM13.7925 12.646V12.6792H14.0125V12.646H13.7925ZM13.8697 12.7842C14.033 12.8352 14.1931 12.92 14.3502 13.0404L14.4841 12.8658C14.3091 12.7317 14.1262 12.6339 13.9353 12.5742L13.8697 12.7842ZM14.3521 13.0418C14.512 13.1591 14.6674 13.2983 14.8182 13.4598L14.979 13.3097C14.8198 13.1392 14.6543 12.9906 14.4822 12.8644L14.3521 13.0418ZM14.8182 13.4598C14.9697 13.6222 15.1133 13.7983 15.249 13.9883L15.428 13.8604C15.287 13.663 15.1374 13.4794 14.979 13.3097L14.8182 13.4598ZM15.2511 13.9911C15.3933 14.177 15.5215 14.3598 15.6359 14.5395L15.8215 14.4214C15.7034 14.2359 15.5715 14.0479 15.4259 13.8575L15.2511 13.9911ZM15.636 14.5397L17.8855 18.0592L18.0709 17.9408L15.8213 14.4212L15.636 14.5397ZM10.5635 8.10547V11.4175H10.7835V8.10547H10.5635ZM10.6735 11.5275H11.8356V11.3075H10.6735V11.5275ZM11.8356 11.5275C12.4335 11.5275 12.9247 11.3543 13.2977 10.9991L13.146 10.8398C12.8217 11.1486 12.3887 11.3075 11.8356 11.3075V11.5275ZM13.2977 10.9991C13.6741 10.6403 13.8631 10.1935 13.8631 9.66602H13.6431C13.6431 10.1346 13.4779 10.5234 13.1459 10.8398L13.2977 10.9991ZM13.8631 9.66602C13.8631 9.12317 13.6997 8.69781 13.3567 8.41119C13.0174 8.12774 12.5206 7.99547 11.8854 7.99547V8.21547C12.4953 8.21547 12.9323 8.34329 13.2156 8.58002C13.4952 8.81358 13.6431 9.1685 13.6431 9.66602H13.8631ZM11.8854 7.99547H10.6735V8.21547H11.8854V7.99547ZM19.0988 18H18.9888V18.11H19.0988V18ZM19.0988 6.09668V5.98668H18.9888V6.09668H19.0988ZM26.9098 10.5708L26.8284 10.4969L26.8279 10.4974L26.9098 10.5708ZM25.2497 11.5752L25.2201 11.4692L25.1397 11.4917V11.5752H25.2497ZM25.2497 11.6084H25.1397V11.7056L25.2361 11.7176L25.2497 11.6084ZM27.275 12.5464L27.196 12.6229L27.1964 12.6233L27.275 12.5464ZM26.8683 17.0454L26.9378 17.1307L26.9382 17.1304L26.8683 17.0454ZM21.7799 8.07227V7.96227H21.6699V8.07227H21.7799ZM21.7799 10.8945H21.6699V11.0045H21.7799V10.8945ZM24.2619 10.4961L24.3327 10.5802L24.3329 10.5801L24.2619 10.4961ZM21.7799 12.8867V12.7767H21.6699V12.8867H21.7799ZM21.7799 16.0244H21.6699V16.1344H21.7799V16.0244ZM24.6852 15.5928L24.6158 15.5074L24.6152 15.5079L24.6852 15.5928ZM24.6935 13.2935L24.6253 13.3798L24.626 13.3803L24.6935 13.2935ZM19.2088 18V6.09668H18.9888V18H19.2088ZM19.0988 6.20668H23.4318V5.98668H19.0988V6.20668ZM23.4318 6.20668C24.7489 6.20668 25.7446 6.44854 26.4328 6.91802L26.5568 6.73628C25.8172 6.23179 24.771 5.98668 23.4318 5.98668V6.20668ZM26.4328 6.91802C27.1157 7.38391 27.4556 8.03562 27.4556 8.88574H27.6756C27.6756 7.96503 27.3015 7.24435 26.5568 6.73628L26.4328 6.91802ZM27.4556 8.88574C27.4556 9.49993 27.2474 10.0354 26.8284 10.4969L26.9912 10.6447C27.4465 10.1434 27.6756 9.5554 27.6756 8.88574H27.4556ZM26.8279 10.4974C26.4114 10.9619 25.8768 11.2862 25.2201 11.4692L25.2792 11.6812C25.9728 11.4879 26.5449 11.1426 26.9917 10.6442L26.8279 10.4974ZM25.1397 11.5752V11.6084H25.3597V11.5752H25.1397ZM25.2361 11.7176C26.0625 11.8202 26.7129 12.1238 27.196 12.6229L27.3541 12.4699C26.83 11.9286 26.1302 11.6069 25.2632 11.4992L25.2361 11.7176ZM27.1964 12.6233C27.6848 13.1224 27.9287 13.7281 27.9287 14.4473H28.1487C28.1487 13.6723 27.8835 13.0108 27.3537 12.4694L27.1964 12.6233ZM27.9287 14.4473C27.9287 15.5075 27.5511 16.3412 26.7984 16.9605L26.9382 17.1304C27.7461 16.4657 28.1487 15.5674 28.1487 14.4473H27.9287ZM26.7988 16.9602C26.0439 17.5758 25.0061 17.89 23.6725 17.89V18.11C25.0395 18.11 26.1321 17.7878 26.9378 17.1307L26.7988 16.9602ZM23.6725 17.89H19.0988V18.11H23.6725V17.89ZM21.6699 8.07227V10.8945H21.8899V8.07227H21.6699ZM21.7799 11.0045H22.9586V10.7845H21.7799V11.0045ZM22.9586 11.0045C23.529 11.0045 23.9916 10.8675 24.3327 10.5802L24.191 10.412C23.9013 10.6559 23.495 10.7845 22.9586 10.7845V11.0045ZM24.3329 10.5801C24.6817 10.2854 24.8533 9.8822 24.8533 9.38379H24.6333C24.6333 9.82613 24.484 10.1645 24.1909 10.4121L24.3329 10.5801ZM24.8533 9.38379C24.8533 8.91477 24.6756 8.55031 24.3148 8.30874C23.9618 8.0724 23.4461 7.96227 22.7843 7.96227V8.18227C23.4285 8.18227 23.8924 8.29071 24.1924 8.49155C24.4845 8.68716 24.6333 8.97846 24.6333 9.38379H24.8533ZM22.7843 7.96227H21.7799V8.18227H22.7843V7.96227ZM21.6699 12.8867V16.0244H21.8899V12.8867H21.6699ZM21.7799 16.1344H23.2326V15.9144H21.7799V16.1344ZM23.2326 16.1344C23.8685 16.1344 24.3807 15.9868 24.7552 15.6776L24.6152 15.5079C24.2925 15.7743 23.8362 15.9144 23.2326 15.9144V16.1344ZM24.7546 15.6781C25.137 15.3674 25.3265 14.9418 25.3265 14.4141H25.1065C25.1065 14.8824 24.9417 15.2426 24.6158 15.5074L24.7546 15.6781ZM25.3265 14.4141C25.3265 13.9072 25.1388 13.5004 24.761 13.2066L24.626 13.3803C24.9455 13.6288 25.1065 13.9691 25.1065 14.4141H25.3265ZM24.7617 13.2072C24.3925 12.9154 23.8836 12.7767 23.2492 12.7767V12.9967C23.8543 12.9967 24.3083 13.1292 24.6253 13.3798L24.7617 13.2072ZM23.2492 12.7767H21.7799V12.9967H23.2492V12.7767Z" fill="#1C212A" mask="url(#path-2-outside-1_2_170)"/> </svg>',
+  'rs': '<svg class="dev-hints__icon" width="32" height="37" viewBox="0 0 32 37" fill="none" xmlns="http://www.w3.org/2000/svg"> <circle cx="16" cy="19" r="12" fill="currentColor"/> <circle cx="16" cy="19" r="11.0769" fill="#1C212A"/> <circle cx="16" cy="19" r="10.1538" fill="currentColor"/> <mask id="path-4-outside-1_117_10" maskUnits="userSpaceOnUse" x="11.5" y="12" width="11" height="14" fill="black"> <rect fill="white" x="11.5" y="12" width="11" height="14"/> <path d="M21.8472 25H18.7676L16.9165 21.937C16.7782 21.7046 16.6453 21.4971 16.5181 21.3145C16.3908 21.1318 16.2607 20.9769 16.1279 20.8496C16.0007 20.7168 15.8651 20.6172 15.7212 20.5508C15.5828 20.4788 15.4307 20.4429 15.2646 20.4429H14.5425V25H11.8613V13.0967H16.1113C19 13.0967 20.4443 14.1758 20.4443 16.334C20.4443 16.749 20.3807 17.1336 20.2534 17.4878C20.1261 17.8364 19.9463 18.1519 19.7139 18.4341C19.4814 18.7163 19.1992 18.9598 18.8672 19.1646C18.5407 19.3693 18.1755 19.5298 17.7715 19.646V19.6792C17.9486 19.7345 18.1201 19.8258 18.2861 19.9531C18.4521 20.0749 18.6126 20.2188 18.7676 20.3848C18.9225 20.5508 19.0692 20.7306 19.2075 20.9243C19.3514 21.1125 19.4814 21.2979 19.5977 21.4805L21.8472 25ZM14.5425 15.1055V18.4175H15.7046C16.2801 18.4175 16.7422 18.2515 17.0908 17.9194C17.445 17.5819 17.6221 17.1641 17.6221 16.666C17.6221 15.6257 16.9995 15.1055 15.7544 15.1055H14.5425Z"/> </mask> <path d="M21.8472 25H18.7676L16.9165 21.937C16.7782 21.7046 16.6453 21.4971 16.5181 21.3145C16.3908 21.1318 16.2607 20.9769 16.1279 20.8496C16.0007 20.7168 15.8651 20.6172 15.7212 20.5508C15.5828 20.4788 15.4307 20.4429 15.2646 20.4429H14.5425V25H11.8613V13.0967H16.1113C19 13.0967 20.4443 14.1758 20.4443 16.334C20.4443 16.749 20.3807 17.1336 20.2534 17.4878C20.1261 17.8364 19.9463 18.1519 19.7139 18.4341C19.4814 18.7163 19.1992 18.9598 18.8672 19.1646C18.5407 19.3693 18.1755 19.5298 17.7715 19.646V19.6792C17.9486 19.7345 18.1201 19.8258 18.2861 19.9531C18.4521 20.0749 18.6126 20.2188 18.7676 20.3848C18.9225 20.5508 19.0692 20.7306 19.2075 20.9243C19.3514 21.1125 19.4814 21.2979 19.5977 21.4805L21.8472 25ZM14.5425 15.1055V18.4175H15.7046C16.2801 18.4175 16.7422 18.2515 17.0908 17.9194C17.445 17.5819 17.6221 17.1641 17.6221 16.666C17.6221 15.6257 16.9995 15.1055 15.7544 15.1055H14.5425Z" fill="#1C212A"/> <path d="M21.8472 25V25.1H22.0298L21.9314 24.9461L21.8472 25ZM18.7676 25L18.682 25.0517L18.7112 25.1H18.7676V25ZM16.9165 21.937L16.8306 21.9882L16.8309 21.9887L16.9165 21.937ZM16.1279 20.8496L16.0557 20.9189L16.0587 20.9218L16.1279 20.8496ZM15.7212 20.5508L15.675 20.6396L15.6793 20.6416L15.7212 20.5508ZM14.5425 20.4429V20.3429H14.4425V20.4429H14.5425ZM14.5425 25V25.1H14.6425V25H14.5425ZM11.8613 25H11.7613V25.1H11.8613V25ZM11.8613 13.0967V12.9967H11.7613V13.0967H11.8613ZM20.2534 17.4878L20.3474 17.5221L20.3475 17.5216L20.2534 17.4878ZM18.8672 19.1646L18.8147 19.0794L18.8141 19.0798L18.8672 19.1646ZM17.7715 19.646L17.7438 19.5499L17.6715 19.5707V19.646H17.7715ZM17.7715 19.6792H17.6715V19.7527L17.7417 19.7746L17.7715 19.6792ZM18.2861 19.9531L18.2253 20.0325L18.227 20.0338L18.2861 19.9531ZM19.2075 20.9243L19.1261 20.9825L19.1281 20.9851L19.2075 20.9243ZM19.5977 21.4805L19.5133 21.5342L19.5134 21.5343L19.5977 21.4805ZM14.5425 15.1055V15.0055H14.4425V15.1055H14.5425ZM14.5425 18.4175H14.4425V18.5175H14.5425V18.4175ZM17.0908 17.9194L17.1598 17.9918L17.1598 17.9918L17.0908 17.9194ZM21.8472 25V24.9H18.7676V25V25.1H21.8472V25ZM18.7676 25L18.8532 24.9483L17.0021 21.8853L16.9165 21.937L16.8309 21.9887L18.682 25.0517L18.7676 25ZM16.9165 21.937L17.0024 21.8859C16.8631 21.6518 16.729 21.4422 16.6001 21.2573L16.5181 21.3145L16.436 21.3716C16.5617 21.5519 16.6932 21.7574 16.8306 21.9882L16.9165 21.937ZM16.5181 21.3145L16.6001 21.2573C16.4698 21.0703 16.3356 20.9101 16.1971 20.7774L16.1279 20.8496L16.0587 20.9218C16.1859 21.0437 16.3118 21.1933 16.436 21.3716L16.5181 21.3145ZM16.1279 20.8496L16.2001 20.7804C16.0656 20.64 15.92 20.5324 15.7631 20.46L15.7212 20.5508L15.6793 20.6416C15.8101 20.702 15.9357 20.7936 16.0557 20.9188L16.1279 20.8496ZM15.7212 20.5508L15.7673 20.4621C15.6138 20.3822 15.4457 20.3429 15.2646 20.3429V20.4429V20.5429C15.4157 20.5429 15.5519 20.5754 15.6751 20.6395L15.7212 20.5508ZM15.2646 20.4429V20.3429H14.5425V20.4429V20.5429H15.2646V20.4429ZM14.5425 20.4429H14.4425V25H14.5425H14.6425V20.4429H14.5425ZM14.5425 25V24.9H11.8613V25V25.1H14.5425V25ZM11.8613 25H11.9613V13.0967H11.8613H11.7613V25H11.8613ZM11.8613 13.0967V13.1967H16.1113V13.0967V12.9967H11.8613V13.0967ZM16.1113 13.0967V13.1967C17.5461 13.1967 18.604 13.4652 19.3012 13.9861C19.993 14.503 20.3443 15.2794 20.3443 16.334H20.4443H20.5443C20.5443 15.2303 20.1735 14.3882 19.4209 13.8259C18.6739 13.2677 17.5652 12.9967 16.1113 12.9967V13.0967ZM20.4443 16.334H20.3443C20.3443 16.7387 20.2823 17.1117 20.1593 17.454L20.2534 17.4878L20.3475 17.5216C20.4791 17.1555 20.5443 16.7594 20.5443 16.334H20.4443ZM20.2534 17.4878L20.1595 17.4535C20.036 17.7917 19.8618 18.0972 19.6367 18.3705L19.7139 18.4341L19.7911 18.4977C20.0308 18.2066 20.2163 17.8812 20.3474 17.5221L20.2534 17.4878ZM19.7139 18.4341L19.6367 18.3705C19.4117 18.6437 19.138 18.8801 18.8147 19.0794L18.8672 19.1646L18.9197 19.2497C19.2604 19.0395 19.5512 18.7889 19.7911 18.4977L19.7139 18.4341ZM18.8672 19.1646L18.8141 19.0798C18.4962 19.2792 18.1396 19.436 17.7438 19.5499L17.7715 19.646L17.7991 19.7421C18.2113 19.6235 18.5852 19.4594 18.9203 19.2493L18.8672 19.1646ZM17.7715 19.646H17.6715V19.6792H17.7715H17.8715V19.646H17.7715ZM17.7715 19.6792L17.7417 19.7746C17.9062 19.8261 18.0674 19.9114 18.2253 20.0325L18.2861 19.9531L18.347 19.8738C18.1728 19.7402 17.9909 19.643 17.8013 19.5838L17.7715 19.6792ZM18.2861 19.9531L18.227 20.0338C18.3875 20.1515 18.5434 20.2911 18.6945 20.453L18.7676 20.3848L18.8407 20.3165C18.6819 20.1464 18.5168 19.9983 18.3453 19.8725L18.2861 19.9531ZM18.7676 20.3848L18.6945 20.453C18.8463 20.6157 18.9902 20.7921 19.1261 20.9824L19.2075 20.9243L19.2889 20.8662C19.1481 20.6691 18.9987 20.4859 18.8407 20.3165L18.7676 20.3848ZM19.2075 20.9243L19.1281 20.9851C19.2704 21.1711 19.3988 21.3542 19.5133 21.5342L19.5977 21.4805L19.682 21.4268C19.5641 21.2415 19.4324 21.0538 19.287 20.8636L19.2075 20.9243ZM19.5977 21.4805L19.5134 21.5343L21.7629 25.0539L21.8472 25L21.9314 24.9461L19.6819 21.4266L19.5977 21.4805ZM14.5425 15.1055H14.4425V18.4175H14.5425H14.6425V15.1055H14.5425ZM14.5425 18.4175V18.5175H15.7046V18.4175V18.3175H14.5425V18.4175ZM15.7046 18.4175V18.5175C16.3005 18.5175 16.789 18.345 17.1598 17.9918L17.0908 17.9194L17.0219 17.847C16.6954 18.158 16.2598 18.3175 15.7046 18.3175V18.4175ZM17.0908 17.9194L17.1598 17.9918C17.5342 17.635 17.7221 17.1909 17.7221 16.666H17.6221H17.5221C17.5221 17.1373 17.3558 17.5287 17.0218 17.847L17.0908 17.9194ZM17.6221 16.666H17.7221C17.7221 16.1252 17.5594 15.7031 17.2193 15.4189C16.8826 15.1375 16.3884 15.0055 15.7544 15.0055V15.1055V15.2055C16.3655 15.2055 16.8052 15.3335 17.091 15.5723C17.3735 15.8083 17.5221 16.1664 17.5221 16.666H17.6221ZM15.7544 15.1055V15.0055H14.5425V15.1055V15.2055H15.7544V15.1055Z" fill="#1C212A" mask="url(#path-4-outside-1_117_10)"/> <path d="M22.9533 30.5581C18.0575 33.055 14.6776 33.0654 9.13587 30.5381C9.02383 30.487 8.92522 30.6531 9.02582 30.7241L16.4386 35.9566C16.475 35.9823 16.5239 35.9809 16.5587 35.953L23.0739 30.7409C23.1696 30.6643 23.0624 30.5025 22.9533 30.5581Z" fill="currentColor"/> <circle cx="16" cy="19" r="12" fill="currentColor"/> <circle cx="16" cy="19" r="11.0769" fill="#1C212A"/> <circle cx="16" cy="19" r="10.1538" fill="currentColor"/> <mask id="path-10-outside-2_117_10" maskUnits="userSpaceOnUse" x="11.5" y="12" width="11" height="14" fill="black"> <rect fill="white" x="11.5" y="12" width="11" height="14"/> <path d="M21.8472 25H18.7676L16.9165 21.937C16.7782 21.7046 16.6453 21.4971 16.5181 21.3145C16.3908 21.1318 16.2607 20.9769 16.1279 20.8496C16.0007 20.7168 15.8651 20.6172 15.7212 20.5508C15.5828 20.4788 15.4307 20.4429 15.2646 20.4429H14.5425V25H11.8613V13.0967H16.1113C19 13.0967 20.4443 14.1758 20.4443 16.334C20.4443 16.749 20.3807 17.1336 20.2534 17.4878C20.1261 17.8364 19.9463 18.1519 19.7139 18.4341C19.4814 18.7163 19.1992 18.9598 18.8672 19.1646C18.5407 19.3693 18.1755 19.5298 17.7715 19.646V19.6792C17.9486 19.7345 18.1201 19.8258 18.2861 19.9531C18.4521 20.0749 18.6126 20.2188 18.7676 20.3848C18.9225 20.5508 19.0692 20.7306 19.2075 20.9243C19.3514 21.1125 19.4814 21.2979 19.5977 21.4805L21.8472 25ZM14.5425 15.1055V18.4175H15.7046C16.2801 18.4175 16.7422 18.2515 17.0908 17.9194C17.445 17.5819 17.6221 17.1641 17.6221 16.666C17.6221 15.6257 16.9995 15.1055 15.7544 15.1055H14.5425Z"/> </mask> <path d="M21.8472 25H18.7676L16.9165 21.937C16.7782 21.7046 16.6453 21.4971 16.5181 21.3145C16.3908 21.1318 16.2607 20.9769 16.1279 20.8496C16.0007 20.7168 15.8651 20.6172 15.7212 20.5508C15.5828 20.4788 15.4307 20.4429 15.2646 20.4429H14.5425V25H11.8613V13.0967H16.1113C19 13.0967 20.4443 14.1758 20.4443 16.334C20.4443 16.749 20.3807 17.1336 20.2534 17.4878C20.1261 17.8364 19.9463 18.1519 19.7139 18.4341C19.4814 18.7163 19.1992 18.9598 18.8672 19.1646C18.5407 19.3693 18.1755 19.5298 17.7715 19.646V19.6792C17.9486 19.7345 18.1201 19.8258 18.2861 19.9531C18.4521 20.0749 18.6126 20.2188 18.7676 20.3848C18.9225 20.5508 19.0692 20.7306 19.2075 20.9243C19.3514 21.1125 19.4814 21.2979 19.5977 21.4805L21.8472 25ZM14.5425 15.1055V18.4175H15.7046C16.2801 18.4175 16.7422 18.2515 17.0908 17.9194C17.445 17.5819 17.6221 17.1641 17.6221 16.666C17.6221 15.6257 16.9995 15.1055 15.7544 15.1055H14.5425Z" fill="#1C212A"/> <path d="M21.8472 25V25.1H22.0298L21.9314 24.9461L21.8472 25ZM18.7676 25L18.682 25.0517L18.7112 25.1H18.7676V25ZM16.9165 21.937L16.8306 21.9882L16.8309 21.9887L16.9165 21.937ZM16.1279 20.8496L16.0557 20.9189L16.0587 20.9218L16.1279 20.8496ZM15.7212 20.5508L15.675 20.6396L15.6793 20.6416L15.7212 20.5508ZM14.5425 20.4429V20.3429H14.4425V20.4429H14.5425ZM14.5425 25V25.1H14.6425V25H14.5425ZM11.8613 25H11.7613V25.1H11.8613V25ZM11.8613 13.0967V12.9967H11.7613V13.0967H11.8613ZM20.2534 17.4878L20.3474 17.5221L20.3475 17.5216L20.2534 17.4878ZM18.8672 19.1646L18.8147 19.0794L18.8141 19.0798L18.8672 19.1646ZM17.7715 19.646L17.7438 19.5499L17.6715 19.5707V19.646H17.7715ZM17.7715 19.6792H17.6715V19.7527L17.7417 19.7746L17.7715 19.6792ZM18.2861 19.9531L18.2253 20.0325L18.227 20.0338L18.2861 19.9531ZM19.2075 20.9243L19.1261 20.9825L19.1281 20.9851L19.2075 20.9243ZM19.5977 21.4805L19.5133 21.5342L19.5134 21.5343L19.5977 21.4805ZM14.5425 15.1055V15.0055H14.4425V15.1055H14.5425ZM14.5425 18.4175H14.4425V18.5175H14.5425V18.4175ZM17.0908 17.9194L17.1598 17.9918L17.1598 17.9918L17.0908 17.9194ZM21.8472 25V24.9H18.7676V25V25.1H21.8472V25ZM18.7676 25L18.8532 24.9483L17.0021 21.8853L16.9165 21.937L16.8309 21.9887L18.682 25.0517L18.7676 25ZM16.9165 21.937L17.0024 21.8859C16.8631 21.6518 16.729 21.4422 16.6001 21.2573L16.5181 21.3145L16.436 21.3716C16.5617 21.5519 16.6932 21.7574 16.8306 21.9882L16.9165 21.937ZM16.5181 21.3145L16.6001 21.2573C16.4698 21.0703 16.3356 20.9101 16.1971 20.7774L16.1279 20.8496L16.0587 20.9218C16.1859 21.0437 16.3118 21.1933 16.436 21.3716L16.5181 21.3145ZM16.1279 20.8496L16.2001 20.7804C16.0656 20.64 15.92 20.5324 15.7631 20.46L15.7212 20.5508L15.6793 20.6416C15.8101 20.702 15.9357 20.7936 16.0557 20.9188L16.1279 20.8496ZM15.7212 20.5508L15.7673 20.4621C15.6138 20.3822 15.4457 20.3429 15.2646 20.3429V20.4429V20.5429C15.4157 20.5429 15.5519 20.5754 15.6751 20.6395L15.7212 20.5508ZM15.2646 20.4429V20.3429H14.5425V20.4429V20.5429H15.2646V20.4429ZM14.5425 20.4429H14.4425V25H14.5425H14.6425V20.4429H14.5425ZM14.5425 25V24.9H11.8613V25V25.1H14.5425V25ZM11.8613 25H11.9613V13.0967H11.8613H11.7613V25H11.8613ZM11.8613 13.0967V13.1967H16.1113V13.0967V12.9967H11.8613V13.0967ZM16.1113 13.0967V13.1967C17.5461 13.1967 18.604 13.4652 19.3012 13.9861C19.993 14.503 20.3443 15.2794 20.3443 16.334H20.4443H20.5443C20.5443 15.2303 20.1735 14.3882 19.4209 13.8259C18.6739 13.2677 17.5652 12.9967 16.1113 12.9967V13.0967ZM20.4443 16.334H20.3443C20.3443 16.7387 20.2823 17.1117 20.1593 17.454L20.2534 17.4878L20.3475 17.5216C20.4791 17.1555 20.5443 16.7594 20.5443 16.334H20.4443ZM20.2534 17.4878L20.1595 17.4535C20.036 17.7917 19.8618 18.0972 19.6367 18.3705L19.7139 18.4341L19.7911 18.4977C20.0308 18.2066 20.2163 17.8812 20.3474 17.5221L20.2534 17.4878ZM19.7139 18.4341L19.6367 18.3705C19.4117 18.6437 19.138 18.8801 18.8147 19.0794L18.8672 19.1646L18.9197 19.2497C19.2604 19.0395 19.5512 18.7889 19.7911 18.4977L19.7139 18.4341ZM18.8672 19.1646L18.8141 19.0798C18.4962 19.2792 18.1396 19.436 17.7438 19.5499L17.7715 19.646L17.7991 19.7421C18.2113 19.6235 18.5852 19.4594 18.9203 19.2493L18.8672 19.1646ZM17.7715 19.646H17.6715V19.6792H17.7715H17.8715V19.646H17.7715ZM17.7715 19.6792L17.7417 19.7746C17.9062 19.8261 18.0674 19.9114 18.2253 20.0325L18.2861 19.9531L18.347 19.8738C18.1728 19.7402 17.9909 19.643 17.8013 19.5838L17.7715 19.6792ZM18.2861 19.9531L18.227 20.0338C18.3875 20.1515 18.5434 20.2911 18.6945 20.453L18.7676 20.3848L18.8407 20.3165C18.6819 20.1464 18.5168 19.9983 18.3453 19.8725L18.2861 19.9531ZM18.7676 20.3848L18.6945 20.453C18.8463 20.6157 18.9902 20.7921 19.1261 20.9824L19.2075 20.9243L19.2889 20.8662C19.1481 20.6691 18.9987 20.4859 18.8407 20.3165L18.7676 20.3848ZM19.2075 20.9243L19.1281 20.9851C19.2704 21.1711 19.3988 21.3542 19.5133 21.5342L19.5977 21.4805L19.682 21.4268C19.5641 21.2415 19.4324 21.0538 19.287 20.8636L19.2075 20.9243ZM19.5977 21.4805L19.5134 21.5343L21.7629 25.0539L21.8472 25L21.9314 24.9461L19.6819 21.4266L19.5977 21.4805ZM14.5425 15.1055H14.4425V18.4175H14.5425H14.6425V15.1055H14.5425ZM14.5425 18.4175V18.5175H15.7046V18.4175V18.3175H14.5425V18.4175ZM15.7046 18.4175V18.5175C16.3005 18.5175 16.789 18.345 17.1598 17.9918L17.0908 17.9194L17.0219 17.847C16.6954 18.158 16.2598 18.3175 15.7046 18.3175V18.4175ZM17.0908 17.9194L17.1598 17.9918C17.5342 17.635 17.7221 17.1909 17.7221 16.666H17.6221H17.5221C17.5221 17.1373 17.3558 17.5287 17.0218 17.847L17.0908 17.9194ZM17.6221 16.666H17.7221C17.7221 16.1252 17.5594 15.7031 17.2193 15.4189C16.8826 15.1375 16.3884 15.0055 15.7544 15.0055V15.1055V15.2055C16.3655 15.2055 16.8052 15.3335 17.091 15.5723C17.3735 15.8083 17.5221 16.1664 17.5221 16.666H17.6221ZM15.7544 15.1055V15.0055H14.5425V15.1055V15.2055H15.7544V15.1055Z" fill="#1C212A" mask="url(#path-10-outside-2_117_10)"/> <path d="M22.9533 7.44186C18.0575 4.945 14.6776 4.93463 9.13587 7.46188C9.02383 7.51297 8.92522 7.3469 9.02582 7.27589L16.4386 2.04336C16.475 2.01768 16.5239 2.01915 16.5587 2.04697L23.0739 7.25915C23.1696 7.33571 23.0624 7.49754 22.9533 7.44186Z" fill="currentColor"/> </svg>',
+  'rs-press': '<svg class="dev-hints__icon" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg"> <rect y="10" width="34" height="16" rx="8" fill="currentColor"/> <rect x="9" y="26" width="16" height="4" fill="currentColor"/> <mask id="path-3-outside-1_2_241" maskUnits="userSpaceOnUse" x="12" y="11.5" width="11" height="14" fill="black"> <rect fill="white" x="12" y="11.5" width="11" height="14"/> <path d="M22.3472 24.5H19.2676L17.4165 21.437C17.2782 21.2046 17.1453 20.9971 17.0181 20.8145C16.8908 20.6318 16.7607 20.4769 16.6279 20.3496C16.5007 20.2168 16.3651 20.1172 16.2212 20.0508C16.0828 19.9788 15.9307 19.9429 15.7646 19.9429H15.0425V24.5H12.3613V12.5967H16.6113C19.5 12.5967 20.9443 13.6758 20.9443 15.834C20.9443 16.249 20.8807 16.6336 20.7534 16.9878C20.6261 17.3364 20.4463 17.6519 20.2139 17.9341C19.9814 18.2163 19.6992 18.4598 19.3672 18.6646C19.0407 18.8693 18.6755 19.0298 18.2715 19.146V19.1792C18.4486 19.2345 18.6201 19.3258 18.7861 19.4531C18.9521 19.5749 19.1126 19.7188 19.2676 19.8848C19.4225 20.0508 19.5692 20.2306 19.7075 20.4243C19.8514 20.6125 19.9814 20.7979 20.0977 20.9805L22.3472 24.5ZM15.0425 14.6055V17.9175H16.2046C16.7801 17.9175 17.2422 17.7515 17.5908 17.4194C17.945 17.0819 18.1221 16.6641 18.1221 16.166C18.1221 15.1257 17.4995 14.6055 16.2544 14.6055H15.0425Z"/> </mask> <path d="M22.3472 24.5H19.2676L17.4165 21.437C17.2782 21.2046 17.1453 20.9971 17.0181 20.8145C16.8908 20.6318 16.7607 20.4769 16.6279 20.3496C16.5007 20.2168 16.3651 20.1172 16.2212 20.0508C16.0828 19.9788 15.9307 19.9429 15.7646 19.9429H15.0425V24.5H12.3613V12.5967H16.6113C19.5 12.5967 20.9443 13.6758 20.9443 15.834C20.9443 16.249 20.8807 16.6336 20.7534 16.9878C20.6261 17.3364 20.4463 17.6519 20.2139 17.9341C19.9814 18.2163 19.6992 18.4598 19.3672 18.6646C19.0407 18.8693 18.6755 19.0298 18.2715 19.146V19.1792C18.4486 19.2345 18.6201 19.3258 18.7861 19.4531C18.9521 19.5749 19.1126 19.7188 19.2676 19.8848C19.4225 20.0508 19.5692 20.2306 19.7075 20.4243C19.8514 20.6125 19.9814 20.7979 20.0977 20.9805L22.3472 24.5ZM15.0425 14.6055V17.9175H16.2046C16.7801 17.9175 17.2422 17.7515 17.5908 17.4194C17.945 17.0819 18.1221 16.6641 18.1221 16.166C18.1221 15.1257 17.4995 14.6055 16.2544 14.6055H15.0425Z" fill="#1C212A"/> <path d="M22.3472 24.5V24.6H22.5298L22.4314 24.4461L22.3472 24.5ZM19.2676 24.5L19.182 24.5517L19.2112 24.6H19.2676V24.5ZM17.4165 21.437L17.3306 21.4882L17.3309 21.4887L17.4165 21.437ZM16.6279 20.3496L16.5557 20.4189L16.5587 20.4218L16.6279 20.3496ZM16.2212 20.0508L16.175 20.1396L16.1793 20.1416L16.2212 20.0508ZM15.0425 19.9429V19.8429H14.9425V19.9429H15.0425ZM15.0425 24.5V24.6H15.1425V24.5H15.0425ZM12.3613 24.5H12.2613V24.6H12.3613V24.5ZM12.3613 12.5967V12.4967H12.2613V12.5967H12.3613ZM20.7534 16.9878L20.8474 17.0221L20.8475 17.0216L20.7534 16.9878ZM19.3672 18.6646L19.3147 18.5794L19.3141 18.5798L19.3672 18.6646ZM18.2715 19.146L18.2438 19.0499L18.1715 19.0707V19.146H18.2715ZM18.2715 19.1792H18.1715V19.2527L18.2417 19.2746L18.2715 19.1792ZM18.7861 19.4531L18.7253 19.5325L18.727 19.5338L18.7861 19.4531ZM19.7075 20.4243L19.6261 20.4825L19.6281 20.4851L19.7075 20.4243ZM20.0977 20.9805L20.0133 21.0342L20.0134 21.0343L20.0977 20.9805ZM15.0425 14.6055V14.5055H14.9425V14.6055H15.0425ZM15.0425 17.9175H14.9425V18.0175H15.0425V17.9175ZM17.5908 17.4194L17.6598 17.4918L17.6598 17.4918L17.5908 17.4194ZM22.3472 24.4H19.2676V24.6H22.3472V24.4ZM19.3532 24.4483L17.5021 21.3853L17.3309 21.4887L19.182 24.5517L19.3532 24.4483ZM17.5024 21.3859C17.3631 21.1518 17.229 20.9422 17.1001 20.7573L16.936 20.8716C17.0617 21.0519 17.1932 21.2574 17.3306 21.4882L17.5024 21.3859ZM17.1001 20.7573C16.9698 20.5703 16.8356 20.4101 16.6971 20.2774L16.5587 20.4218C16.6859 20.5437 16.8118 20.6933 16.936 20.8716L17.1001 20.7573ZM16.7001 20.2804C16.5656 20.14 16.42 20.0324 16.2631 19.96L16.1793 20.1416C16.3101 20.202 16.4357 20.2936 16.5557 20.4188L16.7001 20.2804ZM16.2673 19.9621C16.1138 19.8822 15.9457 19.8429 15.7646 19.8429V20.0429C15.9157 20.0429 16.0519 20.0754 16.1751 20.1395L16.2673 19.9621ZM15.7646 19.8429H15.0425V20.0429H15.7646V19.8429ZM14.9425 19.9429V24.5H15.1425V19.9429H14.9425ZM15.0425 24.4H12.3613V24.6H15.0425V24.4ZM12.4613 24.5V12.5967H12.2613V24.5H12.4613ZM12.3613 12.6967H16.6113V12.4967H12.3613V12.6967ZM16.6113 12.6967C18.0461 12.6967 19.104 12.9652 19.8012 13.4861C20.493 14.003 20.8443 14.7794 20.8443 15.834H21.0443C21.0443 14.7303 20.6735 13.8882 19.9209 13.3259C19.1739 12.7677 18.0652 12.4967 16.6113 12.4967V12.6967ZM20.8443 15.834C20.8443 16.2387 20.7823 16.6117 20.6593 16.954L20.8475 17.0216C20.9791 16.6555 21.0443 16.2594 21.0443 15.834H20.8443ZM20.6595 16.9535C20.536 17.2917 20.3618 17.5972 20.1367 17.8705L20.2911 17.9977C20.5308 17.7066 20.7163 17.3812 20.8474 17.0221L20.6595 16.9535ZM20.1367 17.8705C19.9117 18.1437 19.638 18.3801 19.3147 18.5794L19.4197 18.7497C19.7604 18.5395 20.0512 18.2889 20.2911 17.9977L20.1367 17.8705ZM19.3141 18.5798C18.9962 18.7792 18.6396 18.936 18.2438 19.0499L18.2991 19.2421C18.7113 19.1235 19.0852 18.9594 19.4203 18.7493L19.3141 18.5798ZM18.1715 19.146V19.1792H18.3715V19.146H18.1715ZM18.2417 19.2746C18.4062 19.3261 18.5674 19.4114 18.7253 19.5325L18.847 19.3738C18.6728 19.2402 18.4909 19.143 18.3013 19.0838L18.2417 19.2746ZM18.727 19.5338C18.8875 19.6515 19.0434 19.7911 19.1945 19.953L19.3407 19.8165C19.1819 19.6464 19.0168 19.4983 18.8453 19.3725L18.727 19.5338ZM19.1945 19.953C19.3463 20.1157 19.4902 20.2921 19.6261 20.4824L19.7889 20.3662C19.6481 20.1691 19.4987 19.9859 19.3407 19.8165L19.1945 19.953ZM19.6281 20.4851C19.7704 20.6711 19.8988 20.8542 20.0133 21.0342L20.182 20.9268C20.0641 20.7415 19.9324 20.5538 19.787 20.3636L19.6281 20.4851ZM20.0134 21.0343L22.2629 24.5539L22.4314 24.4461L20.1819 20.9266L20.0134 21.0343ZM14.9425 14.6055V17.9175H15.1425V14.6055H14.9425ZM15.0425 18.0175H16.2046V17.8175H15.0425V18.0175ZM16.2046 18.0175C16.8005 18.0175 17.289 17.845 17.6598 17.4918L17.5219 17.347C17.1954 17.658 16.7598 17.8175 16.2046 17.8175V18.0175ZM17.6598 17.4918C18.0342 17.135 18.2221 16.6909 18.2221 16.166H18.0221C18.0221 16.6373 17.8558 17.0287 17.5218 17.347L17.6598 17.4918ZM18.2221 16.166C18.2221 15.6252 18.0594 15.2031 17.7193 14.9189C17.3826 14.6375 16.8884 14.5055 16.2544 14.5055V14.7055C16.8655 14.7055 17.3052 14.8335 17.591 15.0723C17.8735 15.3083 18.0221 15.6664 18.0221 16.166H18.2221ZM16.2544 14.5055H15.0425V14.7055H16.2544V14.5055Z" fill="#1C212A" mask="url(#path-3-outside-1_2_241)"/> <path d="M17 10L20.4641 5.5H13.5359L17 10Z" fill="currentColor"/> </svg>',
+  'rt': '<svg class="dev-hints__icon" viewBox="-2 -6 37 44" fill="none" xmlns="http://www.w3.org/2000/svg"> <path d="M2.2032 0H26.0359C27.4846 0 28.4606 1.50178 28.0296 2.88485C24.959 12.7377 28.2732 22.5714 31.3912 28.152C32.0901 29.403 31.4368 31.0564 30.0249 31.3014C8.41418 35.0499 1.25383 22.8169 0.397533 15.9295C-0.248768 10.7312 0.0389252 4.72824 0.248299 1.79756C0.321392 0.774478 1.17751 0 2.2032 0Z" fill="currentColor"/> <mask id="path-2-outside-1_2_174" maskUnits="userSpaceOnUse" x="4.75" y="5" fill="black"> <rect fill="white" x="4.75" y="5"/> <path d="M15.0972 18H12.0176L10.1665 14.937C10.0282 14.7046 9.89535 14.4971 9.76807 14.3145C9.64079 14.1318 9.51074 13.9769 9.37793 13.8496C9.25065 13.7168 9.11507 13.6172 8.97119 13.5508C8.83285 13.4788 8.68066 13.4429 8.51465 13.4429H7.79248V18H5.11133V6.09668H9.36133C12.25 6.09668 13.6943 7.17578 13.6943 9.33398C13.6943 9.74902 13.6307 10.1336 13.5034 10.4878C13.3761 10.8364 13.1963 11.1519 12.9639 11.4341C12.7314 11.7163 12.4492 11.9598 12.1172 12.1646C11.7907 12.3693 11.4255 12.5298 11.0215 12.646V12.6792C11.1986 12.7345 11.3701 12.8258 11.5361 12.9531C11.7021 13.0749 11.8626 13.2188 12.0176 13.3848C12.1725 13.5508 12.3192 13.7306 12.4575 13.9243C12.6014 14.1125 12.7314 14.2979 12.8477 14.4805L15.0972 18ZM7.79248 8.10547V11.4175H8.95459C9.53011 11.4175 9.99219 11.2515 10.3408 10.9194C10.695 10.5819 10.8721 10.1641 10.8721 9.66602C10.8721 8.62565 10.2495 8.10547 9.00439 8.10547H7.79248ZM24.228 8.27979H20.833V18H18.1436V8.27979H14.7651V6.09668H24.228V8.27979Z"/> </mask> <path d="M15.0972 18H12.0176L10.1665 14.937C10.0282 14.7046 9.89535 14.4971 9.76807 14.3145C9.64079 14.1318 9.51074 13.9769 9.37793 13.8496C9.25065 13.7168 9.11507 13.6172 8.97119 13.5508C8.83285 13.4788 8.68066 13.4429 8.51465 13.4429H7.79248V18H5.11133V6.09668H9.36133C12.25 6.09668 13.6943 7.17578 13.6943 9.33398C13.6943 9.74902 13.6307 10.1336 13.5034 10.4878C13.3761 10.8364 13.1963 11.1519 12.9639 11.4341C12.7314 11.7163 12.4492 11.9598 12.1172 12.1646C11.7907 12.3693 11.4255 12.5298 11.0215 12.646V12.6792C11.1986 12.7345 11.3701 12.8258 11.5361 12.9531C11.7021 13.0749 11.8626 13.2188 12.0176 13.3848C12.1725 13.5508 12.3192 13.7306 12.4575 13.9243C12.6014 14.1125 12.7314 14.2979 12.8477 14.4805L15.0972 18ZM7.79248 8.10547V11.4175H8.95459C9.53011 11.4175 9.99219 11.2515 10.3408 10.9194C10.695 10.5819 10.8721 10.1641 10.8721 9.66602C10.8721 8.62565 10.2495 8.10547 9.00439 8.10547H7.79248ZM24.228 8.27979H20.833V18H18.1436V8.27979H14.7651V6.09668H24.228V8.27979Z" fill="#1C212A"/> <path d="M15.0972 18V18.1H15.2798L15.1814 17.9461L15.0972 18ZM12.0176 18L11.932 18.0517L11.9612 18.1H12.0176V18ZM10.1665 14.937L10.0806 14.9882L10.0809 14.9887L10.1665 14.937ZM9.37793 13.8496L9.30567 13.9189L9.30874 13.9218L9.37793 13.8496ZM8.97119 13.5508L8.925 13.6396L8.92929 13.6416L8.97119 13.5508ZM7.79248 13.4429V13.3429H7.69248V13.4429H7.79248ZM7.79248 18V18.1H7.89248V18H7.79248ZM5.11133 18H5.01133V18.1H5.11133V18ZM5.11133 6.09668V5.99668H5.01133V6.09668H5.11133ZM13.5034 10.4878L13.5974 10.5221L13.5975 10.5216L13.5034 10.4878ZM12.1172 12.1646L12.0647 12.0794L12.0641 12.0798L12.1172 12.1646ZM11.0215 12.646L10.9938 12.5499L10.9215 12.5707V12.646H11.0215ZM11.0215 12.6792H10.9215V12.7527L10.9917 12.7746L11.0215 12.6792ZM11.5361 12.9531L11.4753 13.0325L11.477 13.0338L11.5361 12.9531ZM12.4575 13.9243L12.3761 13.9825L12.3781 13.9851L12.4575 13.9243ZM12.8477 14.4805L12.7633 14.5342L12.7634 14.5343L12.8477 14.4805ZM7.79248 8.10547V8.00547H7.69248V8.10547H7.79248ZM7.79248 11.4175H7.69248V11.5175H7.79248V11.4175ZM10.3408 10.9194L10.4098 10.9918L10.4098 10.9918L10.3408 10.9194ZM15.0972 17.9H12.0176V18.1H15.0972V17.9ZM12.1032 17.9483L10.2521 14.8853L10.0809 14.9887L11.932 18.0517L12.1032 17.9483ZM10.2524 14.8859C10.1131 14.6518 9.97901 14.4422 9.85011 14.2573L9.68603 14.3716C9.81168 14.5519 9.9432 14.7574 10.0806 14.9882L10.2524 14.8859ZM9.85011 14.2573C9.71981 14.0703 9.58557 13.9101 9.44712 13.7774L9.30874 13.9218C9.43591 14.0437 9.56177 14.1933 9.68603 14.3716L9.85011 14.2573ZM9.45013 13.7804C9.31557 13.64 9.17001 13.5324 9.0131 13.46L8.92929 13.6416C9.06013 13.702 9.18574 13.7936 9.30573 13.9188L9.45013 13.7804ZM9.01733 13.4621C8.86381 13.3822 8.69566 13.3429 8.51465 13.3429V13.5429C8.66567 13.5429 8.80188 13.5754 8.92506 13.6395L9.01733 13.4621ZM8.51465 13.3429H7.79248V13.5429H8.51465V13.3429ZM7.69248 13.4429V18H7.89248V13.4429H7.69248ZM7.79248 17.9H5.11133V18.1H7.79248V17.9ZM5.21133 18V6.09668H5.01133V18H5.21133ZM5.11133 6.19668H9.36133V5.99668H5.11133V6.19668ZM9.36133 6.19668C10.7961 6.19668 11.854 6.46518 12.5512 6.98612C13.243 7.50296 13.5943 8.27943 13.5943 9.33398H13.7943C13.7943 8.23034 13.4235 7.38815 12.6709 6.8259C11.9239 6.26773 10.8152 5.99668 9.36133 5.99668V6.19668ZM13.5943 9.33398C13.5943 9.73868 13.5323 10.1117 13.4093 10.454L13.5975 10.5216C13.7291 10.1555 13.7943 9.75937 13.7943 9.33398H13.5943ZM13.4095 10.4535C13.286 10.7917 13.1118 11.0972 12.8867 11.3705L13.0411 11.4977C13.2808 11.2066 13.4663 10.8812 13.5974 10.5221L13.4095 10.4535ZM12.8867 11.3705C12.6617 11.6437 12.388 11.8801 12.0647 12.0794L12.1697 12.2497C12.5104 12.0395 12.8012 11.7889 13.0411 11.4977L12.8867 11.3705ZM12.0641 12.0798C11.7462 12.2792 11.3896 12.436 10.9938 12.5499L11.0491 12.7421C11.4613 12.6235 11.8352 12.4594 12.1703 12.2493L12.0641 12.0798ZM10.9215 12.646V12.6792H11.1215V12.646H10.9215ZM10.9917 12.7746C11.1562 12.8261 11.3174 12.9114 11.4753 13.0325L11.597 12.8738C11.4228 12.7402 11.2409 12.643 11.0513 12.5838L10.9917 12.7746ZM11.477 13.0338C11.6375 13.1515 11.7934 13.2911 11.9445 13.453L12.0907 13.3165C11.9319 13.1464 11.7668 12.9983 11.5953 12.8725L11.477 13.0338ZM11.9445 13.453C12.0963 13.6157 12.2402 13.7921 12.3761 13.9824L12.5389 13.8662C12.3981 13.6691 12.2487 13.4859 12.0907 13.3165L11.9445 13.453ZM12.3781 13.9851C12.5204 14.1711 12.6488 14.3542 12.7633 14.5342L12.932 14.4268C12.8141 14.2415 12.6824 14.0538 12.537 13.8636L12.3781 13.9851ZM12.7634 14.5343L15.0129 18.0539L15.1814 17.9461L12.9319 14.4266L12.7634 14.5343ZM7.69248 8.10547V11.4175H7.89248V8.10547H7.69248ZM7.79248 11.5175H8.95459V11.3175H7.79248V11.5175ZM8.95459 11.5175C9.55045 11.5175 10.039 11.345 10.4098 10.9918L10.2719 10.847C9.94535 11.158 9.50977 11.3175 8.95459 11.3175V11.5175ZM10.4098 10.9918C10.7842 10.635 10.9721 10.1909 10.9721 9.66602H10.7721C10.7721 10.1373 10.6058 10.5287 10.2718 10.847L10.4098 10.9918ZM10.9721 9.66602C10.9721 9.12523 10.8094 8.70307 10.4693 8.41887C10.1326 8.13754 9.63843 8.00547 9.00439 8.00547V8.20547C9.61548 8.20547 10.0552 8.33349 10.341 8.57234C10.6235 8.80832 10.7721 9.16644 10.7721 9.66602H10.9721ZM9.00439 8.00547H7.79248V8.20547H9.00439V8.00547ZM24.228 8.27979V8.37979H24.328V8.27979H24.228ZM20.833 8.27979V8.17979H20.733V8.27979H20.833ZM20.833 18V18.1H20.933V18H20.833ZM18.1436 18H18.0436V18.1H18.1436V18ZM18.1436 8.27979H18.2436V8.17979H18.1436V8.27979ZM14.7651 8.27979H14.6651V8.37979H14.7651V8.27979ZM14.7651 6.09668V5.99668H14.6651V6.09668H14.7651ZM24.228 6.09668H24.328V5.99668H24.228V6.09668ZM24.228 8.17979H20.833V8.37979H24.228V8.17979ZM20.733 8.27979V18H20.933V8.27979H20.733ZM20.833 17.9H18.1436V18.1H20.833V17.9ZM18.2436 18V8.27979H18.0436V18H18.2436ZM18.1436 8.17979H14.7651V8.37979H18.1436V8.17979ZM14.8651 8.27979V6.09668H14.6651V8.27979H14.8651ZM14.7651 6.19668H24.228V5.99668H14.7651V6.19668ZM24.128 6.09668V8.27979H24.328V6.09668H24.128Z" fill="#1C212A" mask="url(#path-2-outside-1_2_174)"/> </svg>',
+  'start': '<svg class="dev-hints__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"> <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.2"/> <rect x="7" y="9" width="10" height="1.4" rx="0.7" fill="currentColor"/> <rect x="7" y="12.3" width="10" height="1.4" rx="0.7" fill="currentColor"/> <rect x="7" y="15.6" width="10" height="1.4" rx="0.7" fill="currentColor"/> </svg>',
+  'x': '<svg class="dev-hints__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"> <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.2"/> <text x="12" y="16.5" text-anchor="middle" font-family="\'Segoe UI\',Arial,sans-serif" font-size="12" font-weight="700" fill="currentColor">X</text> </svg>',
+  'y': '<svg class="dev-hints__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"> <circle cx="12" cy="12" r="10.5" stroke="currentColor" stroke-width="1.2"/> <text x="12" y="16.5" text-anchor="middle" font-family="\'Segoe UI\',Arial,sans-serif" font-size="12" font-weight="700" fill="currentColor">Y</text> </svg>',
+};
+window.__lensGPIcons = GP_SVG;
 function gpIcon(name) {
+  if (GP_SVG[name]) return GP_SVG[name];
   return `<img src="./assets/icons/btn-${name}.svg" class="dev-hints__icon" alt="${name}">`;
 }
 
@@ -1072,9 +1828,11 @@ function updateDevHints() {
       [[gpIcon('b')], '返回'],
     ];
   } else if (cur && cur._color) {
+    const lrLabel = cur._alpha ? '调整透明度' : '调整色相';
     hints = [
       [[gpIcon('dpad-up'), gpIcon('dpad-down')], '切换控件'],
-      [[gpIcon('dpad-left'), gpIcon('dpad-right')], '调整颜色'],
+      [[gpIcon('dpad-left'), gpIcon('dpad-right')], lrLabel],
+      [[gpIcon('a')], '重置'],
       [[gpIcon('lb'), gpIcon('rb')], '切换标签'],
       xHint, rsHint,
       [[gpIcon('b')], '返回'],
@@ -1117,6 +1875,13 @@ function savePresets(presets) {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
 }
 
+function autoSaveSession() {
+  try {
+    const vars = getCurrentCSSSnapshot();
+    localStorage.setItem(SESSION_KEY, JSON.stringify(vars));
+  } catch {}
+}
+
 function getCurrentCSSSnapshot() {
   const style = getComputedStyle(document.documentElement);
   const vars = {};
@@ -1135,27 +1900,28 @@ function savePreset(name) {
 
 function loadPreset(preset) {
   if (!preset || !preset.vars) return;
+  // 取消所有待处理的 scheduleApplyEffects（防止竞态覆盖预设值）
+  if (window.__lensCancelApplyEffects) window.__lensCancelApplyEffects();
+  // 清除预设未包含的 hero/特殊变量（防止旧值残留导致预设外观错误）
+  const HERO_KEYS = ['--hero-grad-top','--hero-grad-mid','--hero-grad-bot','--corner-logo-color','--hero-subtitle-color','--hero-line-color','--dev-panel-bg'];
+  HERO_KEYS.forEach(k => {
+    if (!(k in preset.vars)) document.documentElement.style.removeProperty(k);
+  });
+  // 设置 CSS 变量（用于面板控件同步）
   Object.entries(preset.vars).forEach(([k, v]) => {
     document.documentElement.style.setProperty(k, v);
   });
-  // 特殊变量：同步实际生效的属性
-  const fs = preset.vars['--font-scale'];
-  document.documentElement.style.fontSize = (fs && fs !== '1') ? (parseFloat(fs) * 100) + '%' : '';
-  // 清理并重建注入样式以匹配预设值
-  ['dev-anim-speed','dev-anim-disable','dev-glass-blur-style'].forEach(id => {
+  // 清理注入样式
+  ['dev-anim-speed','dev-anim-disable','dev-glass-blur-style','dev-shadow-style','dev-gap-style','dev-heading-style'].forEach(id => {
     const s = document.getElementById(id); if (s) s.remove();
   });
-  const ab = preset.vars['--glass-blur'];
-  if (ab && parseFloat(ab) > 0) {
-    const s = document.createElement('style'); s.id = 'dev-glass-blur-style';
-    s.textContent = `[style*="backdrop-filter"], .sidebar, .dev-panel, .toolbar, .gallery__nav, .lightbox.active, .back-to-top { --_glass-blur-extra: ${parseFloat(ab)}px; }`;
-    document.head.appendChild(s);
-  }
+  // 更新颜色系统（零 var() CSS 注入）
+  applySpecialVarEffects();
   // 记录激活预设
   localStorage.setItem(ACTIVE_PRESET_KEY, preset.id);
-  // 如果视觉分组已渲染，重新同步控件值
   syncVisualControls();
   renderPresetsGroup();
+  autoSaveSession();
 }
 
 function deletePreset(id) {
@@ -1251,6 +2017,49 @@ function syncVisualControls() {
   el.querySelectorAll('.dev-input--text[data-css-text]').forEach(input => {
     input.value = style.getPropertyValue(input.dataset.cssText).trim();
   });
+  // 新控件同步：卡片毛玻璃颜色
+  ['--card-bg','--card-hover-bg'].forEach(key => {
+    const gc = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
+    if (gc) {
+      const val = style.getPropertyValue(key).trim();
+      const { hex, alpha } = rgbaToHexAlpha(val);
+      gc.value = hex; gc.dataset.alpha = alpha;
+      const as = el.querySelector(`.dev-glass-alpha[data-css="${key}"]`);
+      if (as) as.value = alpha;
+      const ve = el.querySelector(`[data-glass-val="${key}"]`);
+      if (ve) ve.textContent = alpha.toFixed(2);
+    }
+  });
+  // 新控件同步：间距/阴影/标题缩放/行高/区块间距滑块
+  ['--gap-scale','--shadow-depth','--font-scale-heading','--line-spacing','--section-gap'].forEach(key => {
+    const slider = el.querySelector(`.dev-slider[data-css="${key}"]`);
+    if (slider) {
+      const raw = style.getPropertyValue(key).trim();
+      const num = parseFloat(raw) || 0;
+      slider.value = num;
+      const display = slider.parentElement.querySelector(`[data-display="${key}"]`);
+      if (display) {
+        const unit = display.dataset.unit || '';
+        const d = parseInt(display.dataset.decimals) || 0;
+        display.textContent = num.toFixed(d) + unit;
+      }
+    }
+  });
+  // 同步 Hero 标签页控件
+  const heroEl = document.getElementById('dev-group-hero');
+  if (heroEl && heroEl.dataset.rendered) {
+    const hStyle = getComputedStyle(document.documentElement);
+    heroEl.querySelectorAll('.dev-glass-color[data-css]').forEach(c => {
+      const val = hStyle.getPropertyValue(c.dataset.css).trim();
+      const { hex, alpha } = rgbaToHexAlpha(val);
+      c.value = hex;
+      c.dataset.alpha = alpha;
+      const alphaSlider = heroEl.querySelector(`.dev-glass-alpha[data-css="${c.dataset.css}"]`);
+      if (alphaSlider) alphaSlider.value = alpha;
+      const valEl = heroEl.querySelector(`[data-glass-val="${c.dataset.css}"]`);
+      if (valEl) valEl.textContent = alpha.toFixed(2);
+    });
+  }
 }
 
 function renderPresetsGroup() {
@@ -1320,7 +2129,32 @@ function renderPresetsGroup() {
     URL.revokeObjectURL(url);
   });
   document.getElementById('dev-preset-reset')?.addEventListener('click', () => {
+    // 重置 CSS 变量为默认
     loadPreset(BUILTIN_PRESETS[0]);
+    // 重置性能开关为全开
+    D.perfToggles = { fps: true, metrics: true, invoke: true, console: true };
+    el.querySelectorAll('.dev-chip-toggle').forEach(btn => {
+      btn.classList.add('dev-chip-toggle--on');
+    });
+    applyPerfToggles();
+    // 重置调试开关
+    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style'].forEach(id => {
+      const s = document.getElementById(id); if (s) s.remove();
+    });
+    document.body.classList.remove('dev-bm-active');
+    // 同步视觉 tab 调试 toggle 状态（仅调试开关，保留动画开关）
+    const visEl = document.getElementById('dev-group-visual');
+    if (visEl) {
+      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index'].forEach(id => {
+        const t = document.getElementById(id);
+        if (t) t.classList.remove('dev-toggle--on');
+      });
+    }
+    // 清除 applyTogglesUI 设置的内联样式，让 CSS 变量重新生效
+    const cats = document.getElementById('categories');
+    if (cats) cats.style.gridTemplateColumns = '';
+    const gGrid = document.getElementById('gallery-grid');
+    if (gGrid) gGrid.style.columns = '';
   });
 
   // 预设卡片事件
@@ -1358,6 +2192,14 @@ function makePresetCard(preset, activeId, showActions) {
   const timeStr = preset.id && !preset.builtin
     ? new Date(parseInt(preset.id, 36)).toLocaleDateString()
     : '';
+  const displayFont = vars['--font-display'] || '';
+  const fontLabel = displayFont.includes('Xbox') || displayFont.includes('Arial Black') ? '几何'
+    : displayFont.includes('sans-serif') ? '无衬'
+    : '衬线';
+  const radiusPx = parseFloat(vars['--radius']) || 20;
+  const scaleVal = parseFloat(vars['--font-scale']) || 1;
+  const gapScale = parseFloat(vars['--gap-scale']) || 1;
+  const spacingLabel = gapScale <= 0.7 ? '紧凑' : gapScale >= 1.5 ? '宽松' : '标准';
 
   return `
     <div class="dev-preset-card${isActive ? ' dev-preset-card--active' : ''}" data-id="${preset.id}">
@@ -1366,6 +2208,12 @@ function makePresetCard(preset, activeId, showActions) {
       </div>
       <div class="dev-preset-card__info">
         <span class="dev-preset-card__name">${preset.name}</span>
+        <div class="dev-preset-card__tags">
+          <span class="dev-preset-card__tag">${fontLabel}</span>
+          <span class="dev-preset-card__tag">R${radiusPx}</span>
+          <span class="dev-preset-card__tag">${scaleVal}x</span>
+          <span class="dev-preset-card__tag">${spacingLabel}</span>
+        </div>
         ${timeStr ? `<span class="dev-preset-card__time">${timeStr}</span>` : ''}
       </div>
       ${preset.builtin ? '<span class="dev-preset-card__badge">内置</span>' : ''}
@@ -1384,9 +2232,9 @@ function makePresetCard(preset, activeId, showActions) {
 // ═══════════════════════════════════════════
 
 function startAllMonitors() {
-  startFPSMeter();
-  startPerfMonitor();
-  startConsoleCapture();
+  if (D.perfToggles.fps) startFPSMeter();
+  if (D.perfToggles.metrics) startPerfMonitor();
+  if (D.perfToggles.console) startConsoleCapture();
   startGamepadVizPoll();
 }
 
@@ -1395,8 +2243,10 @@ function stopAllMonitors() {
   if (D.gamepadPollRaf) { cancelAnimationFrame(D.gamepadPollRaf); D.gamepadPollRaf = null; }
   if (D.perfInterval) { clearInterval(D.perfInterval); D.perfInterval = null; }
   stopConsoleCapture();
-  // 清理所有注入的 style 元素（关闭面板时不应残留调试/动画覆盖样式）
-  ['dev-anim-speed','dev-anim-disable','dev-glass-blur-style','dev-outline-style','dev-grid-style'].forEach(id => {
+  document.body.classList.remove('dev-bm-active');
+  // 只清理调试注入样式（视觉配置如 anim-speed/glass-blur/gap 应保留）
+  ['dev-anim-disable','dev-outline-style','dev-grid-style',
+   'dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style'].forEach(id => {
     const s = document.getElementById(id);
     if (s) s.remove();
   });
@@ -1406,13 +2256,177 @@ function stopAllMonitors() {
 // 初始化入口
 // ═══════════════════════════════════════════
 
+function applySpecialVarEffects() {
+  const style = getComputedStyle(document.documentElement);
+  const vars = {};
+  CSS_VAR_KEYS.forEach(k => { vars[k] = style.getPropertyValue(k).trim(); });
+
+  // --font-scale → html font-size
+  const fs = parseFloat(vars['--font-scale']) || 1;
+  document.documentElement.style.fontSize = (fs * 100) + '%';
+
+  // --anim-speed → injected style
+  const as = parseFloat(vars['--anim-speed']) || 1;
+  if (as !== 1) {
+    let s = document.getElementById('dev-anim-speed');
+    if (!s) { s = document.createElement('style'); s.id = 'dev-anim-speed'; document.head.appendChild(s); }
+    s.textContent = `:root { --_anim-mult: ${as}; }`;
+  }
+
+  // --glass-blur → injected style
+  const gb = parseFloat(vars['--glass-blur']) || 0;
+  if (gb > 0) {
+    let s = document.getElementById('dev-glass-blur-style');
+    if (!s) { s = document.createElement('style'); s.id = 'dev-glass-blur-style'; document.head.appendChild(s); }
+    s.textContent = `[style*="backdrop-filter"], .sidebar, .dev-panel, .toolbar, .gallery__nav, .lightbox.active, .back-to-top { --_glass-blur-extra: ${gb}px; }`;
+  }
+
+  // --anim-speed = 0 → 禁用动画
+  if (as === 0) {
+    let s = document.getElementById('dev-anim-disable');
+    if (!s) { s = document.createElement('style'); s.id = 'dev-anim-disable'; document.head.appendChild(s); }
+    s.textContent = '*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }';
+  }
+
+  // 构建当前 palette 并更新颜色系统（零 var()，完整 CSS 注入）
+  const _bgRgb = hexToRgbStr(vars['--bg'] || '#0a0a08') || '10,10,8';
+  const _bgDeepRgb = hexToRgbStr(vars['--bg-deep'] || '#060605') || '6,6,5';
+  const _accentRgb = hexToRgbStr(vars['--accent'] || '#c8a87c') || '200,168,124';
+  const _textRgb = hexToRgbStr(vars['--text'] || '#e8e4e0') || '232,228,224';
+  const _warm = deriveWarmTint(vars);
+  const palette = {
+    bg: vars['--bg'] || '#0a0a08',
+    bgDeep: vars['--bg-deep'] || '#060605',
+    accent: vars['--accent'] || '#c8a87c',
+    text: vars['--text'] || '#e8e4e0',
+    text2: vars['--text-2'] || '#9a948e',
+    text3: vars['--text-3'] || '#5a5450',
+    warm: _warm,
+    accentRgb: _accentRgb,
+    bgRgb: _bgRgb,
+    bgDeepRgb: _bgDeepRgb,
+    surfaceRgb: '30,28,26',
+    surface2Rgb: '20,18,15',
+    errRgb: '232,112,112',
+    heroGradTop: parseRgbPart(vars['--hero-grad-top']) || (()=>{const t=_textRgb.split(',');return `${Math.round(t[0]*0.3+255*0.7)},${Math.round(t[1]*0.3+255*0.7)},${Math.round(t[2]*0.3+255*0.7)}`;})(),
+    heroGradMid: parseRgbPart(vars['--hero-grad-mid']) || _accentRgb,
+    heroGradBot: parseRgbPart(vars['--hero-grad-bot']) || (()=>{const a=_accentRgb.split(',');return `${Math.round(a[0]*0.85)},${Math.round(a[1]*0.78)},${Math.round(a[2]*0.7)}`;})(),
+    cornerLogoColor: vars['--corner-logo-color'] || `rgba(${_accentRgb},0.55)`,
+    heroSubtitleColor: vars['--hero-subtitle-color'] || `rgba(${_accentRgb},0.3)`,
+    heroLineColor: vars['--hero-line-color'] || `rgba(${_accentRgb},0.35)`,
+    devPanelBg: vars['--dev-panel-bg'] || `rgba(${_bgRgb},0.94)`,
+  };
+  updateColorSystem(palette);
+
+  // 将派生的 hero 颜色写回 CSS 变量（供面板控件同步显示）
+  document.documentElement.style.setProperty('--hero-grad-top', `rgba(${palette.heroGradTop},1)`);
+  document.documentElement.style.setProperty('--hero-grad-mid', `rgba(${palette.heroGradMid},0.85)`);
+  document.documentElement.style.setProperty('--hero-grad-bot', `rgba(${palette.heroGradBot},0.25)`);
+  if (!vars['--corner-logo-color']) {
+    document.documentElement.style.setProperty('--corner-logo-color', palette.cornerLogoColor);
+  }
+  if (!vars['--hero-subtitle-color']) {
+    document.documentElement.style.setProperty('--hero-subtitle-color', palette.heroSubtitleColor);
+  }
+  if (!vars['--hero-line-color']) {
+    document.documentElement.style.setProperty('--hero-line-color', palette.heroLineColor);
+  }
+  if (!vars['--dev-panel-bg']) {
+    document.documentElement.style.setProperty('--dev-panel-bg', palette.devPanelBg);
+  }
+
+  // 同步角标字体
+  const cornerLogo = document.getElementById('corner-logo');
+  if (cornerLogo) {
+    cornerLogo.style.fontFamily = vars['--font-display'];
+    cornerLogo.style.fontWeight = vars['--font-weight-display'];
+    cornerLogo.style.letterSpacing = vars['--letter-spacing-display'];
+  }
+
+  // 强制 Hero 标题重绘
+  const heroTitle = document.querySelector('.hero__title');
+  if (heroTitle) {
+    heroTitle.style.display = 'none';
+    void heroTitle.offsetHeight;
+    heroTitle.style.display = '';
+    void heroTitle.offsetHeight;
+  }
+
+  // 重建预览面板（零 var()，全部内联样式）并启动动画
+  buildDevPreview();
+  startPreviewAnimations();
+
+  void document.documentElement.offsetHeight;
+}
+
+function hexToRgbStr(hex) {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (m) return `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`;
+  const rgbM = hex.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (rgbM) return `${rgbM[1]},${rgbM[2]},${rgbM[3]}`;
+  return null;
+}
+
+function parseRgbPart(val) {
+  if (!val) return null;
+  const m = val.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (m) return `${m[1]},${m[2]},${m[3]}`;
+  // 如果已经是纯 RGB 字符串 "255,245,235"
+  if (/^\d+,\d+,\d+$/.test(val.trim())) return val.trim();
+  return null;
+}
+
+function deriveWarmTint(vars) {
+  const accent = vars['--accent'] || '#c8a87c';
+  const m = accent.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (m) {
+    const r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
+    // warm tint = 比 accent 更亮更暖
+    return `${Math.min(255,r+20)},${Math.min(255,g+32)},${Math.min(255,b+56)}`;
+  }
+  return '220,200,180';
+}
+
 export function initDevPanel() {
-  // 捕获 CSS 默认值
+  // 捕获 CSS 默认值（从已注入的 lens-colors 样式表读取）
   const style = getComputedStyle(document.documentElement);
   CSS_VAR_KEYS.forEach(k => { CSS_DEFAULTS[k] = style.getPropertyValue(k).trim(); });
+  // 补充未在样式表中定义的变量的默认值
+  const HARD_DEFAULTS = {
+    '--hero-grad-top': 'rgba(255,245,235,1)',
+    '--hero-grad-mid': 'rgba(220,200,175,0.85)',
+    '--hero-grad-bot': 'rgba(180,155,130,0.25)',
+    '--corner-logo-color': 'rgba(220,200,175,0.85)',
+    '--hero-subtitle-color': 'rgba(220,200,180,0.3)',
+    '--hero-line-color': 'rgba(220,200,180,0.35)',
+    '--dev-panel-bg': 'rgba(10,10,8,0.94)',
+  };
+  Object.entries(HARD_DEFAULTS).forEach(([k, v]) => {
+    if (!CSS_DEFAULTS[k]) CSS_DEFAULTS[k] = v;
+  });
+
+  // 一次性清理：清除可能损坏的旧会话缓存（v1.6.2 变量体系重构）
+  if (!localStorage.getItem('lens-dev-session-v2')) {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(ACTIVE_PRESET_KEY);
+    localStorage.setItem('lens-dev-session-v2', '1');
+  }
+
+  // 恢复上次会话的调节
+  try {
+    const saved = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (saved) Object.entries(saved).forEach(([k, v]) => {
+      document.documentElement.style.setProperty(k, v);
+    });
+    // 强制重排确保 CSS 变量立即对 DOM 生效（Hero标题/加载画面依赖）
+    void document.documentElement.offsetHeight;
+  } catch {}
 
   setupDevPanelEvents();
   setupDevTabs();
+
+  // 恢复会话变量的特殊副作用（注入样式等）—— 内部已包含 buildDevPreview + 动画启动
+  applySpecialVarEffects();
 
   // 暴露全局 toggle 供 gamepad.js 调用
   window.__lensToggleDev = toggleDevPanel;
@@ -1444,8 +2458,29 @@ export function initDevPanel() {
     // 启动悬浮窗的实时更新
     startGpFloatPoll(zone);
   };
-  // 暴露一键复位
-  window.__lensResetAll = () => loadPreset(BUILTIN_PRESETS[0]);
+  // 暴露一键复位（手柄长按 X）
+  window.__lensResetAll = () => {
+    loadPreset(BUILTIN_PRESETS[0]);
+    D.perfToggles = { fps: true, metrics: true, invoke: true, console: true };
+    document.querySelectorAll('.dev-chip-toggle').forEach(btn => btn.classList.add('dev-chip-toggle--on'));
+    applyPerfToggles();
+    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style'].forEach(id => {
+      const s = document.getElementById(id); if (s) s.remove();
+    });
+    document.body.classList.remove('dev-bm-active');
+    const visEl2 = document.getElementById('dev-group-visual');
+    if (visEl2) {
+      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index'].forEach(id => {
+        const t = document.getElementById(id);
+        if (t) t.classList.remove('dev-toggle--on');
+      });
+    }
+    // 清除内联样式覆盖，让 CSS 变量生效
+    const cats = document.getElementById('categories');
+    if (cats) cats.style.gridTemplateColumns = '';
+    const gGrid = document.getElementById('gallery-grid');
+    if (gGrid) gGrid.style.columns = '';
+  };
 
   console.log('[DevPanel] 初始化完成 — Ctrl+Shift+D 打开');
 }

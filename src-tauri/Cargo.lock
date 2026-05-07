@@ -2843,7 +2843,7 @@ dependencies = [
 
 [[package]]
 name = "photography-tauri"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "image",
  "kamadak-exif",

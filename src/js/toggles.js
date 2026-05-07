@@ -69,7 +69,7 @@ export function applyTogglesUI(toggles) {
   const cats = document.getElementById('categories');
   const gGrid = document.getElementById('gallery-grid');
   const cols = { s: 4, m: 3, l: 2 };
-  if (cats) cats.style.gridTemplateColumns = `repeat(auto-fill, minmax(${size}, 1fr))`;
+  // 不设置内联样式，让 CSS var(--thumb-card-size) 生效，dev panel 调节可覆盖
   if (gGrid) gGrid.style.columns = cols[toggles.density] || 3;
   [cats, gGrid].forEach(el => {
     if (!el) return;

@@ -2,7 +2,7 @@
   /* ========== 开发者面板覆盖层 ========== */
   .dev-overlay {
     position: fixed; inset: 0; z-index: 20003;
-    background: rgba(6,6,5,0.55);
+    background: rgba(var(--bg-deep-rgb), 0.55);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     opacity: 0; visibility: hidden;
@@ -17,14 +17,15 @@
   .dev-panel {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     z-index: 20004;
-    width: min(900px, 94vw); height: min(620px, 85vh);
+    font-size: clamp(0.65rem, 1.3vw, 0.85rem);
+    width: clamp(620px, 72vw, 900px); height: clamp(440px, 72vh, 620px);
     display: flex;
-    background: rgba(30,28,26,0.94);
+    background: rgba(var(--bg-rgb), 0.94);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
-    border: 0.5px solid rgba(200,168,124,0.18);
+    border: 0.5px solid var(--glass-border-bright);
     border-radius: var(--radius);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(200,168,124,0.08) inset;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 0.5px var(--glass-border) inset;
     opacity: 0; transform: translate(-50%, -50%) scale(0.94);
     transition: opacity 0.3s var(--ease-out), transform 0.45s var(--ease-spring);
     pointer-events: none;
@@ -42,33 +43,14 @@
     to { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
   }
 
-  /* ========== 关闭按钮 ========== */
-  .dev-panel__close {
-    position: absolute; top: 12px; right: 12px; z-index: 10;
-    width: 32px; height: 32px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem; color: var(--text-2);
-    border-radius: 50%;
-    background: rgba(220,200,180,0.08);
-    border: 0.5px solid rgba(220,200,180,0.12);
-    cursor: pointer;
-    transition: all 0.3s var(--ease-out);
-  }
-  .dev-panel__close:hover {
-    color: var(--text);
-    background: rgba(220,200,180,0.16);
-    border-color: rgba(220,200,180,0.25);
-    transform: rotate(90deg);
-  }
-
   /* ========== 手柄可视化悬浮窗 ========== */
   .dev-gp-float {
     position: fixed; top: 50%; left: 50%; z-index: 20007;
     transform: translate(-50%, -50%) scale(0.94);
-    background: rgba(30,28,26,0.96);
+    background: rgba(var(--bg-rgb), 0.96);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 0.5px solid rgba(200,168,124,0.18);
+    border: 0.5px solid var(--glass-border-bright);
     border-radius: var(--radius);
     padding: 2rem 2.5rem;
     box-shadow: 0 12px 48px rgba(0,0,0,0.6);
@@ -91,7 +73,7 @@
     transform-origin: center;
     margin: 24px 8px;
     padding: 12px;
-    background: rgba(200,168,124,0.04);
+    background: var(--glass-bg);
     border-radius: 12px;
   }
   .dev-gp-float__content .dev-stick {
@@ -106,7 +88,7 @@
   }
   .dev-gp-float__bar {
     width: 160px; height: 5px;
-    background: rgba(200,168,124,0.12);
+    background: var(--glass-bg-hover);
     border-radius: 3px;
     overflow: hidden;
     margin-top: 8px;
@@ -127,7 +109,7 @@
   .dev-reset-overlay {
     position: fixed; inset: 0; z-index: 20006;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(6,6,5,0.6);
+    background: rgba(var(--bg-deep-rgb), 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     opacity: 0; visibility: hidden;
@@ -140,10 +122,10 @@
     pointer-events: auto;
   }
   .dev-reset-box {
-    background: rgba(30,28,26,0.96);
+    background: rgba(var(--bg-rgb), 0.96);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 0.5px solid rgba(200,168,124,0.18);
+    border: 0.5px solid var(--glass-border-bright);
     border-radius: var(--radius);
     padding: 2rem 2.5rem;
     text-align: center;
@@ -168,7 +150,7 @@
   }
   .dev-reset-box__bar {
     width: 200px; height: 6px;
-    background: rgba(200,168,124,0.12);
+    background: var(--glass-bg-hover);
     border-radius: 3px;
     margin: 0 auto 1rem;
     overflow: hidden;
@@ -187,29 +169,40 @@
 
   /* ========== 悬浮手柄提示 ========== */
   .dev-hints {
-    display: none;
+    display: flex; flex-direction: column;
     position: fixed; top: 50%; z-index: 20005;
-    transform: translateY(-50%);
-    width: 140px;
+    transform: translateY(-50%) scale(0.94);
+    width: clamp(110px, 11vw, 140px);
     padding: 1rem 0.6rem;
-    background: rgba(30,28,26,0.94);
+    background: rgba(var(--bg-rgb), 0.94);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 0.5px solid rgba(200,168,124,0.12);
+    border: 0.5px solid var(--glass-border-bright);
     border-radius: var(--radius-sm);
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     overflow-y: auto;
     scrollbar-width: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s var(--ease-out), transform 0.45s var(--ease-spring), visibility 0s 0.35s;
   }
   .dev-hints::-webkit-scrollbar { display: none; }
-  .dev-overlay--open ~ .dev-hints { right: calc(50% - min(450px, 47vw) - 160px); }
-  body.gamepad-active .dev-overlay--open ~ .dev-hints { display: flex; flex-direction: column; }
+  .dev-overlay--open ~ .dev-hints { right: calc(50% - min(450px, 47vw) - 180px); }
+  body.gamepad-active .dev-overlay--open ~ .dev-hints {
+    display: flex; flex-direction: column;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) scale(1);
+    pointer-events: auto;
+    transition: opacity 0.35s var(--ease-out) 0.05s, transform 0.45s var(--ease-spring) 0.05s, visibility 0s 0s;
+  }
   .dev-hints__title {
     font-family: 'Xbox', 'Arial Black', Impact, sans-serif;
     font-size: 0.68rem; color: var(--text-3);
     letter-spacing: 0.08em;
     margin-bottom: 10px; padding-bottom: 6px;
-    border-bottom: 0.5px solid rgba(200,168,124,0.08);
+    border-bottom: 0.5px solid var(--glass-border);
   }
   .dev-hints__row {
     display: flex; align-items: center; gap: 8px;
@@ -221,8 +214,10 @@
     flex-shrink: 0;
   }
   .dev-hints__icon {
-    width: 24px; height: 24px;
     display: block;
+    width: 24px; height: 24px;
+    flex-shrink: 0;
+    color: currentColor;
   }
   .dev-hints__desc {
     font-family: 'Xbox', 'Arial Black', Impact, sans-serif;
@@ -236,7 +231,7 @@
     flex-shrink: 0; width: 170px;
     padding: 1.2rem 0.6rem;
     display: flex; flex-direction: column; gap: 4px;
-    border-right: 0.5px solid rgba(200,168,124,0.08);
+    border-right: 0.5px solid var(--glass-border);
     background: rgba(0,0,0,0.12);
     overflow-y: auto;
   }
@@ -247,7 +242,7 @@
     letter-spacing: 0.04em;
     color: var(--text-2);
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: transparent;
     border: 0.5px solid transparent;
     cursor: pointer;
@@ -256,15 +251,15 @@
     white-space: nowrap;
   }
   .dev-nav__tab:hover {
-    background: rgba(200,168,124,0.08);
+    background: var(--glass-bg-hover);
     color: var(--text);
-    border-color: rgba(200,168,124,0.10);
+    border-color: var(--glass-border);
   }
   .dev-nav__tab--active {
-    background: rgba(200,168,124,0.12);
+    background: var(--glass-bg-hover);
     color: var(--accent);
     font-weight: 500;
-    border-color: rgba(200,168,124,0.18);
+    border-color: var(--glass-border-bright);
   }
   .dev-nav--dimmed {
     opacity: 0.35;
@@ -300,9 +295,16 @@
     font-size: 0.85rem; font-weight: 400; font-style: italic;
     letter-spacing: 0.08em;
     color: var(--text);
-    margin-bottom: 0.8rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 0.5px solid rgba(200,168,124,0.10);
+    margin-bottom: 0.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 0.5px solid var(--glass-border);
+  }
+  .dev-section__desc {
+    font-family: var(--font-body);
+    font-size: 0.6rem; color: var(--text-3);
+    letter-spacing: 0.04em;
+    margin-bottom: 0.6rem;
+    line-height: 1.5;
   }
 
   /* ========== 控件行 ========== */
@@ -350,7 +352,7 @@
   /* ========== 颜色选择器 ========== */
   .dev-color {
     width: 32px; height: 22px;
-    padding: 0; border: 0.5px solid rgba(200,168,124,0.20);
+    padding: 0; border: 0.5px solid var(--glass-border-bright);
     border-radius: 5px;
     cursor: pointer;
     background: transparent;
@@ -360,10 +362,10 @@
 
   /* ========== 范围滑块 ========== */
   .dev-slider {
-    flex: 1; min-width: 60px;
+    flex: 3; min-width: 160px; max-width: 100%;
     height: 4px;
     -webkit-appearance: none; appearance: none;
-    background: rgba(200,168,124,0.12);
+    background: var(--glass-bg-hover);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -373,13 +375,13 @@
     width: 14px; height: 14px;
     border-radius: 50%;
     background: var(--accent);
-    border: 1px solid rgba(200,168,124,0.3);
+    border: 1px solid var(--glass-border-bright);
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(200,168,124,0.25);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.25);
     transition: box-shadow 0.2s ease;
   }
   .dev-slider::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 16px rgba(200,168,124,0.45);
+    box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.45);
   }
 
   /* ========== 小按钮 ========== */
@@ -390,21 +392,21 @@
     color: var(--text-2);
     padding: 5px 14px;
     border-radius: var(--radius-pill);
-    background: rgba(200,168,124,0.08);
-    border: 0.5px solid rgba(200,168,124,0.12);
+    background: var(--glass-bg-hover);
+    border: 0.5px solid var(--glass-border);
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.25s var(--ease-out);
   }
   .dev-btn:hover {
     color: var(--text);
-    background: rgba(200,168,124,0.14);
-    border-color: rgba(200,168,124,0.22);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
   }
   .dev-btn--accent {
     color: var(--accent);
-    background: rgba(200,168,124,0.12);
-    border-color: rgba(200,168,124,0.20);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
   }
   .dev-btn--danger:hover {
     color: #e87070;
@@ -415,9 +417,9 @@
   /* ========== 开关 ========== */
   .dev-toggle {
     width: 36px; height: 20px;
-    padding: 0; border-radius: 10px;
-    background: rgba(200,168,124,0.12);
-    border: 0.5px solid rgba(200,168,124,0.15);
+    padding: 0; border-radius: var(--radius-pill);
+    background: var(--glass-bg-hover);
+    border: 0.5px solid var(--glass-border);
     cursor: pointer;
     position: relative;
     flex-shrink: 0;
@@ -427,18 +429,18 @@
     content: '';
     position: absolute; top: 2px; left: 2px;
     width: 14px; height: 14px;
-    border-radius: 50%;
-    background: rgba(220,200,180,0.5);
+    border-radius: var(--radius-pill);
+    background: var(--text-2);
     transition: transform 0.3s var(--ease-out), background 0.3s var(--ease-out);
   }
   .dev-toggle--on {
-    background: rgba(200,168,124,0.35);
-    border-color: rgba(200,168,124,0.4);
+    background: var(--accent);
+    border-color: var(--glass-border-bright);
   }
   .dev-toggle--on::after {
     transform: translateX(16px);
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(200,168,124,0.5);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
   }
 
   /* ========== FPS 柱状图 ========== */
@@ -466,20 +468,20 @@
     font-family: 'Consolas', 'Courier New', monospace;
     font-size: 0.65rem;
     line-height: 1.6;
-    border: 0.5px solid rgba(200,168,124,0.06);
+    border: 0.5px solid var(--glass-border);
     user-select: text;
     -webkit-user-select: text;
     cursor: text;
   }
   .dev-console::-webkit-scrollbar { width: 3px; }
-  .dev-console::-webkit-scrollbar-thumb { background: rgba(200,168,124,0.08); border-radius: 10px; }
+  .dev-console::-webkit-scrollbar-thumb { background: var(--glass-bg-hover); border-radius: 10px; }
   .dev-console__line {
     padding: 1px 0;
     white-space: pre-wrap; word-break: break-all;
   }
   .dev-console__line--warn { color: #e8c870; }
   .dev-console__line--error { color: #e87070; }
-  .dev-console__line--info { color: rgba(220,200,180,0.55); }
+  .dev-console__line--info { color: var(--text-2); }
   .dev-console__line--debug { color: rgba(180,180,180,0.4); }
 
   /* ========== 手柄按钮网格 ========== */
@@ -497,17 +499,17 @@
     font-size: 0.6rem; font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--text-3);
-    background: rgba(200,168,124,0.04);
-    border: 0.5px solid rgba(200,168,124,0.06);
+    background: var(--glass-bg);
+    border: 0.5px solid var(--glass-border);
     text-align: center;
     transition: all 0.15s ease;
     min-height: 24px;
   }
   .dev-gp-btn--on {
     color: var(--accent);
-    background: rgba(200,168,124,0.18);
-    border-color: rgba(200,168,124,0.35);
-    box-shadow: 0 0 12px rgba(200,168,124,0.25);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
   }
 
   /* ========== 摇杆可视化 ========== */
@@ -515,18 +517,18 @@
     position: relative;
     width: 90px; height: 90px;
     border-radius: 50%;
-    background: rgba(200,168,124,0.05);
-    border: 0.5px solid rgba(200,168,124,0.12);
+    background: var(--glass-bg);
+    border: 0.5px solid var(--glass-border);
     overflow: hidden;
   }
   .dev-stick__cross-h {
     position: absolute; top: 50%; left: 0; right: 0;
-    height: 0.5px; background: rgba(200,168,124,0.10);
+    height: 0.5px; background: var(--glass-bg-hover);
     transform: translateY(-50%);
   }
   .dev-stick__cross-v {
     position: absolute; left: 50%; top: 0; bottom: 0;
-    width: 0.5px; background: rgba(200,168,124,0.10);
+    width: 0.5px; background: var(--glass-bg-hover);
     transform: translateX(-50%);
   }
   .dev-stick__dot {
@@ -534,7 +536,7 @@
     width: 10px; height: 10px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(200,168,124,0.5);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
     transform: translate(-50%, -50%);
     transition: left 0.08s linear, top 0.08s linear;
   }
@@ -550,13 +552,13 @@
   .dev-trigger {
     width: 100%; height: 6px;
     border-radius: 3px;
-    background: rgba(200,168,124,0.06);
+    background: var(--glass-bg);
     overflow: hidden;
   }
   .dev-trigger__fill {
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, rgba(200,168,124,0.20), var(--accent));
+    background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.20), var(--accent));
     transition: width 0.08s linear;
   }
 
@@ -565,18 +567,18 @@
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px;
     border-radius: 10px;
-    background: rgba(200,168,124,0.03);
-    border: 0.5px solid rgba(200,168,124,0.06);
+    background: var(--glass-bg);
+    border: 0.5px solid var(--glass-border);
     margin-bottom: 6px;
     transition: all 0.25s var(--ease-out);
   }
   .dev-preset-card:hover {
-    background: rgba(200,168,124,0.08);
-    border-color: rgba(200,168,124,0.15);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
   }
   .dev-preset-card--active {
     border-color: var(--accent);
-    background: rgba(200,168,124,0.08);
+    background: var(--glass-bg-hover);
   }
   .dev-preset-card__name-old { /* removed — replaced by .dev-preset-card__info */
     color: var(--text);
@@ -587,7 +589,7 @@
     letter-spacing: 0.06em;
     padding: 2px 8px;
     border-radius: var(--radius-pill);
-    background: rgba(200,168,124,0.06);
+    background: var(--glass-bg);
   }
   .dev-preset-card__actions {
     display: flex; gap: 4px;
@@ -605,7 +607,7 @@
   }
   .dev-preset-card__act:hover {
     color: var(--text);
-    background: rgba(200,168,124,0.10);
+    background: var(--glass-bg-hover);
   }
 
   /* ========== 输入框 ========== */
@@ -615,7 +617,7 @@
     padding: 6px 12px;
     border-radius: 8px;
     background: rgba(0,0,0,0.2);
-    border: 0.5px solid rgba(200,168,124,0.12);
+    border: 0.5px solid var(--glass-border);
     outline: none;
     transition: border-color 0.3s ease;
     width: 100%; box-sizing: border-box;
@@ -630,7 +632,7 @@
     display: flex; align-items: center; gap: 8px;
     padding: 6px 12px;
     border-radius: 8px;
-    background: rgba(200,168,124,0.04);
+    background: var(--glass-bg);
     font-family: var(--font-body);
     font-size: 0.68rem;
   }
@@ -648,27 +650,27 @@
   .dev-btn.hero--focused,
   .dev-preset-card.hero--focused,
   .dev-toggle.hero--focused {
-    background: rgba(200,168,124,0.12) !important;
-    box-shadow: 0 0 12px rgba(200,168,124,0.15);
-    border-color: rgba(200,168,124,0.3) !important;
+    background: var(--glass-bg-hover) !important;
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.15);
+    border-color: var(--glass-border-bright) !important;
   }
   .dev-slider.hero--focused {
-    box-shadow: 0 0 12px rgba(200,168,124,0.25);
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
   }
   .dev-slider.hero--focused::-webkit-slider-thumb {
-    box-shadow: 0 0 20px rgba(200,168,124,0.6);
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.6);
   }
   .dev-input.hero--focused {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 12px rgba(200,168,124,0.2);
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.2);
   }
   .dev-row {
     transition: background 0.2s ease, box-shadow 0.2s ease;
   }
   .dev-row.hero--focused {
-    background: rgba(200,168,124,0.08) !important;
+    background: var(--glass-bg-hover) !important;
     border-radius: 8px;
-    box-shadow: 0 0 12px rgba(200,168,124,0.1);
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.1);
   }
 
   /* ========== 文本输入（字体/缓动曲线） ========== */
@@ -677,7 +679,7 @@
     font-family: var(--font-body);
     font-size: 0.68rem; color: var(--text);
     background: rgba(0,0,0,0.25);
-    border: 0.5px solid rgba(200,168,124,0.12);
+    border: 0.5px solid var(--glass-border);
     border-radius: 6px; padding: 5px 8px;
     outline: none;
     transition: border-color 0.3s ease;
@@ -709,7 +711,7 @@
     left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    border: 1px dashed rgba(200,168,124,0.2);
+    border: 1px dashed var(--glass-border-bright);
     pointer-events: none;
     /* 50% = 半径，DEAD_ZONE=0.25 → 直径=50% */
     width: 50%; height: 50%;
@@ -723,9 +725,9 @@
     border-radius: 4px; overflow: hidden;
   }
   .dev-glass-alpha {
-    width: 60px; height: 4px;
+    flex: 2; min-width: 80px; height: 4px;
     -webkit-appearance: none; appearance: none;
-    background: rgba(200,168,124,0.12);
+    background: var(--glass-bg-hover);
     border-radius: 2px; outline: none;
     cursor: pointer;
   }
@@ -744,7 +746,7 @@
   .dev-preset-card__swatch {
     width: 14px; height: 14px;
     border-radius: 3px;
-    border: 0.5px solid rgba(200,168,124,0.15);
+    border: 0.5px solid var(--glass-border);
   }
   .dev-preset-card__info {
     display: flex; flex-direction: column; gap: 1px;
@@ -761,6 +763,67 @@
     letter-spacing: 0.03em;
   }
 
+  /* ========== 性能监控芯片开关 ========== */
+  .dev-chip-toggle {
+    font-family: var(--font-body);
+    font-size: 0.65rem; font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+    padding: 5px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--glass-bg);
+    border: 0.5px solid var(--glass-border);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.25s var(--ease-out);
+    user-select: none;
+  }
+  .dev-chip-toggle:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
+  }
+  .dev-chip-toggle--on {
+    color: var(--accent);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
+  }
+  .dev-chip-toggle.hero--focused {
+    background: var(--accent) !important;
+    color: var(--bg) !important;
+    box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.4);
+    border-color: var(--accent) !important;
+  }
+
+  /* ========== 紧凑 section ========== */
+  .dev-section--compact {
+    margin-bottom: 0.8rem;
+  }
+
+  /* ========== 性能段折叠动画 ========== */
+  .dev-perf-section {
+    max-height: 600px; overflow: hidden;
+    transition: max-height 0.45s var(--ease-out), opacity 0.3s var(--ease-out), margin 0.45s var(--ease-out);
+  }
+  .dev-perf-section--folded {
+    max-height: 0; opacity: 0; margin-bottom: 0;
+    pointer-events: none;
+  }
+
+  /* ========== 预设卡片风格标签 ========== */
+  .dev-preset-card__tags {
+    display: flex; gap: 3px; flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .dev-preset-card__tag {
+    font-family: var(--font-body);
+    font-size: 0.55rem; color: var(--text-3);
+    letter-spacing: 0.04em;
+    padding: 1px 6px; border-radius: 4px;
+    background: var(--glass-bg);
+    border: 0.5px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
   /* ========== 响应式 ========== */
   @media (max-width: 768px) {
     .dev-panel {
@@ -771,10 +834,143 @@
       flex-direction: row; width: 100%; flex-shrink: 0;
       padding: 0.6rem; gap: 2px;
       border-right: none;
-      border-bottom: 0.5px solid rgba(200,168,124,0.08);
+      border-bottom: 0.5px solid var(--glass-border);
       overflow-x: auto; overflow-y: hidden;
     }
     .dev-nav__tab { flex-shrink: 0; font-size: 0.7rem; padding: 8px 12px; }
     .dev-content { padding: 1rem; }
   }
+
+  /* ========== 实时预览面板（零 var() — 颜色/背景由 JS 内联样式注入）========== */
+  .dev-preview {
+    position: fixed;
+    top: 50%;
+    right: calc(50vw + min(450px, 47vw) + 24px);
+    transform: translateY(-50%) scale(0.94);
+    width: min(290px, calc(50vw - min(450px, 47vw) - 36px));
+    max-height: 90vh;
+    z-index: 20004;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s var(--ease-out), transform 0.45s var(--ease-spring), visibility 0s 0.35s;
+  }
+  .dev-overlay--open .dev-preview {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) scale(1);
+    transition: opacity 0.35s var(--ease-out) 0.05s, transform 0.45s var(--ease-spring) 0.05s, visibility 0s 0s;
+  }
+  .dev-overlay--open .dev-preview.dev-preview--hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-50%) scale(0.94);
+    transition: opacity 0.25s var(--ease-out), transform 0.35s var(--ease-spring), visibility 0s 0.25s;
+  }
+  .dev-preview__inner {
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    max-height: 92vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .dev-preview__inner::-webkit-scrollbar { display: none; }
+
+  /* 以下类仅作为 JS 选择器钩子和布局属性；颜色/背景/边框/字体由 JS 内联样式注入 */
+  .dev-preview__header {
+    font-size: 0.8rem;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: 0.1em;
+    padding-bottom: 0.4rem;
+  }
+
+  .dev-preview__section-title {
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .dev-preview__card-wrap {
+    position: relative;
+  }
+  .dev-preview__card-backdrop {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: 3rem; font-weight: 900;
+    letter-spacing: 0.3em;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .dev-preview__card {
+    position: relative; z-index: 1;
+    padding: 0.8rem;
+  }
+  .dev-preview__card-label {
+    font-size: 0.56rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+  }
+  .dev-preview__card-glass {
+    padding: 0.6rem;
+  }
+  .dev-preview__card-title {
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+  .dev-preview__card-body {
+    font-size: 0.6rem;
+  }
+
+  .dev-preview__swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .dev-preview__text-display {
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+    line-height: 1.3;
+  }
+  .dev-preview__text-body {
+    font-size: 0.65rem;
+  }
+
+  .dev-preview__loading-capsule {
+    width: 100%;
+    height: 14px;
+    opacity: 0.25;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dev-preview__toggle-label {
+    font-size: 0.58rem;
+  }
+
+  /* 响应式：窄屏隐藏预览 */
+  @media (max-width: 1100px) {
+    .dev-preview { display: none; }
+  }
+  /* 小窗口高度适配 */
+  @media (max-height: 700px) {
+    .dev-panel {
+      height: 92vh;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+  @media (max-height: 500px) {
+    .dev-panel {
+      height: 96vh;
+      width: min(900px, 96vw);
+    }
+    .dev-content { padding: 0.8rem 1.2rem; }
+  }
+
 }

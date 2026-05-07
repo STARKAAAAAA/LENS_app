@@ -20,6 +20,18 @@ let loadingScreenDoneResolve = null;
 export async function showLoadingScreen(msg, { onFirstShow } = {}) {
   let el = document.getElementById('loading-screen');
   if (!el) {
+    // 从 :root 读取当前预设的字体（颜色使用硬编码原始暖金色，不依赖 var() 解析）
+    const rootStyle = getComputedStyle(document.documentElement);
+    const displayFont = rootStyle.getPropertyValue('--font-display').trim() || "'Cormorant Garamond', Georgia, serif";
+    const fontWeight = rootStyle.getPropertyValue('--font-weight-display').trim() || '300';
+    // 加载颜色硬编码为原始暖金色（与 git e867cfa 一致）
+    const loadingColor = 'rgba(220,200,180,0.55)';
+    const loadingColorDim = 'rgba(220,200,180,0.40)';
+    const loadingColorSoft = 'rgba(220,200,180,0.45)';
+    // 读取圆角变量用于 SVG 胶囊圆角
+    const pillRadius = parseFloat(rootStyle.getPropertyValue('--radius-pill').trim()) || 100;
+    const svgRx = Math.min(pillRadius, 11); // SVG rect 高度 22px，最大圆角半径 11px
+
     el = document.createElement('div');
     el.id = 'loading-screen';
     Object.assign(el.style, {
@@ -50,8 +62,9 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     track.id = 'loading-track';
     Object.assign(track.style, {
       width: '160px', height: '6px',
-      borderRadius: '100px',
-      background: 'rgba(200,168,124,0.1)',
+      borderRadius: 'var(--radius-pill)',
+      background: loadingColor,
+      opacity: '0.18',
       position: 'relative',
       zIndex: '1',
     });
@@ -77,9 +90,12 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     const trackPath = document.createElementNS(svgNS, 'rect');
     trackPath.setAttribute('x', '16'); trackPath.setAttribute('y', '11');
     trackPath.setAttribute('width', '176'); trackPath.setAttribute('height', '22');
-    trackPath.setAttribute('rx', '11'); trackPath.setAttribute('ry', '11');
+    trackPath.setAttribute('rx', String(svgRx)); trackPath.setAttribute('ry', String(svgRx));
+    // CSS 变量引用 — 实时跟随 --radius-pill 变更（CSS 属性覆盖 SVG attribute）
+    trackPath.style.rx = `min(var(--radius-pill), 11px)`;
+    trackPath.style.ry = `min(var(--radius-pill), 11px)`;
     trackPath.setAttribute('fill', 'none');
-    trackPath.setAttribute('stroke', 'rgba(200,168,124,0.08)');
+    trackPath.setAttribute('stroke', loadingColorDim);
     trackPath.setAttribute('stroke-width', '1');
     svg.appendChild(trackPath);
 
@@ -88,9 +104,12 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     orbitLight.id = 'loading-orbit-light';
     orbitLight.setAttribute('x', '16'); orbitLight.setAttribute('y', '11');
     orbitLight.setAttribute('width', '176'); orbitLight.setAttribute('height', '22');
-    orbitLight.setAttribute('rx', '11'); orbitLight.setAttribute('ry', '11');
+    orbitLight.setAttribute('rx', String(svgRx)); orbitLight.setAttribute('ry', String(svgRx));
+    // CSS 变量引用 — 实时跟随 --radius-pill 变更
+    orbitLight.style.rx = `min(var(--radius-pill), 11px)`;
+    orbitLight.style.ry = `min(var(--radius-pill), 11px)`;
     orbitLight.setAttribute('fill', 'none');
-    orbitLight.setAttribute('stroke', 'rgba(200,168,124,0.55)');
+    orbitLight.setAttribute('stroke', loadingColor);
     orbitLight.setAttribute('stroke-width', '1.5');
     orbitLight.setAttribute('stroke-dasharray', '28 430');
     orbitLight.setAttribute('stroke-dashoffset', '0');
@@ -105,9 +124,10 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     const text = document.createElement('div');
     text.id = 'loading-text';
     Object.assign(text.style, {
-      fontFamily: "Cormorant Garamond, Georgia, serif",
-      fontSize: '0.85rem', fontStyle: 'italic', fontWeight: '300',
-      letterSpacing: '0.12em', color: 'rgba(220,200,180,0.55)',
+      fontFamily: displayFont,
+      fontSize: '0.85rem', fontStyle: 'italic',
+      fontWeight: fontWeight,
+      letterSpacing: '0.12em', color: loadingColor,
       marginBottom: '0.6rem',
       opacity: '0', transform: 'translateY(10px)',
       transition: 'opacity 0.6s ease, transform 0.6s ease',
@@ -117,9 +137,10 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     const hint = document.createElement('div');
     hint.id = 'loading-hint';
     Object.assign(hint.style, {
-      fontFamily: "Cormorant Garamond, Georgia, serif",
-      fontSize: '0.72rem', fontStyle: 'italic', fontWeight: '300',
-      letterSpacing: '0.08em', color: 'rgba(220,200,180,0.4)',
+      fontFamily: displayFont,
+      fontSize: '0.72rem', fontStyle: 'italic',
+      fontWeight: fontWeight,
+      letterSpacing: '0.08em', color: loadingColorDim,
       marginBottom: '2.5rem', display: 'none',
       opacity: '0', transform: 'translateY(8px)',
       transition: 'opacity 0.8s ease, transform 0.8s ease',
@@ -131,9 +152,10 @@ export async function showLoadingScreen(msg, { onFirstShow } = {}) {
     Object.assign(quote.style, {
       position: 'absolute', bottom: '14vh', left: '50%',
       transform: 'translateX(-50%) translateY(10px)',
-      fontFamily: "Cormorant Garamond, Georgia, serif",
-      fontSize: '1rem', fontStyle: 'italic', fontWeight: '300',
-      letterSpacing: '0.1em', color: 'rgba(220,200,180,0.45)',
+      fontFamily: displayFont,
+      fontSize: '1rem', fontStyle: 'italic',
+      fontWeight: fontWeight,
+      letterSpacing: '0.1em', color: loadingColorSoft,
       textAlign: 'center', whiteSpace: 'nowrap',
       opacity: '0',
       transition: 'opacity 0.8s ease, transform 0.8s ease',
@@ -305,22 +327,29 @@ export function moveTitleToCorner() {
   const lensGlow = document.createElement('div'); lensGlow.id = 'lens-glow';
   Object.assign(lensGlow.style, {
     position:'absolute',left:'-22px',top:'2px',width:'110px',height:'44px',
-    borderRadius:'16px',background:'rgba(200,180,160,0.04)',
+    borderRadius:'var(--radius)',background:'var(--glass-bg)',
     backdropFilter:'blur(40px)',WebkitBackdropFilter:'blur(40px)',
-    border:'0.5px solid rgba(200,180,160,0.06)',opacity:'0',transition:'opacity 0.8s ease',
+    border:'0.5px solid var(--glass-border)',opacity:'0',transition:'opacity 0.8s ease',
     pointerEvents:'none',
     maskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)',
     WebkitMaskImage:'radial-gradient(ellipse 60% 55% at center, black 35%, transparent 100%)'
   });
   wrap.appendChild(lensGlow);
 
-  const logo = document.createElement('div'); logo.id = 'corner-logo'; logo.textContent = 'LENS';
+  const logoStyle = getComputedStyle(document.documentElement);
+  const logoFont = logoStyle.getPropertyValue('--font-display').trim() || "'Cormorant Garamond', Georgia, serif";
+  const logoWeight = logoStyle.getPropertyValue('--font-weight-display').trim() || '300';
+  const logoSpacing = logoStyle.getPropertyValue('--letter-spacing-display').trim() || '0.05em';
+  const logoColor = logoStyle.getPropertyValue('--corner-logo-color').trim() || 'rgba(220,200,175,0.85)';
+
+  const logo = document.createElement('div'); logo.id = 'corner-logo'; logo.textContent = 'LENS Beta';
   Object.assign(logo.style, {
     position:'absolute',left:'0',top:'10px',
     WebkitAppRegion:'no-drag',
-    fontFamily:"var(--font-display), 'Cormorant Garamond', Georgia, serif",
-    fontSize:'1.2rem',fontWeight:'300',letterSpacing:'0.18em',
-    color:'rgba(220,200,175,0.85)',cursor:'pointer',opacity:'0',scale:'0.8',
+    fontFamily:logoFont,
+    fontSize:'1.2rem',fontWeight:logoWeight,letterSpacing:logoSpacing,
+    color:logoColor,
+    cursor:'pointer',opacity:'0',scale:'0.8',
     transition:'opacity 0.5s cubic-bezier(0.16,1,0.2,1), scale 0.6s cubic-bezier(0.34,1.56,0.64,1), color 0.3s ease',
     userSelect:'none',WebkitUserSelect:'none',lineHeight:'1',padding:'4px 0',willChange:'opacity, scale',
     pointerEvents:'auto'

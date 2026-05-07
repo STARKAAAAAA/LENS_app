@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "LENS",
+  "productName": "LENS Beta",
   "version": "1.6.2",
   "identifier": "com.lens.photo-viewer",
   "build": {

@@ -6,7 +6,7 @@
 
 ---
 
-当前版本 Current version: **v1.6.2**
+当前版本 Current version: **v1.6.2 Beta**
 
 ## 为什么选择 LENS / Why LENS
 

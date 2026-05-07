@@ -8,18 +8,18 @@
 
   @media (max-width: 768px) {
     .sidebar-frame { width: 200px; }
-    .sidebar-frame .sidebar { border-radius: 16px; }
+    .sidebar-frame .sidebar { border-radius: var(--radius); }
     #dir-label { max-width: 35vw; }
     .portfolio { padding: 5rem 1.5rem 3rem; }
   }
 
   @media (max-width: 640px) {
     .sidebar-frame { width: 180px; }
-    .sidebar-frame .sidebar { border-radius: 14px; }
+    .sidebar-frame .sidebar { border-radius: var(--radius-sm); }
     #dir-label { max-width: 30vw; font-size: 0.6rem; }
     .portfolio { padding: 5rem 1rem 3rem; }
     .categories { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .category-card { aspect-ratio: 1 / 1.2; border-radius: 16px; }
+    .category-card { aspect-ratio: 1 / 1.2; border-radius: var(--radius); }
     .gallery__grid { columns: 1; }
     .hero__title { letter-spacing: 0.25em; text-indent: 0.25em; }
     .hero__subtitle { letter-spacing: 0.35em; text-indent: 0.35em; }

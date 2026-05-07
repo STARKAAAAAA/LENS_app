@@ -41,7 +41,7 @@
     & .hero__title {
       font-family: var(--font-display);
       font-size: clamp(5rem, 15vw, 14rem);
-      font-weight: 300;
+      font-weight: var(--font-weight-display, 300);
       letter-spacing: 0.4em; text-indent: 0.4em;
       text-transform: uppercase; line-height: 1;
       color: transparent;
@@ -72,12 +72,20 @@
       }
     }
 
+    & .hero__beta {
+      font-size: 0.28em;
+      font-weight: 400;
+      letter-spacing: 0.15em;
+      vertical-align: super;
+      margin-left: 0.3em;
+    }
+
     & .hero__subtitle {
       font-family: var(--font-display);
       font-size: clamp(0.8rem, 1.4vw, 1rem);
-      font-weight: 300; font-style: italic;
+      font-weight: var(--font-weight-display, 300); font-style: italic;
       letter-spacing: 0.35em; text-indent: 0.35em;
-      color: rgba(220,200,180,0.55);
+      color: rgba(220,200,180,0.3);
       text-transform: none;
       margin-top: 2em;
       opacity: 0; transform: translateY(20px);
@@ -89,28 +97,28 @@
       transform: translateX(-50%);
       opacity: 0;
       width: 30px; height: 52px;
-      border-radius: 15px;
-      background: rgba(220,200,180,0.06);
+      border-radius: var(--radius-pill);
+      background: var(--glass-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 0.5px solid rgba(220,200,180,0.12);
+      border: 0.5px solid var(--glass-bg-hover);
       display: flex; align-items: flex-end; justify-content: center;
       padding-bottom: 10px;
-      transition: all 0.5s var(--ease-out);
+      transition: all calc(0.5s * var(--_anim-mult, 1)) var(--ease-out);
       will-change: transform, opacity;
 
       & .hero__scroll-line {
         display: block; width: 1px; height: 18px;
         border-radius: 1px;
-        background: rgba(220,200,180,0.4);
+        background: var(--text-3);
         transform-origin: top;
         position: relative; z-index: 1;
       }
 
       &:hover {
-        background: rgba(220,200,180,0.12);
-        border-color: rgba(220,200,180,0.22);
-        box-shadow: 0 0 30px rgba(220,200,180,0.04);
+        background: var(--glass-bg-hover);
+        border-color: var(--glass-border-bright);
+        box-shadow: 0 0 30px var(--accent-dim, rgba(200,168,124,0.15));
       }
     }
   }

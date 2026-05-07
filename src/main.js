@@ -30,6 +30,7 @@ import { buildCategoryCardsDOM, buildGalleryGridDOM, renderGalleryDropdowns, ref
 import { initLightbox, initSlideshow, loadRatings } from './js/lightbox.js';
 import { initSettingsPanel, initShortcutsPanel } from './js/panels.js';
 import { initGamepad } from './js/gamepad.js';
+import { initColorSystem, paletteToVars } from './js/colors.js';
 import { initDevPanel } from './js/dev-panel.js';
 
 // ===== App =====
@@ -319,6 +320,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     hideLoadingScreen,
   };
 
+  // ---- 初始化颜色系统（零 var() 依赖，JS 生成完整 CSS + 内联样式）----
+  initColorSystem();
+
+  // ---- 必须在启动序列之前恢复 CSS 变量，确保 Hero/加载画面/角标使用已保存的预设 ----
+  initDevPanel();
+
   // ---- Startup sequence ----
   if (!document.querySelector('.hero__reveal')) {
     const reveal = document.createElement('div');
@@ -361,6 +368,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- Shortcuts panel ----
   initShortcutsPanel({ featureToggles });
+
+  // ---- 替换 index.html 中的静态 <img> 图标为内联 SVG（currentColor 跟随预设）----
+  document.querySelectorAll('img.gp-icon[src*="assets/icons/btn-"]').forEach(img => {
+    const m = img.src.match(/btn-([^.]+)\.svg/);
+    if (m && window.__lensGPIcons?.[m[1]]) {
+      const span = document.createElement('span');
+      span.innerHTML = window.__lensGPIcons[m[1]].replace(/dev-hints__icon/g, 'gp-icon');
+      const svg = span.firstElementChild;
+      if (svg) {
+        svg.style.width = '24px';
+        svg.style.height = '24px';
+        img.replaceWith(svg);
+      }
+    }
+  });
 
   // ---- Initial load ----
   const savedDirs = getSavedFolders();
@@ -412,7 +434,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   initScrollReveal();
   initCardTilt();
   initGamepad();
-  initDevPanel();
   updateCacheDisplay();
 
   // ---- UI visibility after startup ----

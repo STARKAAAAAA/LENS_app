@@ -64,7 +64,7 @@ export function createCacheSection({ sidebar, featureToggles, invoke, formatByte
   section.id = 'cache-section';
   Object.assign(section.style, {
     padding: '10px 18px 14px',
-    borderTop: '0.5px solid rgba(220,200,180,0.06)',
+    borderTop: '0.5px solid var(--glass-border)',
     marginTop: '4px',
   });
 
@@ -78,7 +78,7 @@ export function createCacheSection({ sidebar, featureToggles, invoke, formatByte
   Object.assign(info.style, {
     fontFamily: "Cormorant Garamond, Georgia, serif",
     fontSize: '0.62rem', fontStyle: 'italic',
-    letterSpacing: '0.05em', color: 'rgba(220,200,180,0.25)',
+    letterSpacing: '0.05em', color: 'var(--text-3)',
   });
   info.textContent = '缓存: --';
 
@@ -88,18 +88,18 @@ export function createCacheSection({ sidebar, featureToggles, invoke, formatByte
     fontFamily: "Cormorant Garamond, Georgia, serif",
     fontSize: '0.6rem', fontStyle: 'italic',
     letterSpacing: '0.06em',
-    color: 'rgba(220,200,180,0.3)',
-    background: 'none', border: '0.5px solid rgba(220,200,180,0.10)',
-    borderRadius: '100px', padding: '3px 12px', cursor: 'pointer',
+    color: 'var(--text-3)',
+    background: 'none', border: '0.5px solid var(--glass-border)',
+    borderRadius: 'var(--radius-pill)', padding: '3px 12px', cursor: 'pointer',
     transition: 'all 0.3s ease',
   });
   delBtn.addEventListener('mouseenter', () => {
-    delBtn.style.color = 'rgba(220,200,180,0.7)';
-    delBtn.style.borderColor = 'rgba(220,200,180,0.25)';
+    delBtn.style.color = 'var(--accent)';
+    delBtn.style.borderColor = 'var(--glass-border-bright)';
   });
   delBtn.addEventListener('mouseleave', () => {
-    delBtn.style.color = 'rgba(220,200,180,0.3)';
-    delBtn.style.borderColor = 'rgba(220,200,180,0.10)';
+    delBtn.style.color = 'var(--text-3)';
+    delBtn.style.borderColor = 'var(--glass-border)';
   });
   delBtn.addEventListener('click', async () => {
     await invoke('clear_cache', { cacheDir: featureToggles.cacheDir });

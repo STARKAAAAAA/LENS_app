@@ -28,12 +28,12 @@
   .back-to-top {
     position: fixed; bottom: 20px; right: 20px; z-index: 300;
     width: 42px; height: 42px;
-    border-radius: 50%;
-    background: rgba(220,200,180,0.08);
+    border-radius: var(--radius-pill);
+    background: var(--glass-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 0.5px solid rgba(220,200,180,0.12);
-    color: rgba(220,200,180,0.5);
+    border: 0.5px solid var(--glass-border);
+    color: var(--text-3);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     opacity: 0; visibility: hidden;
@@ -53,8 +53,8 @@
     }
 
     &:hover {
-      background: rgba(220,200,180,0.16);
-      border-color: rgba(220,200,180,0.25);
+      background: var(--glass-bg-hover);
+      border-color: var(--glass-border-bright);
       color: var(--accent);
     }
   }

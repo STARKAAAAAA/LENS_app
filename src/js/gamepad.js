@@ -1,5 +1,13 @@
 import { getPhotoRating, gpLightboxZoom, gpLightboxResetZoom, gpSlideshowZoom, gpSlideshowResetZoom } from './lightbox.js';
 
+// -- 手柄图标辅助：读取全局内联 SVG（currentColor 跟随预设）--
+window.__lensGPImg = function(name) {
+  var icons = window.__lensGPIcons;
+  if (icons && icons[name]) {
+    return icons[name].replace(/dev-hints__icon/g, 'gp-icon');
+  }
+  return '<img src="/assets/icons/btn-' + name + '.svg" class="gp-icon">';
+};
 const sf = () => document.getElementById('sidebar-frame');
 
 // ========== Gamepad Support ==========
@@ -906,10 +914,19 @@ function actionB() {
 
   // 非 overlay 模式
   const openMenuB = document.querySelector('.custom-dropdown__menu--open');
-  if (openMenuB) { openMenuB.classList.remove('custom-dropdown__menu--open'); document.querySelector('.custom-dropdown__trigger--open')?.classList.remove('custom-dropdown__trigger--open'); return; }
+  if (openMenuB) {
+    openMenuB.classList.remove('custom-dropdown__menu--open');
+    document.querySelector('.custom-dropdown__trigger--open')?.classList.remove('custom-dropdown__trigger--open');
+    // 保持焦点在触发器上，不执行其他操作
+    return;
+  }
   if (S.zone === 'sidebar') { enterZone(S.save.zone === 'sidebar' ? 'grid' : (S.save.zone || 'grid')); return; }
-
-  if (m === 'gallery') safeClick(document.getElementById('gallery-back'));
+  // hero 区域：B 关闭下拉后保留焦点；再无下拉则退回 grid
+  if (S.zone === 'hero') {
+    enterZone('grid');
+    return;
+  }
+  // B 不再直接返回分类页——通过 hero 区 A 点击返回按钮来返回
 }
 
 function actionX() {
@@ -1071,13 +1088,13 @@ function refreshHints() {
     if (focused?.classList.contains('sidebar__item')) {
       const h = document.createElement('span');
       h.className = 'gp-hint';
-      h.innerHTML = '<img src="/assets/icons/btn-x.svg"><span class="gp-hint__label">删除</span>';
+      h.innerHTML = window.__lensGPImg('x') + '<span class="gp-hint__label">删除</span>';
       focused.appendChild(h);
     }
     if (focused?.id === 'sidebar-add') {
       const h = document.createElement('span');
       h.className = 'gp-hint';
-      h.innerHTML = '<img src="/assets/icons/btn-a.svg"><span class="gp-hint__label">添加</span>';
+      h.innerHTML = window.__lensGPImg('a') + '<span class="gp-hint__label">添加</span>';
       focused.appendChild(h);
     }
   }
@@ -1088,19 +1105,19 @@ function refreshHints() {
     if (!lb) return;
     // LB/RB 固定定位按钮提示
     lb.insertAdjacentHTML('beforeend',
-      `<span class="gp-hint gp-hint--lb-fixed"><img src="/assets/icons/btn-lb.svg"><span>上一张</span></span>` +
-      `<span class="gp-hint gp-hint--rb-fixed"><img src="/assets/icons/btn-rb.svg"><span>下一张</span></span>`
+      `<span class="gp-hint gp-hint--lb-fixed">${window.__lensGPImg('lb')}<span>上一张</span></span>` +
+      `<span class="gp-hint gp-hint--rb-fixed">${window.__lensGPImg('rb')}<span>下一张</span></span>`
     );
     // 加减星等操作提示 — 固定在窗口左下角
     const hintRow = document.createElement('div');
     hintRow.className = 'gp-stick-row';
     hintRow.innerHTML =
-      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-lt.svg"><span>-1星</span></span>' +
-      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rt.svg"><span>+1星</span></span>' +
-      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-x.svg"><span>收藏</span></span>' +
-      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-ls.svg"><span>移动</span></span>' +
-      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs.svg"><span>缩放</span></span>' +
-      '<span class="gp-hint gp-hint--fav"><img src="/assets/icons/btn-rs-press.svg"><span>复位</span></span>';
+      '<span class="gp-hint gp-hint--fav">' + window.__lensGPImg('lt') + '<span>-1星</span></span>' +
+      '<span class="gp-hint gp-hint--fav">' + window.__lensGPImg('rt') + '<span>+1星</span></span>' +
+      '<span class="gp-hint gp-hint--fav">' + window.__lensGPImg('x') + '<span>收藏</span></span>' +
+      '<span class="gp-hint gp-hint--fav">' + window.__lensGPImg('ls') + '<span>移动</span></span>' +
+      '<span class="gp-hint gp-hint--fav">' + window.__lensGPImg('rs') + '<span>缩放</span></span>' +
+      '<span class="gp-hint gp-hint--fav">' + window.__lensGPImg('rs-press') + '<span>复位</span></span>';
     document.body.appendChild(hintRow);
   }
 
@@ -1111,13 +1128,13 @@ function refreshHints() {
     if (prev) {
       const h = document.createElement('span');
       h.className = 'gp-hint gp-hint--inline';
-      h.innerHTML = '<img src="/assets/icons/btn-lb.svg">';
+      h.innerHTML = window.__lensGPImg('lb');
       prev.appendChild(h);
     }
     if (next) {
       const h = document.createElement('span');
       h.className = 'gp-hint gp-hint--inline';
-      h.innerHTML = '<img src="/assets/icons/btn-rb.svg">';
+      h.innerHTML = window.__lensGPImg('rb');
       next.appendChild(h);
     }
     // LS 暂停图标放在暂停按钮旁
@@ -1125,7 +1142,7 @@ function refreshHints() {
     if (pauseBtn) {
       const h = document.createElement('span');
       h.className = 'gp-hint gp-hint--inline';
-      h.innerHTML = '<img src="/assets/icons/btn-ls-press.svg">';
+      h.innerHTML = window.__lensGPImg('ls-press');
       pauseBtn.appendChild(h);
     }
     // RS 复位图标放在适配按钮旁
@@ -1133,7 +1150,7 @@ function refreshHints() {
     if (fitBtn) {
       const h = document.createElement('span');
       h.className = 'gp-hint gp-hint--inline';
-      h.innerHTML = '<img src="/assets/icons/btn-rs-press.svg">';
+      h.innerHTML = window.__lensGPImg('rs-press');
       fitBtn.appendChild(h);
     }
   }

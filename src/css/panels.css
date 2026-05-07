@@ -8,28 +8,28 @@
     background: rgba(30,28,26,0.92);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 0.5px solid rgba(200,168,124,0.15);
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-sm);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,168,124,0.04) inset;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--glass-bg) inset;
     opacity: 0; visibility: hidden;
     transform: translateY(-8px) scale(0.96);
-    transition: opacity 0.25s var(--ease-out), transform 0.3s var(--ease-out), visibility 0s 0.3s;
+    transition: opacity calc(0.25s * var(--_anim-mult, 1)) var(--ease-out), transform calc(0.3s * var(--_anim-mult, 1)) var(--ease-out), visibility 0s calc(0.3s * var(--_anim-mult, 1));
     pointer-events: none;
   }
   .settings-panel--open {
     opacity: 1; visibility: visible;
     transform: translateY(0) scale(1);
-    transition: opacity 0.25s var(--ease-out), transform 0.3s var(--ease-spring), visibility 0s 0s;
+    transition: opacity calc(0.25s * var(--_anim-mult, 1)) var(--ease-out), transform calc(0.3s * var(--_anim-mult, 1)) var(--ease-spring), visibility 0s 0s;
     pointer-events: auto;
   }
   .settings-panel__item {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     transition: background 0.25s ease;
   }
   .settings-panel__item:hover {
-    background: rgba(200,168,124,0.06);
+    background: var(--glass-bg);
   }
   .settings-panel__label {
     font-family: var(--font-body);
@@ -40,7 +40,7 @@
   .settings-panel__divider {
     height: 1px;
     margin: 2px 10px;
-    background: rgba(200,168,124,0.08);
+    background: var(--glass-bg-hover);
   }
   .settings-panel__item--col {
     flex-direction: column; align-items: flex-start; gap: 8px;
@@ -55,30 +55,30 @@
     letter-spacing: 0.03em;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     background: rgba(0,0,0,0.2);
-    border-radius: 6px; padding: 4px 8px;
+    border-radius: calc(var(--radius-sm) - 4px); padding: 4px 8px;
   }
   .cache-dir-btn {
     flex-shrink: 0;
     font-family: var(--font-display);
     font-size: 0.7rem; font-style: italic; letter-spacing: 0.06em;
     color: var(--text-2);
-    background: rgba(200,168,124,0.08);
-    border: 0.5px solid rgba(200,168,124,0.12);
-    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+    background: var(--glass-bg-hover);
+    border: 0.5px solid var(--glass-border);
+    border-radius: calc(var(--radius-sm) - 4px); padding: 4px 12px; cursor: pointer;
     transition: all 0.3s var(--ease-out);
   }
   .cache-dir-btn:hover {
     color: var(--text);
-    background: rgba(200,168,124,0.14);
-    border-color: rgba(200,168,124,0.22);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-bright);
   }
 
   /* === 自定义开关 === */
   .toggle-switch {
     width: 40px; height: 22px; padding: 0; margin: 0;
-    border-radius: 11px;
-    background: rgba(200,168,124,0.12);
-    border: 0.5px solid rgba(200,168,124,0.15);
+    border-radius: var(--radius-pill);
+    background: var(--glass-border);
+    border: 0.5px solid var(--glass-border);
     cursor: pointer;
     position: relative;
     transition: background 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
@@ -87,34 +87,34 @@
     content: '';
     position: absolute; top: 2px; left: 2px;
     width: 16px; height: 16px;
-    border-radius: 50%;
-    background: rgba(220,200,180,0.5);
+    border-radius: var(--radius-pill);
+    background: var(--text-2);
     transition: transform 0.3s var(--ease-out), background 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
   }
   .toggle-switch--on {
-    background: rgba(200,168,124,0.35);
-    border-color: rgba(200,168,124,0.4);
+    background: var(--glass-border-bright);
+    border-color: var(--glass-border-bright);
   }
   .toggle-switch--on::after {
     transform: translateX(18px);
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(200,168,124,0.5);
+    box-shadow: 0 0 8px var(--text-2);
   }
 
   /* === 密度按钮组 === */
   .density-btns {
     display: flex; gap: 2px;
     padding: 2px;
-    background: rgba(200,168,124,0.06);
-    border-radius: 8px;
+    background: var(--glass-bg);
+    border-radius: var(--radius-sm);
   }
   .density-btn {
     font-family: var(--font-body);
     font-size: 0.7rem; font-weight: 400;
     letter-spacing: 0.04em;
-    color: var(--text-2);
+    color: var(--text-3);
     padding: 4px 12px;
-    border-radius: 6px;
+    border-radius: calc(var(--radius-sm) - 4px);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -122,12 +122,12 @@
     min-width: 28px; text-align: center;
   }
   .density-btn:hover {
-    color: var(--text);
-    background: rgba(200,168,124,0.08);
+    color: var(--text-2);
+    background: var(--glass-bg-hover);
   }
   .density-btn--active {
     color: var(--accent);
-    background: rgba(200,168,124,0.14);
+    background: var(--glass-bg-hover);
     font-weight: 500;
   }
 
@@ -138,11 +138,11 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     opacity: 0; visibility: hidden;
-    transition: opacity 0.35s var(--ease-out), visibility 0s 0.35s;
+    transition: opacity calc(0.35s * var(--_anim-mult, 1)) var(--ease-out), visibility 0s calc(0.35s * var(--_anim-mult, 1));
   }
   .shortcuts-overlay--open {
     opacity: 1; visibility: visible;
-    transition: opacity 0.35s var(--ease-out), visibility 0s 0s;
+    transition: opacity calc(0.35s * var(--_anim-mult, 1)) var(--ease-out), visibility 0s 0s;
   }
   .shortcuts-panel {
     position: fixed; top: 48px; right: 16px;
@@ -151,15 +151,15 @@
     background: rgba(30,28,26,0.94);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
-    border: 0.5px solid rgba(200,168,124,0.18);
+    border: 0.5px solid var(--glass-border-bright);
     border-radius: var(--radius);
     padding: 1.8rem 2.2rem;
     box-shadow:
       0 4px 24px rgba(0,0,0,0.5),
-      0 0 0 0.5px rgba(200,168,124,0.08) inset;
+      0 0 0 0.5px var(--glass-bg-hover) inset;
     transform-origin: top right;
     opacity: 0; transform: scale(0.92) translateY(-6px);
-    transition: opacity 0.35s var(--ease-out), transform 0.55s var(--ease-spring);
+    transition: opacity calc(0.35s * var(--_anim-mult, 1)) var(--ease-out), transform calc(0.55s * var(--_anim-mult, 1)) var(--ease-spring);
     pointer-events: none;
   }
   .shortcuts-overlay--open .shortcuts-panel {
@@ -189,9 +189,9 @@
     font-family: var(--font-body);
     font-size: 0.66rem; font-weight: 500; letter-spacing: 0.04em;
     color: var(--accent);
-    background: rgba(200,168,124,0.1);
-    border: 0.5px solid rgba(200,168,124,0.2);
-    border-radius: 5px;
+    background: var(--glass-bg-hover);
+    border: 0.5px solid var(--glass-border-bright);
+    border-radius: calc(var(--radius-sm) - 4px);
     padding: 2px 8px; min-width: 24px; text-align: center;
     white-space: nowrap;
   }
@@ -224,7 +224,7 @@
   .shortcuts__divider {
     height: 1px;
     margin: 8px 0;
-    background: rgba(200,168,124,0.25);
+    background: var(--text-3);
   }
   .shortcuts__hint {
     font-family: var(--font-body);
