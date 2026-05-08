@@ -76,8 +76,8 @@ const S = {
   _startWasHeld: false,
   _backWasHeld:  false,
   _startPending: 0,
-  _bHoldStart: 0,
-  _floatBWasHeld: false,
+  _floatBHoldStart: 0,
+  _comboCooldown: 0,
   _devGroupCache: null,
 
   // mouse→gamepad 切换确认（防误触发）
@@ -460,6 +460,7 @@ function buildDevEls() {
   const group = document.querySelector('.dev-group--active');
   if (!group) return;
   group.querySelectorAll('.dev-row').forEach(row => {
+    if (row.closest('.dev-perf-section--folded')) return;
     const slider = row.querySelector('.dev-slider');
     const glassAlpha = row.querySelector('.dev-glass-alpha');
     const color = row.querySelector('.dev-color');
@@ -581,7 +582,7 @@ function ensureFocus() {
 function countGridCols() {
   if (S.gridEls.length < 2) return 1;
   const set = new Set();
-  for (const el of S.gridEls) set.add(el.offsetLeft);
+  for (const el of S.gridEls) set.add(el.getBoundingClientRect().left);
   return set.size || 1;
 }
 
@@ -926,7 +927,12 @@ function actionB() {
     enterZone('grid');
     return;
   }
-  // B 不再直接返回分类页——通过 hero 区 A 点击返回按钮来返回
+  // gallery/browse 模式：B 返回分类页
+  if (m === 'gallery' || m === 'browse') {
+    const backBtn = document.getElementById('gallery-back');
+    if (backBtn) safeClick(backBtn);
+    return;
+  }
 }
 
 function actionX() {
@@ -1582,11 +1588,10 @@ function poll() {
     mode: S.mode, zone: S.zone, input: S.input,
     gridIdx: S.gridIdx, heroIdx: S.heroIdx, sidebarIdx: S.sidebarIdx, toolbarIdx: S.toolbarIdx,
     settingsIdx: S.settingsIdx, devIdx: S.devIdx,
-    gridEls: S.gridEls, heroEls: S.heroEls, sidebarEls: S.sidebarEls, toolbarEls: S.toolbarEls,
-    settingsEls: S.settingsEls, devEls: S.devEls,
+    gridEls: [...S.gridEls], heroEls: [...S.heroEls], sidebarEls: [...S.sidebarEls], toolbarEls: [...S.toolbarEls],
+    settingsEls: [...S.settingsEls], devEls: [...S.devEls],
     cooldownUntil: S._gpCooldownUntil,
     resetConfirm: S._resetConfirm,
-    bHoldStart: S._bHoldStart,
   };
 
   // 状态快照更新后再刷新提示面板（确保读到最新 devIdx）
@@ -1697,6 +1702,7 @@ export function destroyGamepad() {
   S._comboFired = false; S._startWasHeld = false; S._backWasHeld = false; S._startPending = 0;
   S._devGroupCache = null;
   S._gpConfirmCount = 0; S._gpCooldownUntil = 0;
+  S._floatBHoldStart = 0; S._comboCooldown = 0;
   S.save = { zone: null, mode: null, gridIdx: 0, heroIdx: 0 };
   S.ovSave = { mode: null, gridIdx: 0 };
   S.anchor = { x: 0, y: 0 };

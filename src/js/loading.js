@@ -245,6 +245,8 @@ export function updateLoadingScreen(msg) {
 export function hideLoadingScreen() {
   const el = document.getElementById('loading-screen');
   if (!el) return;
+  // 防止旧 Promise 悬挂：先 resolve 旧 Promise
+  if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
   const elapsed = Date.now() - loadingShownAt;
   const delay = Math.max(0, 600 - elapsed);
   setTimeout(() => {

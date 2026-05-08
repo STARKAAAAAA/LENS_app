@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- Sidebar interaction (stays in main.js) ----
   let sidebarClicked = false;
+  let sidebarHideTimer = null;
 
   function peekSidebar() {
     clearTimeout(sidebarHideTimer);
@@ -98,7 +99,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }, 500);
   }
-  let sidebarHideTimer = null;
 
   sidebarTrigger.addEventListener('mouseenter', peekSidebar);
   sidebar.addEventListener('click', (e) => {
@@ -211,7 +211,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       cur = (cur + 1) % slides.length;
       slides[cur].classList.add('active');
     }, 6000);
-    if (!state.startupAnimationDone) playStartupSequence({ onDone: () => { state.startupAnimationDone = true; if (startupResolve) { startupResolve(); startupResolve = null; } } });
+    if (!state._startupSequenceStarted) {
+      state._startupSequenceStarted = true;
+      playStartupSequence({ onDone: () => { state.startupAnimationDone = true; if (startupResolve) { startupResolve(); startupResolve = null; } } });
+    }
   }
 
   // ---- Main photo loader (orchestrator stays in main.js) ----
@@ -239,24 +242,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       await showLoadingScreen(`正在生成缩略图... 0 / ${paths.length}`, { onFirstShow: ensureCacheSection });
 
       let firstLoadHintShown = false;
-      const unlisten = await listen('thumbnail-progress', (event) => {
-        const { current, total, fresh } = event.payload;
-        updateLoadingScreen(`正在生成缩略图... ${current} / ${total}`);
-        if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
-          firstLoadHintShown = true;
-          const hint = document.getElementById('loading-hint');
-          if (hint) {
-            hint.textContent = '正在为您的作品集建立本地缓存，稍后即可流畅浏览';
-            hint.style.display = 'block';
-            requestAnimationFrame(() => {
-              hint.style.opacity = '1';
-              hint.style.transform = 'translateY(0)';
-            });
+      let unlisten = null;
+      let thumbMap = {};
+      try {
+        unlisten = await listen('thumbnail-progress', (event) => {
+          const { current, total, fresh } = event.payload;
+          updateLoadingScreen(`正在生成缩略图... ${current} / ${total}`);
+          if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
+            firstLoadHintShown = true;
+            const hint = document.getElementById('loading-hint');
+            if (hint) {
+              hint.textContent = '正在为您的作品集建立本地缓存，稍后即可流畅浏览';
+              hint.style.display = 'block';
+              requestAnimationFrame(() => {
+                hint.style.opacity = '1';
+                hint.style.transform = 'translateY(0)';
+              });
+            }
           }
-        }
-      });
-      const thumbMap = await loggedInvoke('generate_thumbnails', { paths, cacheDir: featureToggles.cacheDir });
-      unlisten();
+        });
+        thumbMap = await loggedInvoke('generate_thumbnails', { paths, cacheDir: featureToggles.cacheDir });
+      } finally {
+        if (unlisten) unlisten();
+      }
 
       let thumbHits = 0;
       state.data.photos.forEach(p => {
@@ -293,7 +301,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- Overlay helpers ----
   function showOverlay(msg, isError) {
+    // 清理已有覆盖层，防止 DOM 堆积
+    document.querySelectorAll('.lens-overlay').forEach(el => el.remove());
     const div = document.createElement('div');
+    div.className = 'lens-overlay';
     div.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0a;color:${isError ? '#ff4444' : '#999'};font-size:16px;z-index:9999;padding:40px;text-align:center;gap:1rem;`;
     const btn = document.createElement('button');
     btn.textContent = '重新选择文件夹';
@@ -332,7 +343,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     reveal.className = 'hero__reveal';
     document.querySelector('.hero')?.appendChild(reveal);
   }
-  playStartupSequence({ onDone: () => { state.startupAnimationDone = true; if (startupResolve) { startupResolve(); startupResolve = null; } } });
+  state._startupSequenceStarted = false;
+  const doStartup = () => {
+    if (state._startupSequenceStarted) return;
+    state._startupSequenceStarted = true;
+    playStartupSequence({ onDone: () => { state.startupAnimationDone = true; if (startupResolve) { startupResolve(); startupResolve = null; } } });
+  };
+  doStartup();
 
   // ---- Settings panel ----
   const settingsBtn = document.getElementById('tb-settings');
@@ -408,15 +425,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   galleryBack.addEventListener('click', async () => {
     if (state.categoryTransitioning) return;
     state.categoryTransitioning = true;
-    galleryEl.classList.add('gallery--out');
-    await new Promise(r => setTimeout(r, 350));
-    state.currentCategory = null;
-    galleryEl.style.display = 'none';
-    galleryEl.classList.remove('gallery--out');
-    rebuildHero(state.data.photos);
-    categoriesEl.style.display = 'grid';
-    sectionTitle.textContent = 'Selected Works';
-    state.categoryTransitioning = false;
+    try {
+      galleryEl.classList.add('gallery--out');
+      await new Promise(r => setTimeout(r, 350));
+      state.currentCategory = null;
+      galleryEl.style.display = 'none';
+      galleryEl.classList.remove('gallery--out');
+      rebuildHero(state.data.photos);
+      categoriesEl.style.display = 'grid';
+      sectionTitle.textContent = 'Selected Works';
+    } finally {
+      state.categoryTransitioning = false;
+    }
     const portfolioEl = document.getElementById('portfolio');
     const portfolioRect = portfolioEl.getBoundingClientRect();
     window.scrollTo({ top: window.scrollY + portfolioRect.top - 40, behavior: 'smooth' });

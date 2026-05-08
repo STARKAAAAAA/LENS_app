@@ -44,6 +44,7 @@ const CSS_VAR_KEYS = [
   '--thumb-card-size','--font-scale','--anim-speed','--glass-blur',
   '--font-display','--font-body','--font-weight-display','--font-weight-body',
   '--letter-spacing-display','--letter-spacing-body',
+  '--font-style-display','--font-style-body','--text-transform','--font-caption','--font-mono','--font-weight-caption','--font-weight-mono','--letter-spacing-caption','--letter-spacing-mono','--font-style-caption','--font-style-mono',
   '--font-scale-heading','--line-spacing',
   '--section-gap','--gap-scale','--card-bg','--card-hover-bg','--card-shadow','--shadow-depth',
   '--loading-color','--loading-color-dim','--loading-color-soft',
@@ -53,6 +54,42 @@ const CSS_VAR_KEYS = [
   '--hero-subtitle-color','--hero-line-color',
   '--dev-panel-bg',
 ];
+
+// 字体族预设
+const FONT_FAMILY_PRESETS = {
+  display: [
+    ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
+    ['cormorant', 'Cormorant', "'Cormorant', Georgia, serif"],
+    ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
+    ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
+    ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
+    ['saira', 'Saira Cond.', "'Saira Condensed', 'Cormorant Garamond', Georgia, sans-serif"],
+    ['xbox', 'Xbox', "'Xbox', 'Arial Black', Impact, sans-serif"],
+    ['consolas', 'Consolas', "'Consolas', 'Courier New', 'SF Mono', monospace"],
+  ],
+  body: [
+    ['cormorant', 'Cormorant', "'Cormorant', Georgia, serif"],
+    ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
+    ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
+    ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
+    ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
+    ['impact', 'Arial Black', "'Arial Black', Impact, 'Helvetica Neue', sans-serif"],
+    ['consolas', 'Consolas', "'Consolas', 'Courier New', monospace"],
+  ],
+  caption: [
+    ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
+    ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
+    ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
+    ['jetbrains', 'JetBrains', "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"],
+    ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
+  ],
+  mono: [
+    ['consolas', 'Consolas', "'Consolas', 'Courier New', monospace"],
+    ['jetbrains', 'JetBrains', "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"],
+    ['ibmmono', 'Plex Mono', "'IBM Plex Mono', ui-monospace, monospace"],
+    ['sfmono', 'SF Mono', "'SF Mono', ui-monospace, monospace"],
+  ],
+};
 
 // CSS 变量默认值（init 时从 :root 捕获）
 let CSS_DEFAULTS = {};
@@ -70,7 +107,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'400',
-      '--letter-spacing-display':'0.05em','--letter-spacing-body':'0.04em',
+      '--letter-spacing-display':'0.05em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.04em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(220,200,180,0.55)','--loading-color-dim':'rgba(220,200,180,0.40)','--loading-color-soft':'rgba(220,200,180,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1','--line-spacing':'1.7',
@@ -79,6 +116,167 @@ const BUILTIN_PRESETS = [
       '--card-shadow':'0 4px 24px rgba(0,0,0,0.3)','--shadow-depth':'1',
       '--hero-grad-top':'rgba(255,245,235,1)','--hero-grad-mid':'rgba(220,200,175,0.85)','--hero-grad-bot':'rgba(180,155,130,0.25)',
       '--corner-logo-color':'rgba(220,200,175,0.85)','--hero-subtitle-color':'rgba(220,200,180,0.3)','--hero-line-color':'rgba(220,200,180,0.35)',
+    },
+  },
+  {
+    id: '__apple__', name: 'Apple', builtin: true,
+    vars: {
+      '--accent':'#0066cc','--bg':'#000000','--bg-deep':'#000000',
+      '--text':'#ffffff','--text-2':'#cccccc','--text-3':'#999999',
+      '--glass-bg':'rgba(255,255,255,0.025)','--glass-border':'rgba(255,255,255,0.06)',
+      '--glass-bg-hover':'rgba(255,255,255,0.05)','--glass-border-bright':'rgba(255,255,255,0.10)',
+      '--radius':'18px','--radius-sm':'8px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-body':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-weight-display':'600','--font-weight-body':'400',
+      '--letter-spacing-display':'-0.01em','--letter-spacing-body':'-0.022em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",'--font-mono':"'SF Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'-0.016em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(0,102,204,0.55)','--loading-color-dim':'rgba(0,102,204,0.40)','--loading-color-soft':'rgba(0,102,204,0.45)',
+      '--ease-out':'cubic-bezier(0.25,0.1,0.25,1)','--ease-spring':'cubic-bezier(0.25,0.1,0.25,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.47',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(255,255,255,0.015)','--card-hover-bg':'rgba(255,255,255,0.04)',
+      '--card-shadow':'rgba(0,0,0,0.22) 3px 5px 30px','--shadow-depth':'0.5',
+      '--hero-grad-top':'rgba(235,240,255,1)','--hero-grad-mid':'rgba(180,190,210,0.8)','--hero-grad-bot':'rgba(80,90,110,0.25)',
+      '--corner-logo-color':'rgba(255,255,255,0.88)','--hero-subtitle-color':'rgba(255,255,255,0.25)','--hero-line-color':'rgba(255,255,255,0.12)',
+    },
+  },
+  {
+    id: '__apple-light__', name: 'Apple Light', builtin: true,
+    vars: {
+      '--accent':'#0066cc','--bg':'#ffffff','--bg-deep':'#f5f5f7',
+      '--text':'#1d1d1f','--text-2':'#86868b','--text-3':'#aeaeb2',
+      '--glass-bg':'rgba(0,0,0,0.02)','--glass-border':'rgba(0,0,0,0.04)',
+      '--glass-bg-hover':'rgba(0,0,0,0.04)','--glass-border-bright':'rgba(0,0,0,0.08)',
+      '--radius':'18px','--radius-sm':'8px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-body':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-weight-display':'600','--font-weight-body':'400',
+      '--letter-spacing-display':'-0.01em','--letter-spacing-body':'-0.022em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",'--font-mono':"'SF Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'-0.016em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(0,102,204,0.55)','--loading-color-dim':'rgba(0,102,204,0.40)','--loading-color-soft':'rgba(0,102,204,0.45)',
+      '--ease-out':'cubic-bezier(0.25,0.1,0.25,1)','--ease-spring':'cubic-bezier(0.25,0.1,0.25,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.47',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(0,0,0,0.015)','--card-hover-bg':'rgba(0,0,0,0.04)',
+      '--card-shadow':'0 1px 8px rgba(0,0,0,0.06)','--shadow-depth':'0.25',
+      '--hero-grad-top':'rgba(20,20,22,1)','--hero-grad-mid':'rgba(60,60,65,0.75)','--hero-grad-bot':'rgba(140,140,150,0.3)',
+      '--corner-logo-color':'rgba(29,29,31,0.85)','--hero-subtitle-color':'rgba(0,0,0,0.35)','--hero-line-color':'rgba(0,0,0,0.12)',
+    },
+  },
+  {
+    id: '__apple-parchment__', name: 'Apple Parchment', builtin: true,
+    vars: {
+      '--accent':'#0066cc','--bg':'#f5f5f7','--bg-deep':'#e8e8ed',
+      '--text':'#1d1d1f','--text-2':'#6e6e73','--text-3':'#aeaeb2',
+      '--glass-bg':'rgba(0,0,0,0.018)','--glass-border':'rgba(0,0,0,0.035)',
+      '--glass-bg-hover':'rgba(0,0,0,0.035)','--glass-border-bright':'rgba(0,0,0,0.06)',
+      '--radius':'18px','--radius-sm':'8px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-body':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-weight-display':'600','--font-weight-body':'400',
+      '--letter-spacing-display':'-0.01em','--letter-spacing-body':'-0.022em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",'--font-mono':"'SF Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'-0.016em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(0,102,204,0.5)','--loading-color-dim':'rgba(0,102,204,0.35)','--loading-color-soft':'rgba(0,102,204,0.4)',
+      '--ease-out':'cubic-bezier(0.25,0.1,0.25,1)','--ease-spring':'cubic-bezier(0.25,0.1,0.25,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.47',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(0,0,0,0.01)','--card-hover-bg':'rgba(0,0,0,0.03)',
+      '--card-shadow':'0 1px 6px rgba(0,0,0,0.04)','--shadow-depth':'0.2',
+      '--hero-grad-top':'rgba(20,20,22,1)','--hero-grad-mid':'rgba(70,70,75,0.7)','--hero-grad-bot':'rgba(160,160,170,0.25)',
+      '--corner-logo-color':'rgba(29,29,31,0.8)','--hero-subtitle-color':'rgba(0,0,0,0.3)','--hero-line-color':'rgba(0,0,0,0.10)',
+    },
+  },
+  {
+    id: '__ibm__', name: 'IBM', builtin: true,
+    vars: {
+      '--accent':'#0f62fe','--bg':'#161616','--bg-deep':'#0d0d0d',
+      '--text':'#ffffff','--text-2':'#c6c6c6','--text-3':'#8c8c8c',
+      '--glass-bg':'rgba(255,255,255,0.02)','--glass-border':'rgba(255,255,255,0.05)',
+      '--glass-bg-hover':'rgba(255,255,255,0.04)','--glass-border-bright':'rgba(255,255,255,0.10)',
+      '--radius':'0px','--radius-sm':'0px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",
+      '--font-body':"'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0','--letter-spacing-body':'0.16px','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",'--font-mono':"'IBM Plex Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.32px','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(15,98,254,0.5)','--loading-color-dim':'rgba(15,98,254,0.35)','--loading-color-soft':'rgba(15,98,254,0.4)',
+      '--ease-out':'cubic-bezier(0.2,0,0.38,0.9)','--ease-spring':'cubic-bezier(0,0,0.3,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.5',
+      '--section-gap':'1rem','--gap-scale':'1',
+      '--card-bg':'rgba(255,255,255,0.015)','--card-hover-bg':'rgba(255,255,255,0.04)',
+      '--card-shadow':'none','--shadow-depth':'0',
+      '--hero-grad-top':'rgba(235,240,255,1)','--hero-grad-mid':'rgba(160,180,220,0.8)','--hero-grad-bot':'rgba(30,50,100,0.25)',
+      '--corner-logo-color':'rgba(15,98,254,0.9)','--hero-subtitle-color':'rgba(198,198,198,0.25)','--hero-line-color':'rgba(255,255,255,0.12)',
+    },
+  },
+  {
+    id: '__ibm-light__', name: 'IBM Light', builtin: true,
+    vars: {
+      '--accent':'#0f62fe','--bg':'#ffffff','--bg-deep':'#f4f4f4',
+      '--text':'#161616','--text-2':'#525252','--text-3':'#8c8c8c',
+      '--glass-bg':'rgba(0,0,0,0.02)','--glass-border':'rgba(0,0,0,0.04)',
+      '--glass-bg-hover':'rgba(0,0,0,0.03)','--glass-border-bright':'rgba(0,0,0,0.08)',
+      '--radius':'0px','--radius-sm':'0px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",
+      '--font-body':"'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",
+      '--font-weight-display':'300','--font-weight-body':'400',
+      '--letter-spacing-display':'0','--letter-spacing-body':'0.16px','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",'--font-mono':"'IBM Plex Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.32px','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(15,98,254,0.5)','--loading-color-dim':'rgba(15,98,254,0.35)','--loading-color-soft':'rgba(15,98,254,0.4)',
+      '--ease-out':'cubic-bezier(0.2,0,0.38,0.9)','--ease-spring':'cubic-bezier(0,0,0.3,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.5',
+      '--section-gap':'1rem','--gap-scale':'1',
+      '--card-bg':'rgba(0,0,0,0.01)','--card-hover-bg':'rgba(0,0,0,0.04)',
+      '--card-shadow':'none','--shadow-depth':'0',
+      '--hero-grad-top':'rgba(22,22,22,1)','--hero-grad-mid':'rgba(60,60,65,0.75)','--hero-grad-bot':'rgba(180,195,220,0.3)',
+      '--corner-logo-color':'rgba(15,98,254,0.85)','--hero-subtitle-color':'rgba(22,22,22,0.3)','--hero-line-color':'rgba(15,98,254,0.2)',
+    },
+  },
+  {
+    id: '__bugatti__', name: 'Bugatti', builtin: true,
+    vars: {
+      '--accent':'#ffffff','--bg':'#000000','--bg-deep':'#000000',
+      '--text':'#ffffff','--text-2':'#cccccc','--text-3':'#999999',
+      '--glass-bg':'rgba(255,255,255,0.015)','--glass-border':'rgba(255,255,255,0.04)',
+      '--glass-bg-hover':'rgba(255,255,255,0.025)','--glass-border-bright':'rgba(255,255,255,0.07)',
+      '--radius':'0px','--radius-sm':'0px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'Saira Condensed', 'Cormorant Garamond', Georgia, sans-serif",
+      '--font-body':"'Cormorant Garamond', Georgia, serif",
+      '--font-weight-display':'400','--font-weight-body':'400',
+      '--letter-spacing-display':'4px','--letter-spacing-body':'0','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'uppercase','--font-caption':"'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace",'--font-mono':"'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'2px','--letter-spacing-mono':'2.5px','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(255,255,255,0.35)','--loading-color-dim':'rgba(255,255,255,0.2)','--loading-color-soft':'rgba(255,255,255,0.25)',
+      '--ease-out':'cubic-bezier(0.3,0,0.7,1)','--ease-spring':'cubic-bezier(0.3,0,0.7,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.5',
+      '--section-gap':'2rem','--gap-scale':'1',
+      '--card-bg':'rgba(255,255,255,0.008)','--card-hover-bg':'rgba(255,255,255,0.02)',
+      '--card-shadow':'none','--shadow-depth':'0',
+      '--hero-grad-top':'rgba(245,245,248,0.95)','--hero-grad-mid':'rgba(170,170,175,0.6)','--hero-grad-bot':'rgba(50,50,55,0.25)',
+      '--corner-logo-color':'rgba(255,255,255,0.92)','--hero-subtitle-color':'rgba(255,255,255,0.2)','--hero-line-color':'rgba(255,255,255,0.08)',
+    },
+  },
+  {
+    id: '__bugatti-silver__', name: 'Bugatti Silver', builtin: true,
+    vars: {
+      '--accent':'#c3d9f3','--bg':'#0d0d0d','--bg-deep':'#080808',
+      '--text':'#ffffff','--text-2':'#e6e6e6','--text-3':'#999999',
+      '--glass-bg':'rgba(255,255,255,0.015)','--glass-border':'rgba(255,255,255,0.04)',
+      '--glass-bg-hover':'rgba(255,255,255,0.03)','--glass-border-bright':'rgba(255,255,255,0.08)',
+      '--radius':'0px','--radius-sm':'0px','--radius-pill':'9999px',
+      '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
+      '--font-display':"'Saira Condensed', 'Cormorant Garamond', Georgia, sans-serif",
+      '--font-body':"'Cormorant Garamond', Georgia, serif",
+      '--font-weight-display':'400','--font-weight-body':'400',
+      '--letter-spacing-display':'3px','--letter-spacing-body':'0','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'uppercase','--font-caption':"'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace",'--font-mono':"'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'2px','--letter-spacing-mono':'2.5px','--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(195,217,243,0.35)','--loading-color-dim':'rgba(195,217,243,0.2)','--loading-color-soft':'rgba(195,217,243,0.25)',
+      '--ease-out':'cubic-bezier(0.3,0,0.7,1)','--ease-spring':'cubic-bezier(0.3,0,0.7,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.5',
+      '--section-gap':'2rem','--gap-scale':'1',
+      '--card-bg':'rgba(195,217,243,0.015)','--card-hover-bg':'rgba(195,217,243,0.04)',
+      '--card-shadow':'none','--shadow-depth':'0',
+      '--hero-grad-top':'rgba(245,248,255,0.95)','--hero-grad-mid':'rgba(180,200,225,0.65)','--hero-grad-bot':'rgba(50,60,80,0.25)',
+      '--corner-logo-color':'rgba(195,217,243,0.9)','--hero-subtitle-color':'rgba(255,255,255,0.2)','--hero-line-color':'rgba(195,217,243,0.2)',
     },
   },
   {
@@ -92,7 +290,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'400',
-      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em',
+      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.04em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(240,200,140,0.55)','--loading-color-dim':'rgba(240,200,140,0.40)','--loading-color-soft':'rgba(240,200,140,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1','--line-spacing':'1.7',
@@ -112,7 +310,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'280px','--font-scale':'1','--anim-speed':'1','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'400',
-      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em',
+      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.04em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(180,190,210,0.55)','--loading-color-dim':'rgba(180,190,210,0.40)','--loading-color-soft':'rgba(180,190,210,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1','--line-spacing':'1.7',
@@ -133,7 +331,7 @@ const BUILTIN_PRESETS = [
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-weight-display':'400','--font-weight-body':'400',
-      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.05em',
+      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.05em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.05em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(255,255,255,0.55)','--loading-color-dim':'rgba(255,255,255,0.40)','--loading-color-soft':'rgba(255,255,255,0.45)',
       '--font-scale-heading':'1','--line-spacing':'1.7',
       '--section-gap':'1.5rem','--gap-scale':'1',
@@ -153,7 +351,7 @@ const BUILTIN_PRESETS = [
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-weight-display':'300','--font-weight-body':'400',
-      '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em',
+      '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.06em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(255,255,255,0.55)','--loading-color-dim':'rgba(255,255,255,0.40)','--loading-color-soft':'rgba(255,255,255,0.45)',
       '--font-scale-heading':'1','--line-spacing':'1.5',
       '--section-gap':'1.5rem','--gap-scale':'1',
@@ -172,7 +370,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'300px','--font-scale':'0.95','--anim-speed':'1.2','--glass-blur':'6px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'400',
-      '--letter-spacing-display':'0.04em','--letter-spacing-body':'0.03em',
+      '--letter-spacing-display':'0.04em','--letter-spacing-body':'0.03em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.03em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(160,200,140,0.55)','--loading-color-dim':'rgba(160,200,140,0.40)','--loading-color-soft':'rgba(160,200,140,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1','--line-spacing':'1.8',
@@ -190,9 +388,9 @@ const BUILTIN_PRESETS = [
       '--glass-bg-hover':'rgba(200,180,160,0.10)','--glass-border-bright':'rgba(200,180,160,0.20)',
       '--radius':'4px','--radius-sm':'2px','--radius-pill':'20px',
       '--thumb-card-size':'320px','--font-scale':'0.9','--anim-speed':'0.7','--glass-blur':'0px',
-      '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Xbox', 'Segoe UI', sans-serif",
+      '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Segoe UI', system-ui, sans-serif",
       '--font-weight-display':'900','--font-weight-body':'400',
-      '--letter-spacing-display':'0.02em','--letter-spacing-body':'0.01em',
+      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.01em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(200,160,120,0.55)','--loading-color-dim':'rgba(200,160,120,0.40)','--loading-color-soft':'rgba(200,160,120,0.45)',
       '--ease-out':'cubic-bezier(0.5,0,0.5,1)','--ease-spring':'cubic-bezier(0.5,1.2,0.5,1)',
       '--font-scale-heading':'0.9','--line-spacing':'1.4',
@@ -212,7 +410,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'340px','--font-scale':'1.05','--anim-speed':'1.8','--glass-blur':'20px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'300',
-      '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em',
+      '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.06em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(210,190,170,0.55)','--loading-color-dim':'rgba(210,190,170,0.40)','--loading-color-soft':'rgba(210,190,170,0.45)',
       '--ease-out':'cubic-bezier(0.22,1,0.36,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1.05','--line-spacing':'2.0',
@@ -232,7 +430,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'300px','--font-scale':'1.0','--anim-speed':'2.0','--glass-blur':'8px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"Georgia, 'Times New Roman', serif",
       '--font-weight-display':'300','--font-weight-body':'300',
-      '--letter-spacing-display':'0.14em','--letter-spacing-body':'0.06em',
+      '--letter-spacing-display':'0.14em','--letter-spacing-body':'0.06em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'300','--font-weight-mono':'400','--letter-spacing-caption':'0.06em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(210,190,160,0.55)','--loading-color-dim':'rgba(210,190,160,0.40)','--loading-color-soft':'rgba(210,190,160,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1.15','--line-spacing':'2.2',
@@ -252,7 +450,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'240px','--font-scale':'0.85','--anim-speed':'0.5','--glass-blur':'0px',
       '--font-display':"'Consolas', 'Courier New', 'SF Mono', monospace",'--font-body':"'Consolas', 'Courier New', monospace",
       '--font-weight-display':'400','--font-weight-body':'400',
-      '--letter-spacing-display':'0','--letter-spacing-body':'0',
+      '--letter-spacing-display':'0','--letter-spacing-body':'0','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(100,200,130,0.55)','--loading-color-dim':'rgba(100,200,130,0.40)','--loading-color-soft':'rgba(100,200,130,0.45)',
       '--ease-out':'cubic-bezier(0.5,0,0.5,1)','--ease-spring':'cubic-bezier(0.5,1,0.5,1)',
       '--font-scale-heading':'0.85','--line-spacing':'1.2',
@@ -270,9 +468,9 @@ const BUILTIN_PRESETS = [
       '--glass-bg-hover':'rgba(255,100,200,0.14)','--glass-border-bright':'rgba(255,100,200,0.24)',
       '--radius':'16px','--radius-sm':'10px','--radius-pill':'40px',
       '--thumb-card-size':'280px','--font-scale':'1.0','--anim-speed':'1.2','--glass-blur':'12px',
-      '--font-display':"system-ui, -apple-system, 'Segoe UI', sans-serif",'--font-body':"'Segoe UI', system-ui, sans-serif",
+      '--font-display':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",'--font-body':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       '--font-weight-display':'400','--font-weight-body':'400',
-      '--letter-spacing-display':'0.02em','--letter-spacing-body':'0.02em',
+      '--letter-spacing-display':'0.02em','--letter-spacing-body':'0.02em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.02em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(255,100,200,0.55)','--loading-color-dim':'rgba(255,100,200,0.40)','--loading-color-soft':'rgba(255,100,200,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1.0','--line-spacing':'1.6',
@@ -292,7 +490,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'320px','--font-scale':'1.05','--anim-speed':'1.5','--glass-blur':'4px',
       '--font-display':"Georgia, 'Times New Roman', serif",'--font-body':"Georgia, 'Times New Roman', serif",
       '--font-weight-display':'400','--font-weight-body':'400',
-      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em',
+      '--letter-spacing-display':'0.06em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.04em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(139,115,85,0.55)','--loading-color-dim':'rgba(139,115,85,0.40)','--loading-color-soft':'rgba(139,115,85,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'1.1','--line-spacing':'2.0',
@@ -312,7 +510,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'280px','--font-scale':'0.95','--anim-speed':'1.0','--glass-blur':'0px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'400',
-      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.04em',
+      '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.04em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(255,255,255,0.55)','--loading-color-dim':'rgba(255,255,255,0.40)','--loading-color-soft':'rgba(255,255,255,0.45)',
       '--ease-out':'cubic-bezier(0.16,1,0.3,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
       '--font-scale-heading':'0.95','--line-spacing':'1.6',
@@ -332,7 +530,7 @@ const BUILTIN_PRESETS = [
       '--thumb-card-size':'320px','--font-scale':'0.85','--anim-speed':'0.3','--glass-blur':'0px',
       '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Arial Black', Impact, 'Helvetica Neue', sans-serif",
       '--font-weight-display':'900','--font-weight-body':'700',
-      '--letter-spacing-display':'-0.02em','--letter-spacing-body':'-0.01em',
+      '--letter-spacing-display':'-0.02em','--letter-spacing-body':'-0.01em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'-0.01em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
       '--loading-color':'rgba(255,100,50,0.55)','--loading-color-dim':'rgba(255,100,50,0.40)','--loading-color-soft':'rgba(255,100,50,0.45)',
       '--ease-out':'cubic-bezier(0.8,0,0.2,1)','--ease-spring':'cubic-bezier(0.8,1.4,0.2,1)',
       '--font-scale-heading':'0.85','--line-spacing':'1.3',
@@ -547,9 +745,19 @@ function buildDevPreview() {
     glassBg: get('--glass-bg','rgba(220,200,180,0.06)'), glassBorder: get('--glass-border','rgba(220,200,180,0.10)'),
     glassBgHover: get('--glass-bg-hover','rgba(220,200,180,0.12)'), glassBorderBright: get('--glass-border-bright','rgba(220,200,180,0.20)'),
     radius: get('--radius','20px'), radiusSm: get('--radius-sm','14px'), radiusPill: get('--radius-pill','100px'),
-    fontDisplay: get('--font-display',"'Cormorant Garamond',Georgia,serif"), fontBody: get('--font-body',"'Cormorant',Georgia,serif"),
+    fontDisplay: get('--font-display',"'Cormorant Garamond', Georgia, serif"), fontBody: get('--font-body',"'Cormorant', Georgia, serif"),
     fontWeightDisplay: get('--font-weight-display','300'), fontWeightBody: get('--font-weight-body','400'),
     letterSpacingDisplay: get('--letter-spacing-display','0.05em'), letterSpacingBody: get('--letter-spacing-body','0.04em'),
+    fontStyleDisplay: get('--font-style-display','normal'), fontStyleBody: get('--font-style-body','normal'),
+    fontCaption: get('--font-caption',"'Cormorant Garamond', Georgia, serif"),
+    fontMono: get('--font-mono',"'Consolas', 'Courier New', monospace"),
+    fontWeightCaption: get('--font-weight-caption','400'),
+    fontWeightMono: get('--font-weight-mono','400'),
+    letterSpacingCaption: get('--letter-spacing-caption','0.04em'),
+    letterSpacingMono: get('--letter-spacing-mono','0'),
+    fontStyleCaption: get('--font-style-caption','normal'),
+    fontStyleMono: get('--font-style-mono','normal'),
+    textTransform: get('--text-transform','none'),
     headingScale: get('--font-scale-heading','1'), lineSpacing: get('--line-spacing','1.7'),
     glassBlur: get('--glass-blur','0px'),
     loadingColor: get('--loading-color','rgba(220,200,180,0.55)'), loadingColorDim: get('--loading-color-dim','rgba(220,200,180,0.40)'),
@@ -604,7 +812,7 @@ function buildDevPreview() {
 
     <div class="dev-preview__section">
       <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Hero 标题渐变</div>
-      <div style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};font-size:2rem;letter-spacing:0.15em;text-transform:uppercase;text-align:center;line-height:1.2;padding:0.3rem 0;
+      <div style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};font-size:2rem;letter-spacing:0.15em;text-transform:${V.textTransform};text-align:center;line-height:1.2;padding:0.3rem 0;
         background:linear-gradient(180deg,${V.heroGradTop} 0%,${V.heroGradMid} 40%,${V.heroGradBot} 100%);
         -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
         filter:drop-shadow(0 2px 12px rgba(0,0,0,0.5));">LENS</div>
@@ -635,8 +843,10 @@ function buildDevPreview() {
 
     <div class="dev-preview__section">
       <div class="dev-preview__section-title" style="font-family:${V.fontBody};font-size:0.56rem;color:${V.text3};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">字体预览</div>
-      <div class="dev-preview__text-display" style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};letter-spacing:${V.letterSpacingDisplay};font-size:0.95rem;color:${V.text};margin-bottom:0.3rem;line-height:1.3;">Display 标题字体展示</div>
-      <div class="dev-preview__text-body" style="font-family:${V.fontBody};font-weight:${V.fontWeightBody};letter-spacing:${V.letterSpacingBody};font-size:0.65rem;color:${V.text2};line-height:${V.lineSpacing};">Body 正文字体展示，显示行距与字距效果。</div>
+      <div class="dev-preview__text-display" style="font-family:${V.fontDisplay};font-weight:${V.fontWeightDisplay};letter-spacing:${V.letterSpacingDisplay};font-style:${V.fontStyleDisplay};text-transform:${V.textTransform};font-size:0.95rem;color:${V.text};margin-bottom:0.3rem;line-height:1.3;">Display 标题字体展示</div>
+      <div class="dev-preview__text-body" style="font-family:${V.fontBody};font-weight:${V.fontWeightBody};letter-spacing:${V.letterSpacingBody};font-style:${V.fontStyleBody};font-size:0.65rem;color:${V.text2};line-height:${V.lineSpacing};">Body 正文字体展示，显示行距与字距效果。</div>
+      <div class="dev-preview__text-caption" style="font-family:${V.fontCaption};font-weight:${V.fontWeightCaption};letter-spacing:${V.letterSpacingCaption};font-style:${V.fontStyleCaption};font-size:0.55rem;color:${V.text3};margin-bottom:0.25rem;line-height:1.3;">CAPTION 辅助标签文字展示</div>
+      <div class="dev-preview__text-mono" style="font-family:${V.fontMono};font-weight:${V.fontWeightMono};letter-spacing:${V.letterSpacingMono};font-style:${V.fontStyleMono};font-size:0.55rem;color:${V.text2};line-height:1.3;">MONO 等宽技术文字 0123456789</div>
     </div>
 
     <div class="dev-preview__section">
@@ -806,23 +1016,49 @@ function renderVisualGroup() {
     </div>
     <div class="dev-section">
       <div class="dev-section__title">网格与间距</div>
-      <div class="dev-section__desc">照片网格的卡片尺寸、全局字号缩放、元素之间的间距倍率和区块间距</div>
+      <div class="dev-section__desc">照片网格的卡片尺寸、元素之间的间距倍率和区块间距</div>
       ${makeSliderRow('--thumb-card-size', '缩略图尺寸', style, 120, 600, 'px', null, 0, '照片网格中每张卡片的大小')}
-      ${makeSliderRow('--font-scale', '字号缩放', style, 0.8, 1.5, 'x', 0.05, 2, '全局字号倍率，影响所有 rem 单位文字')}
       ${makeSliderRow('--gap-scale', '间距倍率', style, 0.5, 2.0, 'x', 0.05, 2, '卡片之间的间距缩放 0.5=紧凑 2=宽松')}
       ${makeSliderRow('--section-gap', '区块间距', style, 0.5, 4, 'rem', 0.25, 2, '各页面区块之间的垂直间距')}
     </div>
     <div class="dev-section">
       <div class="dev-section__title">字体</div>
-      <div class="dev-section__desc">标题和正文的字体族、粗细、字距、缩放倍率和行高</div>
-      ${makeTextInputRow('--font-display', '标题字体', style, 'Hero 大标题、分类名称的字体族')}
-      ${makeTextInputRow('--font-body', '正文字体', style, '正文、按钮、标签的字体族')}
-      ${makeSliderRow('--font-weight-display', '标题字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗 900=极粗')}
-      ${makeSliderRow('--font-weight-body', '正文字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗 900=极粗')}
-      ${makeSliderRow('--letter-spacing-display', '标题字距', style, -0.05, 0.3, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
-      ${makeSliderRow('--letter-spacing-body', '正文字距', style, -0.05, 0.2, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      <div class="dev-section__desc">标题、正文、辅助标签和等宽文字的字体族、粗细、字距、斜体，以及全局大小写变换</div>
+
+      <!-- 全局 -->
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">全局</div>
+      ${makeBtnGroupRow('--text-transform', '大小写', style, [['none','无'],['uppercase','大写'],['lowercase','小写']], '全局文字大小写变换（Bugatti 用大写）')}
+      ${makeSliderRow('--font-scale', '字号缩放', style, 0.8, 1.5, 'x', 0.05, 2, '全局字号倍率，影响所有 rem 单位文字')}
       ${makeSliderRow('--font-scale-heading', '标题缩放', style, 0.7, 1.5, 'x', 0.05, 2, '标题相对于基准字号的倍率')}
       ${makeSliderRow('--line-spacing', '行高', style, 1.2, 2.4, '', 0.05, 2, '1.2=紧凑 1.7=标准 2.2=宽松')}
+
+      <!-- 展示字体 -->
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">展示 Display</div>
+      ${makeFontFamilyRow('--font-display', style, FONT_FAMILY_PRESETS.display, '展示字体族：标题、Hero、分类名')}
+      ${makeSliderRow('--font-weight-display', '字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗')}
+      ${makeSliderRow('--letter-spacing-display', '字距', style, -0.05, 0.3, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      ${makeBtnGroupRow('--font-style-display', '斜体', style, [['normal','常规'],['italic','斜体']], '展示文字斜体/正体')}
+
+      <!-- 正文 -->
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">正文 Body</div>
+      ${makeFontFamilyRow('--font-body', style, FONT_FAMILY_PRESETS.body, '正文字体族：段落、描述、计数')}
+      ${makeSliderRow('--font-weight-body', '字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗')}
+      ${makeSliderRow('--letter-spacing-body', '字距', style, -0.05, 0.2, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      ${makeBtnGroupRow('--font-style-body', '斜体', style, [['normal','常规'],['italic','斜体']], '正文文字斜体/正体')}
+
+      <!-- 辅助 Caption -->
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">辅助 Caption</div>
+      ${makeFontFamilyRow('--font-caption', style, FONT_FAMILY_PRESETS.caption, '辅助字体族：EXIF标签、提示、时间戳')}
+      ${makeSliderRow('--font-weight-caption', '字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗')}
+      ${makeSliderRow('--letter-spacing-caption', '字距', style, -0.05, 0.3, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      ${makeBtnGroupRow('--font-style-caption', '斜体', style, [['normal','常规'],['italic','斜体']], '辅助文字斜体/正体')}
+
+      <!-- 等宽 Mono -->
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">等宽 Mono</div>
+      ${makeFontFamilyRow('--font-mono', style, FONT_FAMILY_PRESETS.mono, '等宽字体族：控制台、手柄按钮标签')}
+      ${makeSliderRow('--font-weight-mono', '字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗')}
+      ${makeSliderRow('--letter-spacing-mono', '字距', style, -0.05, 0.3, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
+      ${makeBtnGroupRow('--font-style-mono', '斜体', style, [['normal','常规'],['italic','斜体']], '等宽文字斜体/正体')}
     </div>
     <div class="dev-section">
       <div class="dev-section__title">加载画面</div>
@@ -924,6 +1160,15 @@ function makeGlassColorRow(key, label, style, tip) {
   </div>`;
 }
 
+function makeBtnGroupRow(key, label, style, options, tooltip) {
+  const val = style.getPropertyValue(key).trim() || options[0][0];
+  const btns = options.map(([v, name]) => `<button class="dev-btn dev-btn--sm${val===v?' dev-btn--active':''}" data-css-btn="${key}" data-value="${v}">${name}</button>`).join('');
+  return `<div class="dev-row" data-tooltip="${tooltip||''}">
+    <span class="dev-row__label">${label}</span>
+    <div class="dev-row__btns" style="display:flex;gap:4px;">${btns}</div>
+  </div>`;
+}
+
 function makeTextInputRow(key, label, style, tip) {
   const val = style.getPropertyValue(key).trim();
   const tipAttr = tip ? ` title="${tip}"` : '';
@@ -932,6 +1177,28 @@ function makeTextInputRow(key, label, style, tip) {
     <input type="text" class="dev-input dev-input--text" data-css-text="${key}" value="${val}" spellcheck="false">
   </div>`;
 }
+
+function makeFontFamilyRow(key, style, presets, tooltip) {
+  const val = style.getPropertyValue(key).trim();
+  // Find which preset matches (or custom)
+  let activeId = '_custom_';
+  for (const [id, label, cssValue] of presets) {
+    if (val === cssValue) { activeId = id; break; }
+  }
+  const btns = presets.map(([id, label, cssValue]) =>
+    `<button class="dev-btn dev-btn--sm${id===activeId?' dev-btn--active':''}" data-font-preset="${key}" data-preset-id="${id}" style="font-family:${cssValue};">${label}</button>`
+  ).join('');
+  const customVisible = activeId === '_custom_' ? '' : ' style="display:none"';
+  return `<div class="dev-row" data-tooltip="${tooltip||''}">
+    <span class="dev-row__label" style="min-width:0;width:auto;">字体</span>
+    <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">${btns}<button class="dev-btn dev-btn--sm${activeId==='_custom_'?' dev-btn--active':''}" data-font-preset="${key}" data-preset-id="_custom_">自定义</button></div>
+      <input class="dev-input dev-input--text" data-css-text="${key}" value="${escapeHtml(val)}"${customVisible}>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function bindVisualControls(el) {
   // 颜色
@@ -1002,6 +1269,20 @@ function bindVisualControls(el) {
         const valEl = color.parentElement.querySelector('.dev-row__value');
         if (valEl) valEl.textContent = def;
       }
+      // 毛玻璃颜色重置
+      const glassColor = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
+      if (glassColor) {
+        const { hex, alpha } = rgbaToHexAlpha(def);
+        glassColor.value = hex;
+        glassColor.dataset.alpha = alpha;
+        const alphaSlider = el.querySelector(`.dev-glass-alpha[data-css="${key}"]`);
+        if (alphaSlider) alphaSlider.value = alpha;
+        const valEl = el.querySelector(`[data-glass-val="${key}"]`);
+        if (valEl) valEl.textContent = alpha.toFixed(2);
+      }
+      // 文本输入重置
+      const textInput = el.querySelector(`.dev-input--text[data-css-text="${key}"]`);
+      if (textInput) textInput.value = def;
       autoSaveSession();
       scheduleApplyEffects();
     });
@@ -1061,7 +1342,7 @@ function bindVisualControls(el) {
       document.head.appendChild(s);
       // 如果 toggle 是 off 状态但 slider > 0，自动打开 toggle
       const animToggle = el.querySelector('#dev-toggle-anim');
-      if (val > 0 && !animToggle.classList.contains('dev-toggle--on')) {
+      if (animToggle && val > 0 && !animToggle.classList.contains('dev-toggle--on')) {
         animToggle.classList.add('dev-toggle--on');
         const disableStyle = document.getElementById('dev-anim-disable');
         if (disableStyle) disableStyle.remove();
@@ -1118,7 +1399,7 @@ function bindVisualControls(el) {
   }
 
   // 盒模型层开关 — 鼠标悬停时显示盒模型
-  let boxModelObserver = null;
+
   const boxModelToggle = el.querySelector('#dev-toggle-box-model');
   if (boxModelToggle) {
     boxModelToggle.addEventListener('click', () => {
@@ -1147,7 +1428,7 @@ function bindVisualControls(el) {
       const on = overflowToggle.classList.toggle('dev-toggle--on');
       if (on) {
         const s = document.createElement('style'); s.id = 'dev-overflow-style';
-        s.textContent = `*{--_dev-of: none}[style*="overflow:hidden"],*[style*="overflow: hidden"]{outline:2px solid rgba(255,60,60,0.4)!important;outline-offset:-1px}`;
+        s.textContent = `*{--_dev-of:none}[style*="overflow:hidden"],*[style*="overflow: hidden"]{outline:2px solid rgba(255,60,60,0.4)!important;outline-offset:-1px}`;
         document.head.appendChild(s);
       } else {
         const s = document.getElementById('dev-overflow-style');
@@ -1266,6 +1547,7 @@ function bindVisualControls(el) {
     input.addEventListener('input', () => {
       document.documentElement.style.setProperty(input.dataset.cssText, input.value);
       autoSaveSession();
+      scheduleApplyEffects();
     });
   });
 
@@ -1276,34 +1558,50 @@ function bindVisualControls(el) {
       scheduleApplyEffects();
     }
   });
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-font-preset]')) {
+      const btn = e.target.closest('[data-font-preset]');
+      const key = btn.dataset.fontPreset;
+      const presetId = btn.dataset.presetId;
+      const container = btn.closest('.dev-row');
+      const customInput = container?.querySelector('[data-css-text]');
+
+      if (presetId === '_custom_') {
+        // Show custom input
+        if (customInput) customInput.style.display = '';
+        customInput?.focus();
+      } else {
+        // Find preset value
+        const category = key.replace('--font-', '');
+        const presets = FONT_FAMILY_PRESETS[category] || [];
+        const preset = presets.find(p => p[0] === presetId);
+        if (preset) {
+          document.documentElement.style.setProperty(key, preset[2]);
+          if (customInput) { customInput.value = preset[2]; customInput.style.display = 'none'; }
+          autoSaveSession();
+          scheduleApplyEffects();
+        }
+      }
+      // Update active button state
+      container?.querySelectorAll('[data-font-preset]').forEach(b => b.classList.remove('dev-btn--active'));
+      btn.classList.add('dev-btn--active');
+    }
+    if (e.target.closest('[data-css-btn]')) {
+      const btn = e.target.closest('[data-css-btn]');
+      const key = btn.dataset.cssBtn;
+      const val = btn.dataset.value;
+      document.documentElement.style.setProperty(key, val);
+      // Update button active state
+      btn.parentElement.querySelectorAll('[data-css-btn]').forEach(b => b.classList.remove('dev-btn--active'));
+      btn.classList.add('dev-btn--active');
+      autoSaveSession();
+      scheduleApplyEffects();
+    }
+  });
   el.addEventListener('change', (e) => {
     if (e.target.closest('.dev-color, .dev-glass-color')) { autoSaveSession(); scheduleApplyEffects(); }
   });
 
-  // 重置按钮扩展：支持毛玻璃颜色和文本输入
-  el.querySelectorAll('.dev-btn[data-reset]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.reset;
-      const def = CSS_DEFAULTS[key];
-      if (!def) return;
-      // 毛玻璃颜色重置
-      const glassColor = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
-      if (glassColor) {
-        const { hex, alpha } = rgbaToHexAlpha(def);
-        glassColor.value = hex;
-        glassColor.dataset.alpha = alpha;
-        const alphaSlider = el.querySelector(`.dev-glass-alpha[data-css="${key}"]`);
-        if (alphaSlider) alphaSlider.value = alpha;
-        const valEl = el.querySelector(`[data-glass-val="${key}"]`);
-        if (valEl) valEl.textContent = alpha.toFixed(2);
-      }
-      // 文本输入重置
-      const textInput = el.querySelector(`.dev-input--text[data-css-text="${key}"]`);
-      if (textInput) textInput.value = def;
-      autoSaveSession();
-      scheduleApplyEffects();
-    });
-  });
 }
 
 // ═══════════════════════════════════════════
@@ -1443,6 +1741,7 @@ function updateFPSUI(fps) {
 function startPerfMonitor() {
   if (D.perfInterval) return;
   function update() {
+    if (!D.open) return;
     const memUsed = document.getElementById('dev-mem-used');
     const memTotal = document.getElementById('dev-mem-total');
     const domNodes = document.getElementById('dev-dom-nodes');
@@ -1650,7 +1949,7 @@ function startGamepadVizPoll() {
   if (D.gamepadPollRaf) return;
   function poll() {
     if (!D.open || D.activeGroup !== 'gamepad') {
-      D.gamepadPollRaf = requestAnimationFrame(poll);
+      D.gamepadPollRaf = null;
       return;
     }
     const gps = navigator.getGamepads();
@@ -1875,11 +2174,17 @@ function savePresets(presets) {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
 }
 
+let _autoSaveTimer = null;
+
 function autoSaveSession() {
-  try {
-    const vars = getCurrentCSSSnapshot();
-    localStorage.setItem(SESSION_KEY, JSON.stringify(vars));
-  } catch {}
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    _autoSaveTimer = null;
+    try {
+      const vars = getCurrentCSSSnapshot();
+      localStorage.setItem(SESSION_KEY, JSON.stringify(vars));
+    } catch {}
+  }, 200);
 }
 
 function getCurrentCSSSnapshot() {
@@ -2016,6 +2321,34 @@ function syncVisualControls() {
   // 文本输入同步
   el.querySelectorAll('.dev-input--text[data-css-text]').forEach(input => {
     input.value = style.getPropertyValue(input.dataset.cssText).trim();
+  });
+  // 按钮组同步
+  el.querySelectorAll('[data-css-btn]').forEach(btn => {
+    const val = style.getPropertyValue(btn.dataset.cssBtn).trim();
+    btn.classList.toggle('dev-btn--active', btn.dataset.value === val);
+  });
+  // 字体预设按钮同步（用 important 击败 generateFullCSS 的 !important）
+  el.querySelectorAll('[data-font-preset]').forEach(btn => {
+    const key = btn.dataset.fontPreset;
+    const val = style.getPropertyValue(key).trim();
+    const presetId = btn.dataset.presetId;
+    const category = key.replace('--font-', '');
+    const presets = FONT_FAMILY_PRESETS[category] || [];
+    const match = presets.find(p => p[2] === val);
+    const isActive = (presetId === '_custom_' && !match) || (match && match[0] === presetId);
+    btn.classList.toggle('dev-btn--active', isActive);
+  });
+  // 字体自定义输入同步
+  el.querySelectorAll('[data-css-text]').forEach(input => {
+    const key = input.dataset.cssText;
+    if (key && key.startsWith('--font-')) {
+      const val = style.getPropertyValue(key).trim();
+      const category = key.replace('--font-', '');
+      const presets = FONT_FAMILY_PRESETS[category] || [];
+      const match = presets.some(p => p[2] === val);
+      input.style.display = match ? 'none' : '';
+      input.value = val;
+    }
   });
   // 新控件同步：卡片毛玻璃颜色
   ['--card-bg','--card-hover-bg'].forEach(key => {
@@ -2242,6 +2575,7 @@ function stopAllMonitors() {
   if (D.fpsRaf) { cancelAnimationFrame(D.fpsRaf); D.fpsRaf = null; }
   if (D.gamepadPollRaf) { cancelAnimationFrame(D.gamepadPollRaf); D.gamepadPollRaf = null; }
   if (D.perfInterval) { clearInterval(D.perfInterval); D.perfInterval = null; }
+  if (_gpFloatRaf) { cancelAnimationFrame(_gpFloatRaf); _gpFloatRaf = null; }
   stopConsoleCapture();
   document.body.classList.remove('dev-bm-active');
   // 只清理调试注入样式（视觉配置如 anim-speed/glass-blur/gap 应保留）
@@ -2315,6 +2649,23 @@ function applySpecialVarEffects() {
     heroSubtitleColor: vars['--hero-subtitle-color'] || `rgba(${_accentRgb},0.3)`,
     heroLineColor: vars['--hero-line-color'] || `rgba(${_accentRgb},0.35)`,
     devPanelBg: vars['--dev-panel-bg'] || `rgba(${_bgRgb},0.94)`,
+    fontDisplay: vars['--font-display'] || "'Cormorant Garamond', Georgia, serif",
+    fontBody: vars['--font-body'] || "'Cormorant', Georgia, serif",
+    fontCaption: vars['--font-caption'] || "'Cormorant Garamond', Georgia, serif",
+    fontMono: vars['--font-mono'] || "'Consolas', 'Courier New', monospace",
+    fontWeightDisplay: vars['--font-weight-display'] || '300',
+    fontWeightBody: vars['--font-weight-body'] || '400',
+    fontWeightCaption: vars['--font-weight-caption'] || '400',
+    fontWeightMono: vars['--font-weight-mono'] || '400',
+    letterSpacingDisplay: vars['--letter-spacing-display'] || '0.05em',
+    letterSpacingBody: vars['--letter-spacing-body'] || '0.04em',
+    letterSpacingCaption: vars['--letter-spacing-caption'] || '0.04em',
+    letterSpacingMono: vars['--letter-spacing-mono'] || '0',
+    fontStyleDisplay: vars['--font-style-display'] || 'normal',
+    fontStyleBody: vars['--font-style-body'] || 'normal',
+    fontStyleCaption: vars['--font-style-caption'] || 'normal',
+    fontStyleMono: vars['--font-style-mono'] || 'normal',
+    textTransform: vars['--text-transform'] || 'none',
   };
   updateColorSystem(palette);
 
@@ -2355,6 +2706,8 @@ function applySpecialVarEffects() {
   // 重建预览面板（零 var()，全部内联样式）并启动动画
   buildDevPreview();
   startPreviewAnimations();
+  // 同步面板控件显示状态（字体预设按钮等）
+  if (D.open) syncVisualControls();
 
   void document.documentElement.offsetHeight;
 }
@@ -2377,12 +2730,19 @@ function parseRgbPart(val) {
 }
 
 function deriveWarmTint(vars) {
-  const accent = vars['--accent'] || '#c8a87c';
-  const m = accent.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  // 从背景色派生暖色调（而非强调色），避免蓝色面板
+  const bg = vars['--bg'] || '#0a0a08';
+  const m = bg.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
   if (m) {
     const r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
-    // warm tint = 比 accent 更亮更暖
-    return `${Math.min(255,r+20)},${Math.min(255,g+32)},${Math.min(255,b+56)}`;
+    const avg = (r + g + b) / 3;
+    if (avg < 128) {
+      // 暗背景 → 暖灰白
+      return '220,200,180';
+    } else {
+      // 亮背景 → 深暖灰
+      return '30,28,26';
+    }
   }
   return '220,200,180';
 }

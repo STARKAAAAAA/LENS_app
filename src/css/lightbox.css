@@ -162,7 +162,7 @@
       opacity: 1;
     }
     & .rating__fav.rating__fav--on {
-      color: #e87070; opacity: 1;
+      color: var(--danger); opacity: 1;
     }
     & .rating__fav.rating__fav--on::before {
       content: '♥';

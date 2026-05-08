@@ -139,6 +139,7 @@ export function buildGalleryGridDOM(photos, { galleryGrid, galleryInfo }) {
     item.dataset.path = p.path;
     item.dataset.title = p.title;
     item.dataset.index = i;
+    item.dataset.thumbSrc = p.thumbSrc || '';
     item.style.animationDelay = `${i * 0.02}s`;
     const r = ratings[p.path];
     const starsHtml = (r && r.stars > 0)
@@ -201,7 +202,8 @@ export function createDropdown(id, options, currentValue, onChange) {
       e.stopPropagation();
       if (opt.value === currentValue) { closeMenu(); return; }
       currentValue = opt.value;
-      trigger.childNodes[0].textContent = opt.label;
+      const labelNode = trigger.firstChild;
+      if (labelNode) labelNode.textContent = opt.label;
       menu.querySelectorAll('.custom-dropdown__option').forEach(o => {
         o.classList.toggle('custom-dropdown__option--sel', o.dataset.value === opt.value);
       });
@@ -284,7 +286,8 @@ export function renderGalleryDropdowns({ featureToggles, saveToggles, buildGalle
         el.style.transition = 'opacity 0.35s var(--ease-out), filter 0.35s var(--ease-out)';
       }
     });
-    _activeDropdowns.forEach(d => { if (d.menu) d.menu.classList.remove('custom-dropdown__menu--open'); });
+    _activeDropdowns.forEach(d => { if (d.destroy) d.destroy(); else { d.el.remove(); if (d.menu) d.menu.remove(); } });
+    _activeDropdowns = [];
     return;
   }
 

@@ -16,6 +16,10 @@ const DEFAULT_PALETTE = {
   surfaceRgb:   '30,28,26',      // 浮动面板
   surface2Rgb:  '20,18,15',      // 近底面板
   errRgb:       '232,112,112',   // 关闭/收藏红色
+  devPanelBg:        'rgba(10,10,8,0.94)',
+  heroLineColor:     'rgba(220,200,180,0.35)',
+  heroSubtitleColor: 'rgba(220,200,180,0.3)',
+  cornerLogoColor:   'rgba(220,200,180,0.85)',
   heroGradTop:  '255,245,235',   // Hero 标题渐变顶部(亮白)
   heroGradMid:  '220,200,175',   // Hero 标题渐变中部(暖金)
   heroGradBot:  '180,155,130',   // Hero 标题渐变底部(淡金)
@@ -24,70 +28,132 @@ const DEFAULT_PALETTE = {
 // ── 预设定义 ──
 const BUILTIN_PALETTES = [
   { id:'__default__', name:'默认', palette: DEFAULT_PALETTE },
+  { id:'__apple__', name:'Apple', palette: {
+    bg:'#000000', bgDeep:'#000000', accent:'#0066cc', text:'#ffffff', text2:'#cccccc', text3:'#999999',
+    warm:'210,210,215', accentRgb:'0,102,204', bgRgb:'0,0,0', bgDeepRgb:'0,0,0',
+    surfaceRgb:'39,39,41', surface2Rgb:'37,37,39', errRgb:'255,69,58',
+    devPanelBg:'rgba(39,39,41,0.94)', heroLineColor:'rgba(210,210,215,0.25)', heroSubtitleColor:'rgba(210,210,215,0.3)', cornerLogoColor:'rgba(210,210,215,0.85)',
+    heroGradTop:'220,220,225', heroGradMid:'180,180,190', heroGradBot:'80,80,90',
+  }},
+  { id:'__apple-light__', name:'Apple Light', palette: {
+    bg:'#ffffff', bgDeep:'#f5f5f7', accent:'#0066cc', text:'#1d1d1f', text2:'#86868b', text3:'#aeaeb2',
+    warm:'29,29,31', accentRgb:'0,102,204', bgRgb:'255,255,255', bgDeepRgb:'245,245,247',
+    surfaceRgb:'250,250,252', surface2Rgb:'245,245,247', errRgb:'255,69,58',
+    devPanelBg:'rgba(250,250,252,0.96)', heroLineColor:'rgba(0,0,0,0.12)', heroSubtitleColor:'rgba(0,0,0,0.35)', cornerLogoColor:'rgba(29,29,31,0.85)',
+    heroGradTop:'29,29,31', heroGradMid:'80,80,85', heroGradBot:'160,160,165',
+  }},
+  { id:'__apple-parchment__', name:'Apple Parchment', palette: {
+    bg:'#f5f5f7', bgDeep:'#e8e8ed', accent:'#0066cc', text:'#1d1d1f', text2:'#6e6e73', text3:'#aeaeb2',
+    warm:'29,29,31', accentRgb:'0,102,204', bgRgb:'245,245,247', bgDeepRgb:'232,232,237',
+    surfaceRgb:'255,255,255', surface2Rgb:'250,250,252', errRgb:'255,69,58',
+    devPanelBg:'rgba(245,245,247,0.96)', heroLineColor:'rgba(0,0,0,0.10)', heroSubtitleColor:'rgba(0,0,0,0.3)', cornerLogoColor:'rgba(29,29,31,0.8)',
+    heroGradTop:'29,29,31', heroGradMid:'80,80,85', heroGradBot:'180,180,185',
+  }},
+  { id:'__ibm__', name:'IBM', palette: {
+    bg:'#161616', bgDeep:'#0d0d0d', accent:'#0f62fe', text:'#ffffff', text2:'#c6c6c6', text3:'#8c8c8c',
+    warm:'198,198,198', accentRgb:'15,98,254', bgRgb:'22,22,22', bgDeepRgb:'13,13,13',
+    surfaceRgb:'38,38,38', surface2Rgb:'30,30,30', errRgb:'218,30,40',
+    devPanelBg:'rgba(22,22,22,0.94)', heroLineColor:'rgba(15,98,254,0.25)', heroSubtitleColor:'rgba(198,198,198,0.3)', cornerLogoColor:'rgba(15,98,254,0.85)',
+    heroGradTop:'230,235,255', heroGradMid:'150,170,230', heroGradBot:'15,98,254',
+  }},
+  { id:'__ibm-light__', name:'IBM Light', palette: {
+    bg:'#ffffff', bgDeep:'#f4f4f4', accent:'#0f62fe', text:'#161616', text2:'#525252', text3:'#8c8c8c',
+    warm:'22,22,22', accentRgb:'15,98,254', bgRgb:'255,255,255', bgDeepRgb:'244,244,244',
+    surfaceRgb:'244,244,244', surface2Rgb:'224,224,224', errRgb:'218,30,40',
+    devPanelBg:'rgba(255,255,255,0.96)', heroLineColor:'rgba(15,98,254,0.2)', heroSubtitleColor:'rgba(22,22,22,0.3)', cornerLogoColor:'rgba(15,98,254,0.8)',
+    heroGradTop:'22,22,22', heroGradMid:'80,80,85', heroGradBot:'200,210,230',
+  }},
+  { id:'__bugatti__', name:'Bugatti', palette: {
+    bg:'#000000', bgDeep:'#000000', accent:'#ffffff', text:'#ffffff', text2:'#cccccc', text3:'#999999',
+    warm:'255,255,255', accentRgb:'255,255,255', bgRgb:'0,0,0', bgDeepRgb:'0,0,0',
+    surfaceRgb:'20,20,20', surface2Rgb:'13,13,13', errRgb:'218,30,40',
+    devPanelBg:'rgba(0,0,0,0.96)', heroLineColor:'rgba(255,255,255,0.15)', heroSubtitleColor:'rgba(255,255,255,0.25)', cornerLogoColor:'rgba(255,255,255,0.9)',
+    heroGradTop:'255,255,255', heroGradMid:'180,180,180', heroGradBot:'60,60,60',
+  }},
+  { id:'__bugatti-silver__', name:'Bugatti Silver', palette: {
+    bg:'#0d0d0d', bgDeep:'#080808', accent:'#c3d9f3', text:'#ffffff', text2:'#e6e6e6', text3:'#999999',
+    warm:'255,255,255', accentRgb:'195,217,243', bgRgb:'13,13,13', bgDeepRgb:'8,8,8',
+    surfaceRgb:'20,20,20', surface2Rgb:'15,15,15', errRgb:'218,30,40',
+    devPanelBg:'rgba(13,13,13,0.96)', heroLineColor:'rgba(195,217,243,0.2)', heroSubtitleColor:'rgba(255,255,255,0.2)', cornerLogoColor:'rgba(195,217,243,0.85)',
+    heroGradTop:'255,255,255', heroGradMid:'195,217,243', heroGradBot:'60,70,90',
+  }},
   { id:'__warm__', name:'暖琥珀', palette: {
     bg:'#0a0804', bgDeep:'#060402', accent:'#d4a040', text:'#f0e8d8', text2:'#b0a080', text3:'#908870',
     warm:'240,200,140', accentRgb:'212,160,64', bgRgb:'10,8,4', bgDeepRgb:'6,4,2',
     surfaceRgb:'30,26,22', surface2Rgb:'20,16,14', errRgb:'232,112,112',
+    devPanelBg:'rgba(10,8,4,0.94)', heroLineColor:'rgba(240,200,140,0.35)', heroSubtitleColor:'rgba(240,200,140,0.3)', cornerLogoColor:'rgba(240,200,140,0.85)',
   }},
   { id:'__cool__', name:'冷石板', palette: {
     bg:'#08080c', bgDeep:'#040406', accent:'#8ca8c8', text:'#e0e4e8', text2:'#8c9098', text3:'#787c84',
     warm:'180,190,210', accentRgb:'140,168,200', bgRgb:'8,8,12', bgDeepRgb:'4,4,6',
     surfaceRgb:'28,28,32', surface2Rgb:'18,18,22', errRgb:'232,112,112',
+    devPanelBg:'rgba(8,8,12,0.94)', heroLineColor:'rgba(180,190,210,0.35)', heroSubtitleColor:'rgba(180,190,210,0.3)', cornerLogoColor:'rgba(180,190,210,0.85)',
   }},
   { id:'__contrast__', name:'高对比度', palette: {
     bg:'#000000', bgDeep:'#000000', accent:'#ffcc44', text:'#ffffff', text2:'#cccccc', text3:'#aaaaaa',
     warm:'255,255,255', accentRgb:'255,204,68', bgRgb:'0,0,0', bgDeepRgb:'0,0,0',
     surfaceRgb:'20,20,20', surface2Rgb:'10,10,10', errRgb:'255,80,80',
+    devPanelBg:'rgba(0,0,0,0.94)', heroLineColor:'rgba(255,255,255,0.35)', heroSubtitleColor:'rgba(255,255,255,0.3)', cornerLogoColor:'rgba(255,255,255,0.85)',
   }},
   { id:'__mono__', name:'极简黑白', palette: {
     bg:'#080808', bgDeep:'#040404', accent:'#aaaaaa', text:'#f0f0f0', text2:'#aaaaaa', text3:'#888888',
     warm:'255,255,255', accentRgb:'170,170,170', bgRgb:'8,8,8', bgDeepRgb:'4,4,4',
     surfaceRgb:'24,24,24', surface2Rgb:'14,14,14', errRgb:'232,112,112',
+    devPanelBg:'rgba(8,8,8,0.94)', heroLineColor:'rgba(255,255,255,0.35)', heroSubtitleColor:'rgba(255,255,255,0.3)', cornerLogoColor:'rgba(255,255,255,0.85)',
   }},
   { id:'__forest__', name:'暗林深绿', palette: {
     bg:'#0a0c08', bgDeep:'#060804', accent:'#7a9a6e', text:'#e4e8e0', text2:'#8c9488', text3:'#788470',
     warm:'160,200,140', accentRgb:'122,154,110', bgRgb:'10,12,8', bgDeepRgb:'6,8,4',
     surfaceRgb:'26,28,24', surface2Rgb:'16,18,14', errRgb:'232,130,130',
+    devPanelBg:'rgba(10,12,8,0.94)', heroLineColor:'rgba(160,200,140,0.35)', heroSubtitleColor:'rgba(160,200,140,0.3)', cornerLogoColor:'rgba(160,200,140,0.85)',
   }},
   { id:'__industrial__', name:'工业粗矿', palette: {
     bg:'#0c0c0c', bgDeep:'#080808', accent:'#cc9966', text:'#e0e0e0', text2:'#a0a0a0', text3:'#808080',
     warm:'200,180,160', accentRgb:'204,153,102', bgRgb:'12,12,12', bgDeepRgb:'8,8,8',
     surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'232,112,112',
+    devPanelBg:'rgba(12,12,12,0.94)', heroLineColor:'rgba(200,180,160,0.35)', heroSubtitleColor:'rgba(200,180,160,0.3)', cornerLogoColor:'rgba(200,180,160,0.85)',
   }},
   { id:'__mist__', name:'轻雾胶片', palette: {
     bg:'#0a0908', bgDeep:'#080706', accent:'#b8a090', text:'#e8e4e0', text2:'#a09890', text3:'#908880',
     warm:'210,190,170', accentRgb:'184,160,144', bgRgb:'10,9,8', bgDeepRgb:'8,7,6',
     surfaceRgb:'30,28,26', surface2Rgb:'20,18,16', errRgb:'232,112,112',
+    devPanelBg:'rgba(10,9,8,0.94)', heroLineColor:'rgba(210,190,170,0.35)', heroSubtitleColor:'rgba(210,190,170,0.3)', cornerLogoColor:'rgba(210,190,170,0.85)',
   }},
   { id:'__editorial__', name:'编辑排版', palette: {
     bg:'#0c0b09', bgDeep:'#080706', accent:'#b8a080', text:'#e8e4de', text2:'#a09888', text3:'#908070',
     warm:'210,190,160', accentRgb:'184,160,128', bgRgb:'12,11,9', bgDeepRgb:'8,7,6',
     surfaceRgb:'32,30,26', surface2Rgb:'22,20,16', errRgb:'232,112,112',
+    devPanelBg:'rgba(12,11,9,0.94)', heroLineColor:'rgba(210,190,160,0.35)', heroSubtitleColor:'rgba(210,190,160,0.3)', cornerLogoColor:'rgba(210,190,160,0.85)',
   }},
   { id:'__terminal__', name:'终端矩阵', palette: {
     bg:'#0a0a0a', bgDeep:'#050505', accent:'#66cc88', text:'#d0d0d0', text2:'#909090', text3:'#707070',
     warm:'100,200,130', accentRgb:'102,204,136', bgRgb:'10,10,10', bgDeepRgb:'5,5,5',
     surfaceRgb:'26,26,26', surface2Rgb:'16,16,16', errRgb:'255,100,100',
+    devPanelBg:'rgba(10,10,10,0.94)', heroLineColor:'rgba(100,200,130,0.35)', heroSubtitleColor:'rgba(100,200,130,0.3)', cornerLogoColor:'rgba(100,200,130,0.85)',
   }},
   { id:'__neon__', name:'霓虹夜色', palette: {
     bg:'#080010', bgDeep:'#040008', accent:'#ff66cc', text:'#f0e0f0', text2:'#b0a0b8', text3:'#908098',
     warm:'255,100,200', accentRgb:'255,102,204', bgRgb:'8,0,16', bgDeepRgb:'4,0,8',
     surfaceRgb:'24,16,32', surface2Rgb:'14,8,20', errRgb:'255,100,150',
+    devPanelBg:'rgba(8,0,16,0.94)', heroLineColor:'rgba(255,100,200,0.35)', heroSubtitleColor:'rgba(255,100,200,0.3)', cornerLogoColor:'rgba(255,100,200,0.85)',
   }},
   { id:'__paper__', name:'暖纸书香', palette: {
     bg:'#faf8f0', bgDeep:'#f0ece0', accent:'#8b7355', text:'#333028', text2:'#6b6050', text3:'#908878',
     warm:'139,115,85', accentRgb:'139,115,85', bgRgb:'250,248,240', bgDeepRgb:'240,236,224',
     surfaceRgb:'240,236,224', surface2Rgb:'230,226,214', errRgb:'200,80,80',
+    devPanelBg:'rgba(250,248,240,0.94)', heroLineColor:'rgba(139,115,85,0.35)', heroSubtitleColor:'rgba(139,115,85,0.3)', cornerLogoColor:'rgba(139,115,85,0.85)',
   }},
   { id:'__void__', name:'极致纯黑', palette: {
     bg:'#000000', bgDeep:'#000000', accent:'#aaaaaa', text:'#ffffff', text2:'#999999', text3:'#777777',
     warm:'255,255,255', accentRgb:'170,170,170', bgRgb:'0,0,0', bgDeepRgb:'0,0,0',
     surfaceRgb:'15,15,15', surface2Rgb:'8,8,8', errRgb:'255,80,80',
+    devPanelBg:'rgba(0,0,0,0.94)', heroLineColor:'rgba(255,255,255,0.35)', heroSubtitleColor:'rgba(255,255,255,0.3)', cornerLogoColor:'rgba(255,255,255,0.85)',
   }},
   { id:'__brutal__', name:'野兽粗野', palette: {
     bg:'#0c0c0c', bgDeep:'#080808', accent:'#ff6633', text:'#e0e0e0', text2:'#a0a0a0', text3:'#808080',
     warm:'255,100,50', accentRgb:'255,102,51', bgRgb:'12,12,12', bgDeepRgb:'8,8,8',
     surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'255,100,80',
+    devPanelBg:'rgba(12,12,12,0.94)', heroLineColor:'rgba(255,100,50,0.35)', heroSubtitleColor:'rgba(255,100,50,0.3)', cornerLogoColor:'rgba(255,100,50,0.85)',
   }},
 ];
 
@@ -114,8 +180,26 @@ function generateFullCSS(p) {
   const S = p.surfaceRgb;  // 浮动表面 RGB
   const S2 = p.surface2Rgb;// 近底表面 RGB
   const E = p.errRgb;      // 红色 RGB
+  const FSD = p.fontStyleDisplay || 'normal';
+  const FSB = p.fontStyleBody || 'normal';
+  const FSC = p.fontStyleCaption || 'normal';
+  const FSM = p.fontStyleMono || 'normal';
+  const TTR = p.textTransform || 'none';
+  const FD = p.fontDisplay || "'Cormorant Garamond', Georgia, serif";
+  const FB = p.fontBody || "'Cormorant', Georgia, serif";
+  const FC = p.fontCaption || "'Cormorant Garamond', Georgia, serif";
+  const FM = p.fontMono || "'Consolas', 'Courier New', monospace";
+  const FWD = p.fontWeightDisplay || '300';
+  const FWB = p.fontWeightBody || '400';
+  const FWC = p.fontWeightCaption || '400';
+  const FWM = p.fontWeightMono || '400';
+  const LSD = p.letterSpacingDisplay || '0.05em';
+  const LSB = p.letterSpacingBody || '0.04em';
+  const LSC = p.letterSpacingCaption || '0.04em';
+  const LSM = p.letterSpacingMono || '0';
 
   return `/* === LENS 颜色系统 — 零 var() 依赖 === */
+:root{--danger:#e87070;}
 body{background:${p.bg}!important;color:${p.text}!important;}
 
 /* ═══ Hero ═══ */
@@ -158,16 +242,15 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .toolbar__btn:hover{color:${p.text};background:rgba(${W},0.10)}
 
 /* ═══ 标题栏 ═══ */
-.titlebar__btn{color:rgba(${A},0.50)}
+.titlebar__btn{color:rgba(${W},0.45)}
 .titlebar__btn:hover{color:${p.accent};background:rgba(${W},0.12)}
-.titlebar__btn--close:hover{color:#e87070;background:rgba(${E},0.18)}
+.titlebar__btn--close:hover{color:var(--danger);background:rgba(${E},0.18)}
 .titlebar__controls{background:rgba(${W},0.06);border:0.5px solid rgba(${W},0.10)}
 
 /* ═══ Portfolio / 画廊 ═══ */
 .portfolio::before{background:rgba(${Bg},0.75);border:0.5px solid rgba(${W},0.06)}
 .portfolio__title{color:${p.text}}
 .portfolio__desc{color:${p.text3}}
-.portfolio__title::after{background:linear-gradient(90deg,transparent,${p.text3},${p.text3},transparent)}
 .category-card{background:rgba(${W},0.015);border:1px solid rgba(${W},0.05)}
 .category-card:hover{border-color:rgba(${W},0.16);box-shadow:0 24px 48px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(${W},0.04)}
 .category-card__info{background:rgba(${S2},0.92);border:0.5px solid rgba(${W},0.08)}
@@ -208,8 +291,8 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .rating__star:hover{color:${p.accent}}
 .rating__star--on{color:${p.accent}}
 .rating__fav{color:rgba(${W},0.2)}
-.rating__fav:hover{color:#e87070}
-.rating__fav--on{color:#e87070}
+.rating__fav:hover{color:var(--danger)}
+.rating__fav--on{color:var(--danger)}
 .lightbox__exif{background:rgba(${Bg},0.78);border:0.5px solid rgba(${A},0.12)}
 .exif__tag{color:rgba(${W},0.55)}
 .exif__tag--camera{color:${p.text}}
@@ -322,6 +405,68 @@ body.gamepad-active .gallery__back::after{background-color:${p.accent}!important
 .hero__reveal{background:${p.bg}}
 .back-to-top{color:rgba(${W},0.5);background:rgba(${W},0.08);border:0.5px solid rgba(${W},0.12)}
 .back-to-top:hover{color:${p.accent};background:rgba(${W},0.16);border-color:rgba(${W},0.25)}
+
+/* ═══ 全局字体系统（零var()，硬编码保证WebView2生效）═══ */
+/* 展示 Display — 标题/Hero/导航 */
+.hero__title,.hero__subtitle,.hero__beta,.hero__scroll-line,
+.portfolio__title,#section-title,
+.portfolio__desc,
+.category-card__name,.category-card__label-name,
+.gallery__back,.gallery__item-title,.gallery__info,
+.custom-dropdown__trigger,
+.lightbox__title,
+.slideshow__counter,.slideshow__btn,
+.sidebar__item-name,.sidebar__header,.sidebar__add,
+#corner-logo,#dir-label,
+.toolbar__btn,
+.cache-dir-btn,
+.shortcuts__title,
+.dev-section__title,.dev-reset-box__title,
+.dev-hints__title,
+#loading-text,#loading-quote,#loading-hint
+{font-family:${FD}!important;font-weight:${FWD}!important;letter-spacing:${LSD}!important;font-style:${FSD}!important;text-transform:${TTR}!important;}
+
+/* 正文 Body — 段落/描述/计数 */
+body,
+.portfolio__desc,
+.category-card__count,.category-card__label-count,
+.custom-dropdown__option,
+.lightbox__counter,
+.settings-panel__label,
+.cache-dir-path,
+.density-btn,
+.shortcuts__row kbd,.shortcuts__row span,
+.shortcuts__hint,
+.dev-nav__tab,
+.dev-section__desc,
+.dev-row__label,.dev-row__value,
+.dev-btn:not([data-font-preset]),.dev-gp-btn,
+.dev-preset-card__name,
+.dev-input,.dev-input--text,
+.dev-chip-toggle,
+.sidebar__item-remove,.sidebar__empty,
+.gallery__item-stars,.gallery__item-fav
+{font-family:${FB}!important;font-weight:${FWB}!important;letter-spacing:${LSB}!important;font-style:${FSB}!important;}
+
+/* 辅助 Caption — EXIF/提示/时间戳 */
+.exif__tag,.exif__tag--lens,.exif__tag--aperture,
+.exif__tag--shutter,.exif__tag--iso,.exif__tag--focal,
+.exif__tag--date,.exif__tag--dims,.exif__tag--size,
+.gp-hint__label,.gp-hint--fav span,
+.gp-hint--lb-fixed span,.gp-hint--rb-fixed span,
+.shortcuts__section--gamepad .shortcuts__row span,
+.dev-hints__desc,.dev-hints__btn,
+.dev-reset-box__desc,.dev-reset-box__hint,
+.dev-stick__label,.dev-axis-label,
+.dev-preset-card__badge,.dev-preset-card__time,.dev-preset-card__tag,
+#cache-info,
+.dev-gp-float__hint
+{font-family:${FC}!important;font-weight:${FWC}!important;letter-spacing:${LSC}!important;font-style:${FSC}!important;}
+
+/* 等宽 Mono — 控制台/代码/手柄按钮 */
+.dev-console,
+.dev-stat,.dev-state-row
+{font-family:${FM}!important;font-weight:${FWM}!important;letter-spacing:${LSM}!important;font-style:${FSM}!important;}
 `;
 }
 
@@ -331,14 +476,14 @@ function applyDirectStyles(p) {
   // body
   document.body.style.backgroundColor = p.bg;
   document.body.style.color = p.text;
-  // Hero 标题
+  // Hero 标题 — 必须用 setProperty priority=important 才能在零var()体系内击败样式表!important
   const heroTitle = document.querySelector('.hero__title');
   if (heroTitle) {
-    heroTitle.style.background = `linear-gradient(180deg, rgba(${p.heroGradTop},1) 0%, rgba(${p.heroGradMid},0.85) 40%, rgba(${p.heroGradBot},0.25) 100%)`;
-    heroTitle.style.webkitBackgroundClip = 'text';
-    heroTitle.style.backgroundClip = 'text';
-    heroTitle.style.color = 'transparent';
-    heroTitle.style.webkitTextFillColor = 'transparent';
+    heroTitle.style.setProperty('background', `linear-gradient(180deg, rgba(${p.heroGradTop},1) 0%, rgba(${p.heroGradMid},0.85) 40%, rgba(${p.heroGradBot},0.25) 100%)`, 'important');
+    heroTitle.style.setProperty('-webkit-background-clip', 'text', 'important');
+    heroTitle.style.setProperty('background-clip', 'text', 'important');
+    heroTitle.style.setProperty('color', 'transparent', 'important');
+    heroTitle.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
   }
   // 副标题
   const subtitle = document.querySelector('.hero__subtitle');

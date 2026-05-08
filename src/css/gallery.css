@@ -31,17 +31,6 @@
       transition: all 1.2s var(--ease-out);
 
       &.visible { opacity: 1; translate: 0 0; }
-
-      &::after {
-        content: ''; display: block;
-        width: 60px; height: 1px;
-        background: linear-gradient(90deg, transparent, var(--text-3), transparent);
-        margin: 1.5rem auto 0;
-        scale: 0 1;
-        transition: scale 1.4s var(--ease-out) 0.3s;
-      }
-
-      &.visible::after { scale: 1 1; }
     }
 
     & .portfolio__desc {
@@ -361,7 +350,7 @@
     }
     & .gallery__item-fav {
       position: absolute; top: 8px; right: 8px;
-      color: #e87070; font-size: 1rem;
+      color: var(--danger); font-size: 1rem;
       z-index: 2;
       filter: drop-shadow(0 0 4px rgba(232,112,112,0.5));
     }

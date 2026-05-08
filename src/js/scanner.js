@@ -16,7 +16,7 @@ export async function scanPhotos(baseDir) {
   async function walk(dir) {
     let entries;
     try { entries = await readDir(dir); }
-    catch (e) { console.error(`读取失败: ${dir}`, e); throw e; }
+    catch (e) { console.warn(`跳过无法读取的目录: ${dir}`, e); return; }
     for (const entry of entries) {
       const fullPath = await join(dir, entry.name);
       if (entry.isDirectory) { await walk(fullPath); }

@@ -52,7 +52,7 @@
     background: var(--glass-bg-hover);
   }
   .titlebar__btn--close:hover {
-    color: #e87070;
+    color: var(--danger);
     background: rgba(232,112,112,0.18);
   }
 

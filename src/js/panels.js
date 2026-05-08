@@ -11,9 +11,13 @@ export function updateCacheDirDisplay(featureToggles) {
   if (el) el.textContent = featureToggles.cacheDir || 'E:\\LENS\\thumbnails';
 }
 
+let _settingsInitialized = false;
+
 // initSettingsPanel({ settingsBtn, settingsPanel, featureToggles, onToggleChange })
 // onToggleChange called with (key) when sortFilter is toggled
 export function initSettingsPanel({ settingsBtn, settingsPanel, featureToggles, onToggleChange }) {
+  if (_settingsInitialized) return;
+  _settingsInitialized = true;
   function openSettingsPanel() {
     settingsPanel.classList.add('settings-panel--open');
   }
@@ -77,8 +81,12 @@ export function initSettingsPanel({ settingsBtn, settingsPanel, featureToggles, 
 
 // ========== 快捷键面板 ==========
 
+let _shortcutsInitialized = false;
+
 // initShortcutsPanel({ featureToggles })
 export function initShortcutsPanel({ featureToggles }) {
+  if (_shortcutsInitialized) return;
+  _shortcutsInitialized = true;
   const shortcutsOverlay = document.getElementById('shortcuts-overlay');
   const shortcutsBtn = document.getElementById('tb-shortcuts');
   const shortcutsPanel = shortcutsOverlay.querySelector('.shortcuts-panel');

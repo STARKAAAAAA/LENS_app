@@ -115,7 +115,7 @@ async fn generate_thumbnails(
         let map = Mutex::new(HashMap::new());
         let done = AtomicU32::new(0);
         let fresh = AtomicU32::new(0);
-        let num_threads = num_cpus::get().max(16);
+        let num_threads = num_cpus::get().min(16);
         let chunk_size = num_threads;
 
         for chunk in paths.chunks(chunk_size) {
@@ -131,7 +131,9 @@ async fn generate_thumbnails(
                         let thumb_path = cache_dir.join(format!("{}.jpg", djb2(&path)));
                         let existed = thumb_path.exists();
                         if !existed {
-                            generate_one(&path, &thumb_path);
+                            if let Err(e) = generate_one(&path, &thumb_path) {
+                                eprintln!("[LENS] {e}");
+                            }
                         }
                         if thumb_path.exists() {
                             if !existed { fresh.fetch_add(1, Ordering::Relaxed); }
@@ -162,14 +164,9 @@ fn djb2(s: &str) -> String {
 }
 
 /// 为单张照片生成缩略图（turbojpeg SIMD 解码 + Lanczos3 缩放 + 品质 95）
-fn generate_one(original: &str, dest: &PathBuf) {
-    let data = match std::fs::read(original) {
-        Ok(d) => d,
-        Err(e) => {
-            eprintln!("[LENS] thumbnail read failed: {original} — {e}");
-            return;
-        }
-    };
+fn generate_one(original: &str, dest: &PathBuf) -> Result<(), String> {
+    let data = std::fs::read(original)
+        .map_err(|e| format!("thumbnail read failed: {original} — {e}"))?;
 
     // 尝试 turbojpeg 解码（SIMD 加速，比 image crate 快 2-3x）
     let (w, h, pixels) = if let Ok(img) = turbojpeg::decompress_image::<image::Rgb<u8>>(&data) {
@@ -181,8 +178,7 @@ fn generate_one(original: &str, dest: &PathBuf) {
         let (w, h) = rgb.dimensions();
         (w, h, rgb.into_raw())
     } else {
-        eprintln!("[LENS] thumbnail decode failed: {original}");
-        return;
+        return Err(format!("thumbnail decode failed: {original}"));
     };
 
     let longest = w.max(h);
@@ -209,9 +205,11 @@ fn generate_one(original: &str, dest: &PathBuf) {
         pitch: tw * 3,
         format: turbojpeg::PixelFormat::RGB,
     };
-    if let Ok(jpg) = turbojpeg::compress(enc_image, 95, turbojpeg::Subsamp::Sub2x2) {
-        let _ = std::fs::write(dest, jpg);
-    }
+    let jpg = turbojpeg::compress(enc_image, 95, turbojpeg::Subsamp::Sub2x2)
+        .map_err(|e| format!("thumbnail encode failed: {original} — {e}"))?;
+
+    std::fs::write(dest, jpg)
+        .map_err(|e| format!("thumbnail write failed: {} — {e}", dest.display()))
 }
 
 // ========== 缓存管理 ==========
@@ -349,9 +347,17 @@ fn get_exif_info(path: String) -> Result<ExifInfo, String> {
 
         // 从 EXIF 获取尺寸（避免完整解码大图）
         let w = exif.get_field(exif::Tag::PixelXDimension, exif::In::PRIMARY)
-            .and_then(|f| match &f.value { exif::Value::Long(v) => v.first().copied(), _ => None });
+            .and_then(|f| match &f.value {
+                exif::Value::Long(v) => v.first().copied(),
+                exif::Value::Short(v) => v.first().copied().map(|x| x as u32),
+                _ => None,
+            });
         let h = exif.get_field(exif::Tag::PixelYDimension, exif::In::PRIMARY)
-            .and_then(|f| match &f.value { exif::Value::Long(v) => v.first().copied(), _ => None });
+            .and_then(|f| match &f.value {
+                exif::Value::Long(v) => v.first().copied(),
+                exif::Value::Short(v) => v.first().copied().map(|x| x as u32),
+                _ => None,
+            });
         width = w.unwrap_or(0);
         height = h.unwrap_or(0);
     }
@@ -399,7 +405,11 @@ fn resize_if_large(data: &[u8]) -> Vec<u8> {
 fn get_rational(v: &exif::Value) -> Option<(u32, u32)> {
     match v {
         exif::Value::Rational(ref vec) => {
-            vec.first().map(|r| (r.num, r.denom))
+            vec.first().filter(|r| r.denom != 0).map(|r| (r.num, r.denom))
+        }
+        exif::Value::SRational(ref vec) => {
+            let r = vec.first().filter(|r| r.denom != 0)?;
+            Some((r.num as u32, r.denom as u32))
         }
         _ => None,
     }

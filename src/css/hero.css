@@ -52,7 +52,6 @@
       -webkit-background-clip: text; background-clip: text;
       opacity: 0; transform: translateY(40px); scale: 1.05;
       filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
-      will-change: transform, opacity;
 
       &::after {
         content: '';
@@ -62,7 +61,6 @@
         background: linear-gradient(90deg, transparent, rgba(220,200,180,0.35), rgba(220,200,180,0.35), transparent);
         opacity: var(--line-opacity, 0);
         transform: scaleX(var(--line-scale, 0));
-        will-change: transform, opacity;
       }
 
       &.hero__title--corner {

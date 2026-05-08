@@ -23,7 +23,7 @@ export function renderSidebar(activeDir, { getSavedFolders, loadDir, sidebarList
       <span class="sidebar__item-remove">×</span>`;
     item.addEventListener('click', (e) => {
       if (e.target.classList.contains('sidebar__item-remove')) return;
-      if (dir === loadDir()) return;
+      if (dir.replace(/\\/g, '/') === (activeDir || '').replace(/\\/g, '/')) return;
       if (onSelectFolder) onSelectFolder(dir);
     });
     item.querySelector('.sidebar__item-remove').addEventListener('click', (e) => { e.stopPropagation(); if (onRemoveFolder) onRemoveFolder(dir); });

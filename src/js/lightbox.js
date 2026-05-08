@@ -74,6 +74,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
   const ratingPanel = document.getElementById('lightbox-rating');
 
   function updateRatingUI(path) {
+    if (!ratingStars || !ratingFav || !ratingPanel) return;
     lightbox.dataset.currentPath = path || '';
     const r = getPhotoRating(path);
     ratingStars.querySelectorAll('.rating__star').forEach(s => {
@@ -86,7 +87,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
 
   // ========== EXIF 面板 ==========
   const exifPanel = document.getElementById('lightbox-exif');
-  const exifTags = {
+  const exifTags = exifPanel ? {
     camera: exifPanel.querySelector('.exif__tag--camera'),
     lens: exifPanel.querySelector('.exif__tag--lens'),
     aperture: exifPanel.querySelector('.exif__tag--aperture'),
@@ -96,9 +97,10 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     date: exifPanel.querySelector('.exif__tag--date'),
     dims: exifPanel.querySelector('.exif__tag--dims'),
     size: exifPanel.querySelector('.exif__tag--size'),
-  };
+  } : {};
 
   async function loadLightboxExif(filePath) {
+    if (!exifPanel) return;
     if (!featureToggles.exif) {
       exifPanel.classList.remove('exif--visible');
       return;
@@ -362,19 +364,21 @@ export function initSlideshow({ getPhotos } = {}) {
   });
 
   const imgWrap = document.querySelector('.slideshow__img-wrap');
-  imgWrap?.addEventListener('wheel', e => {
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? 0.08 : -0.08, 0, 0);
-    showControls();
-  }, { passive: false });
+  if (imgWrap) {
+    imgWrap.addEventListener('wheel', e => {
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 0.08 : -0.08, 0, 0);
+      showControls();
+    }, { passive: false });
 
-  imgWrap.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    dragging = true; dragStartX = e.clientX; dragStartY = e.clientY; panStartX = panX; panStartY = panY;
-  });
+    imgWrap.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      dragging = true; dragStartX = e.clientX; dragStartY = e.clientY; panStartX = panX; panStartY = panY;
+    });
+    imgWrap.addEventListener('dblclick', fitToWindow);
+  }
   window.addEventListener('mousemove', e => { if (!dragging) return; panX = panStartX + (e.clientX - dragStartX); panY = panStartY + (e.clientY - dragStartY); applyTransform(); });
   window.addEventListener('mouseup', () => { dragging = false; });
-  imgWrap.addEventListener('dblclick', fitToWindow);
 
   document.addEventListener('keydown', e => {
     if (!slideshow.classList.contains('active')) return;

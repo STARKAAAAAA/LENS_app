@@ -409,10 +409,13 @@
     border-color: var(--glass-border-bright);
   }
   .dev-btn--danger:hover {
-    color: #e87070;
+    color: var(--danger);
     background: rgba(232,112,112,0.12);
     border-color: rgba(232,112,112,0.25);
   }
+  .dev-btn--sm { padding: 4px 10px; font-size: 0.7rem; white-space: nowrap; }
+  .dev-btn--active { background: var(--accent); color: var(--bg); border-color: var(--glass-border-bright); }
+  .dev-btn--active:hover { background: var(--accent); color: var(--bg); }
 
   /* ========== 开关 ========== */
   .dev-toggle {
@@ -644,7 +647,7 @@
   .dev-btn,
   .dev-preset-card,
   .dev-toggle {
-    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
   .dev-nav__tab.hero--focused,
   .dev-btn.hero--focused,
