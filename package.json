@@ -1,6 +1,6 @@
 {
   "name": "@STARKAAAAAA/LENS_app",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "type": "module",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
