@@ -18,8 +18,8 @@
     display: flex; gap: 0;
     padding: 3px;
     background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--titlebar-glass-blur, calc(12px + var(--glass-blur, 0px))));
+    -webkit-backdrop-filter: blur(var(--titlebar-glass-blur, calc(12px + var(--glass-blur, 0px))));
     border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-sm);
     -webkit-app-region: no-drag;

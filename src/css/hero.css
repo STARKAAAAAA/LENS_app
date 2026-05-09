@@ -97,8 +97,8 @@
       width: 30px; height: 52px;
       border-radius: var(--radius-pill);
       background: var(--glass-bg);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(var(--hero-scroll-blur, calc(20px + var(--glass-blur, 0px))));
+      -webkit-backdrop-filter: blur(var(--hero-scroll-blur, calc(20px + var(--glass-blur, 0px))));
       border: 0.5px solid var(--glass-bg-hover);
       display: flex; align-items: flex-end; justify-content: center;
       padding-bottom: 10px;

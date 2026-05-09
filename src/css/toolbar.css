@@ -5,8 +5,8 @@
     display: flex; gap: 2px;
     padding: 5px;
     background: var(--glass-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(var(--toolbar-glass-blur, calc(16px + var(--glass-blur, 0px))));
+    -webkit-backdrop-filter: blur(var(--toolbar-glass-blur, calc(16px + var(--glass-blur, 0px))));
     border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-pill);
     box-shadow: var(--card-shadow, 0 4px 24px rgba(0,0,0,0.3));

@@ -47,48 +47,55 @@ const CSS_VAR_KEYS = [
   '--font-style-display','--font-style-body','--text-transform','--font-caption','--font-mono','--font-weight-caption','--font-weight-mono','--letter-spacing-caption','--letter-spacing-mono','--font-style-caption','--font-style-mono',
   '--font-scale-heading','--line-spacing',
   '--section-gap','--gap-scale','--card-bg','--card-hover-bg','--card-shadow','--shadow-depth',
-  '--loading-color','--loading-color-dim','--loading-color-soft',
+  '--loading-color','--loading-color-dim','--loading-color-soft','--loading-track-height',
   '--ease-out','--ease-spring',
   '--hero-grad-top','--hero-grad-mid','--hero-grad-bot',
   '--corner-logo-color',
   '--hero-subtitle-color','--hero-line-color',
   '--dev-panel-bg',
+  // 分区玻璃（解耦各区域毛玻璃效果）
+  '--sidebar-glass-bg','--sidebar-glass-border','--sidebar-glass-bg-hover','--sidebar-glass-border-bright','--sidebar-glass-blur',
+  '--titlebar-glass-bg','--titlebar-glass-border','--titlebar-glass-bg-hover','--titlebar-btn-color','--titlebar-glass-blur',
+  '--toolbar-glass-bg','--toolbar-glass-border','--toolbar-glass-bg-hover','--toolbar-btn-color','--toolbar-glass-blur',
+  '--card-glass-bg','--card-glass-border','--card-glass-bg-hover','--card-glass-border-bright','--card-hover-blur','--gallery-nav-blur','--dropdown-blur',
+  '--panel-glass-bg','--panel-glass-border','--panel-glass-bg-hover','--panel-glass-blur','--shortcuts-blur',
+  '--lightbox-glass-bg','--lightbox-glass-border','--lightbox-glass-bg-hover','--lightbox-glass-blur','--lightbox-btn-blur','--lightbox-exif-blur','--slideshow-blur',
+  '--hero-scroll-blur','--back-to-top-blur','--dev-panel-blur',
+];
+
+// 分区玻璃变量列表 — 预设加载/重置时清除覆盖
+const ZONE_GLASS_VARS = [
+  '--sidebar-glass-bg','--sidebar-glass-border','--sidebar-glass-bg-hover','--sidebar-glass-border-bright','--sidebar-glass-blur',
+  '--titlebar-glass-bg','--titlebar-glass-border','--titlebar-glass-bg-hover','--titlebar-btn-color','--titlebar-glass-blur',
+  '--toolbar-glass-bg','--toolbar-glass-border','--toolbar-glass-bg-hover','--toolbar-btn-color','--toolbar-glass-blur',
+  '--card-glass-bg','--card-glass-border','--card-glass-bg-hover','--card-glass-border-bright','--card-hover-blur','--gallery-nav-blur','--dropdown-blur',
+  '--panel-glass-bg','--panel-glass-border','--panel-glass-bg-hover','--panel-glass-blur','--shortcuts-blur',
+  '--lightbox-glass-bg','--lightbox-glass-border','--lightbox-glass-bg-hover','--lightbox-glass-blur','--lightbox-btn-blur','--lightbox-exif-blur','--slideshow-blur',
+  '--hero-scroll-blur','--back-to-top-blur','--dev-panel-blur',
 ];
 
 // 字体族预设
+const ALL_FONT_PRESETS = [
+  ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
+  ['cormorant', 'Cormorant', "'Cormorant', Georgia, serif"],
+  ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
+  ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
+  ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
+  ['saira', 'Saira Cond.', "'Saira Condensed', 'Cormorant Garamond', Georgia, sans-serif"],
+  ['xbox', 'Xbox', "'Xbox', 'Arial Black', Impact, sans-serif"],
+  ['impact', 'Arial Black', "'Arial Black', Impact, 'Helvetica Neue', sans-serif"],
+  ['consolas', 'Consolas', "'Consolas', 'Courier New', 'SF Mono', monospace"],
+  ['jetbrains', 'JetBrains', "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"],
+  ['ibmmono', 'Plex Mono', "'IBM Plex Mono', ui-monospace, monospace"],
+  ['sfmono', 'SF Mono', "'SF Mono', ui-monospace, monospace"],
+];
+
+// 所有字体分类使用相同的统一字体列表
 const FONT_FAMILY_PRESETS = {
-  display: [
-    ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
-    ['cormorant', 'Cormorant', "'Cormorant', Georgia, serif"],
-    ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
-    ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
-    ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
-    ['saira', 'Saira Cond.', "'Saira Condensed', 'Cormorant Garamond', Georgia, sans-serif"],
-    ['xbox', 'Xbox', "'Xbox', 'Arial Black', Impact, sans-serif"],
-    ['consolas', 'Consolas', "'Consolas', 'Courier New', 'SF Mono', monospace"],
-  ],
-  body: [
-    ['cormorant', 'Cormorant', "'Cormorant', Georgia, serif"],
-    ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
-    ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
-    ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
-    ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
-    ['impact', 'Arial Black', "'Arial Black', Impact, 'Helvetica Neue', sans-serif"],
-    ['consolas', 'Consolas', "'Consolas', 'Courier New', monospace"],
-  ],
-  caption: [
-    ['cormorant-g', 'Cormorant G.', "'Cormorant Garamond', Georgia, serif"],
-    ['system', 'System UI', "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"],
-    ['plex', 'Plex Sans', "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif"],
-    ['jetbrains', 'JetBrains', "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"],
-    ['georgia', 'Georgia', "Georgia, 'Times New Roman', serif"],
-  ],
-  mono: [
-    ['consolas', 'Consolas', "'Consolas', 'Courier New', monospace"],
-    ['jetbrains', 'JetBrains', "'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace"],
-    ['ibmmono', 'Plex Mono', "'IBM Plex Mono', ui-monospace, monospace"],
-    ['sfmono', 'SF Mono', "'SF Mono', ui-monospace, monospace"],
-  ],
+  display: ALL_FONT_PRESETS,
+  body: ALL_FONT_PRESETS,
+  caption: ALL_FONT_PRESETS,
+  mono: ALL_FONT_PRESETS,
 };
 
 // CSS 变量默认值（init 时从 :root 捕获）
@@ -387,7 +394,7 @@ const BUILTIN_PRESETS = [
       '--glass-bg':'rgba(200,180,160,0.05)','--glass-border':'rgba(200,180,160,0.10)',
       '--glass-bg-hover':'rgba(200,180,160,0.10)','--glass-border-bright':'rgba(200,180,160,0.20)',
       '--radius':'4px','--radius-sm':'2px','--radius-pill':'20px',
-      '--thumb-card-size':'320px','--font-scale':'0.9','--anim-speed':'0.7','--glass-blur':'0px',
+      '--thumb-card-size':'320px','--font-scale':'0.9','--anim-speed':'0.7','--glass-blur':'20px',
       '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Segoe UI', system-ui, sans-serif",
       '--font-weight-display':'900','--font-weight-body':'400',
       '--letter-spacing-display':'0.08em','--letter-spacing-body':'0.04em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.01em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
@@ -407,7 +414,7 @@ const BUILTIN_PRESETS = [
       '--glass-bg':'rgba(210,190,170,0.08)','--glass-border':'rgba(210,190,170,0.12)',
       '--glass-bg-hover':'rgba(210,190,170,0.14)','--glass-border-bright':'rgba(210,190,170,0.24)',
       '--radius':'24px','--radius-sm':'16px','--radius-pill':'120px',
-      '--thumb-card-size':'340px','--font-scale':'1.05','--anim-speed':'1.8','--glass-blur':'20px',
+      '--thumb-card-size':'340px','--font-scale':'1.05','--anim-speed':'1.8','--glass-blur':'6px',
       '--font-display':"'Cormorant Garamond', Georgia, serif",'--font-body':"'Cormorant', Georgia, serif",
       '--font-weight-display':'300','--font-weight-body':'300',
       '--letter-spacing-display':'0.12em','--letter-spacing-body':'0.06em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0.06em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
@@ -447,7 +454,7 @@ const BUILTIN_PRESETS = [
       '--glass-bg':'rgba(100,200,130,0.05)','--glass-border':'rgba(100,200,130,0.10)',
       '--glass-bg-hover':'rgba(100,200,130,0.10)','--glass-border-bright':'rgba(100,200,130,0.18)',
       '--radius':'2px','--radius-sm':'1px','--radius-pill':'4px',
-      '--thumb-card-size':'240px','--font-scale':'0.85','--anim-speed':'0.5','--glass-blur':'0px',
+      '--thumb-card-size':'240px','--font-scale':'0.85','--anim-speed':'0.5','--glass-blur':'8px',
       '--font-display':"'Consolas', 'Courier New', 'SF Mono', monospace",'--font-body':"'Consolas', 'Courier New', monospace",
       '--font-weight-display':'400','--font-weight-body':'400',
       '--letter-spacing-display':'0','--letter-spacing-body':'0','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'0','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
@@ -527,7 +534,7 @@ const BUILTIN_PRESETS = [
       '--glass-bg':'rgba(255,100,50,0.06)','--glass-border':'rgba(255,100,50,0.12)',
       '--glass-bg-hover':'rgba(255,100,50,0.12)','--glass-border-bright':'rgba(255,100,50,0.24)',
       '--radius':'0px','--radius-sm':'0px','--radius-pill':'0px',
-      '--thumb-card-size':'320px','--font-scale':'0.85','--anim-speed':'0.3','--glass-blur':'0px',
+      '--thumb-card-size':'320px','--font-scale':'0.85','--anim-speed':'0.3','--glass-blur':'4px',
       '--font-display':"'Xbox', 'Arial Black', Impact, sans-serif",'--font-body':"'Arial Black', Impact, 'Helvetica Neue', sans-serif",
       '--font-weight-display':'900','--font-weight-body':'700',
       '--letter-spacing-display':'-0.02em','--letter-spacing-body':'-0.01em','--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none','--font-caption':"'Cormorant Garamond', Georgia, serif",'--font-mono':"'Consolas', 'Courier New', monospace",'--font-weight-caption':'400','--font-weight-mono':'400','--letter-spacing-caption':'-0.01em','--letter-spacing-mono':'0','--font-style-caption':'normal','--font-style-mono':'normal',
@@ -592,10 +599,61 @@ function openDevPanel() {
   panel.classList.remove('dev-panel--out');
   lockBodyScroll();
   D.open = true;
-  // 重新注入动画速度等特殊样式（关闭面板时 stopAllMonitors 清除了它们）
+  // 重新注入动画速度等特殊样式 + 刷新预览
   applySpecialVarEffects();
   startAllMonitors();
   switchGroup(D.activeGroup);
+  // 确保调试样式在面板打开时正确恢复（防止外部清理导致不一致）
+  restoreDebugStyles();
+}
+
+function restoreDebugStyles() {
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c8a87c';
+  const accentRgb = (() => { const m = accent.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i); return m ? `${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}` : '200,168,124'; })();
+  const toggles = {
+    'dev-toggle-outline': { id: 'dev-outline-style', css: `*{outline:0.5px solid rgba(${accentRgb},0.15)!important}` },
+    'dev-toggle-grid-lines': { id: 'dev-grid-style', css: `.main-area,.portfolio{background-image:linear-gradient(rgba(${accentRgb},0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(${accentRgb},0.04) 1px,transparent 1px)!important;background-size:20px 20px!important}` },
+    'dev-toggle-box-model': { id: 'dev-box-model-style', css: 'body.dev-bm-active *:hover{outline:1px solid rgba(0,120,255,0.4)!important;background:rgba(0,120,255,0.04)!important}', extraId: 'dev-box-model-hover', extraCss: 'body.dev-bm-active *:hover{outline:1px solid rgba(0,120,255,0.4)!important;background:rgba(0,120,255,0.04)!important}', extraClass: 'dev-bm-active' },
+  };
+  Object.entries(toggles).forEach(([toggleId, cfg]) => {
+    const toggle = document.getElementById(toggleId);
+    const style = document.getElementById(cfg.id);
+    const isOn = toggle?.classList.contains('dev-toggle--on');
+    if (isOn) {
+      if (!style) {
+        const s = document.createElement('style'); s.id = cfg.id; s.textContent = cfg.css; document.head.appendChild(s);
+        if (cfg.extraId && !document.getElementById(cfg.extraId)) {
+          const s2 = document.createElement('style'); s2.id = cfg.extraId; s2.textContent = cfg.extraCss; document.head.appendChild(s2);
+        }
+      }
+      // 确保关联的 body class 始终存在（stopAllMonitors 可能清除了）
+      if (cfg.extraClass) document.body.classList.add(cfg.extraClass);
+    } else {
+      if (style) { style.remove(); if (cfg.extraId) { const s2 = document.getElementById(cfg.extraId); if (s2) s2.remove(); } }
+      if (cfg.extraClass) document.body.classList.remove(cfg.extraClass);
+    }
+  });
+  ['dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track','dev-toggle-fluid-glass'].forEach(toggleId => {
+    const toggle = document.getElementById(toggleId);
+    if (!toggle?.classList.contains('dev-toggle--on')) return;
+    const key = toggleId.replace('dev-toggle-', '');
+    const id = `dev-${key}-style`;
+    if (document.getElementById(id)) return;
+    const cssMap = {
+      'overflow': '*{--_dev-of:none}[style*="overflow:hidden"],*[style*="overflow: hidden"]{outline:2px solid rgba(255,60,60,0.4)!important;outline-offset:-1px}',
+      'img-info': 'img{position:relative}img::after{content:attr(src);position:absolute;top:0;left:0;font-size:10px;color:#fff;background:rgba(0,0,0,0.7);padding:2px 6px;z-index:99999;pointer-events:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      'z-index': '[style*="z-index:"]::before{content:\'z:\' attr(style);position:absolute;top:0;left:0;font-size:9px;color:#ff0;background:rgba(0,0,0,0.8);padding:1px 4px;z-index:999999;pointer-events:none;font-family:monospace;white-space:nowrap;border-radius:2px}',
+      'empty-el': '*:empty:not(script):not(style):not(link):not(meta):not(br):not(hr):not(img):not(input):not(source):not(track):not(col){outline:2px solid rgba(255,100,200,0.6)!important;outline-offset:-1px!important;background:rgba(255,100,200,0.06)!important;min-width:20px!important;min-height:12px!important}',
+      'depth-color': 'body>*{outline:1px solid rgba(255,80,80,0.35)!important;outline-offset:-1px}body>*>*{outline:1px solid rgba(255,180,60,0.35)!important;outline-offset:-1px}body>*>*>*{outline:1px solid rgba(255,255,80,0.35)!important;outline-offset:-1px}body>*>*>*>*{outline:1px solid rgba(80,255,80,0.35)!important;outline-offset:-1px}body>*>*>*>*>*{outline:1px solid rgba(80,180,255,0.35)!important;outline-offset:-1px}body>*>*>*>*>*>*{outline:1px solid rgba(120,80,255,0.35)!important;outline-offset:-1px}body>*>*>*>*>*>*>*{outline:1px solid rgba(255,80,255,0.35)!important;outline-offset:-1px}',
+      'layout-hl': '[style*="display:flex" i],[style*="display: flex" i],.toolbar,.sidebar,.categories,.gallery__grid,.portfolio,.gallery__nav,.custom-dropdown__menu{outline:2px dashed rgba(0,200,255,0.5)!important;outline-offset:-1px!important}[style*="display:grid" i],[style*="display: grid" i],[class*="grid"]{outline:2px dashed rgba(255,200,0,0.5)!important;outline-offset:-1px!important}',
+      'link-info': 'a[href]:not([href="#"]):not([href=""]):hover::after{content:" → " attr(href)!important;position:absolute!important;top:100%!important;left:0!important;font-size:10px!important;font-family:monospace!important;color:#0ff!important;background:rgba(0,0,0,0.9)!important;padding:2px 8px!important;border-radius:3px!important;z-index:999999!important;pointer-events:none!important;white-space:nowrap!important;max-width:400px!important;overflow:hidden!important;text-overflow:ellipsis!important}a:not([href]),a[href="#"],a[href=""]{outline:2px dotted rgba(255,120,0,0.6)!important;outline-offset:2px!important}',
+      'img-alt': 'img:not([alt]){outline:3px solid rgba(255,60,60,0.7)!important;outline-offset:2px!important;filter:sepia(0.8) hue-rotate(-20deg)!important}img[alt=""]{outline:3px solid rgba(255,180,60,0.7)!important;outline-offset:2px!important}img:not([width]):not([height]){outline:1px dotted rgba(255,200,0,0.4)!important;outline-offset:3px!important}',
+    };
+    if (cssMap[key]) { const s = document.createElement('style'); s.id = id; s.textContent = cssMap[key]; document.head.appendChild(s); }
+  });
+
+  // 每次关闭面板时也确保调试样式存在（在 closeDevPanel 的 cleanup 后调用）
+  window.__lensRestoreDebugStyles = restoreDebugStyles;
 }
 
 function closeDevPanel() {
@@ -619,6 +677,8 @@ function closeDevPanel() {
     unlockBodyScroll();
     stopAllMonitors();
     stopPreviewAnimations();
+    // 关闭后确保调试样式存在（双重保障）
+    setTimeout(() => restoreDebugStyles(), 50);
   };
 
   const onEnd = (e) => {
@@ -694,6 +754,11 @@ function switchGroup(group) {
   const preview = document.getElementById('dev-preview');
   if (preview) preview.classList.toggle('dev-preview--hidden', group !== 'visual' && group !== 'presets' && group !== 'hero');
   renderGroup(group);
+  // 切换到预设/视觉/Hero 标签时立即刷新预览（无需等待点击预设卡片）
+  if (group === 'visual' || group === 'presets' || group === 'hero') {
+    buildDevPreview();
+    startPreviewAnimations();
+  }
 }
 
 // ── 分组渲染分发 ──
@@ -772,9 +837,10 @@ function buildDevPreview() {
   };
 
   // 设置 inner 容器内联样式（零 var() 依赖）
+  const previewBlurPx = 40 + (parseInt(V.glassBlur) || 0);
   inner.style.background = V.devPanelBg;
-  inner.style.backdropFilter = 'blur(40px)';
-  inner.style.webkitBackdropFilter = 'blur(40px)';
+  inner.style.backdropFilter = `blur(${previewBlurPx}px)`;
+  inner.style.webkitBackdropFilter = `blur(${previewBlurPx}px)`;
   inner.style.border = `0.5px solid ${V.glassBorderBright}`;
   inner.style.borderRadius = V.radius;
   inner.style.boxShadow = `0 8px 40px rgba(0,0,0,0.5), 0 0 0 0.5px ${V.glassBorder} inset`;
@@ -958,11 +1024,13 @@ function renderHeroGroup() {
       ${makeGlassColorRow('--hero-grad-top', '顶部亮色', style, '渐变顶部：明亮暖白高光')}
       ${makeGlassColorRow('--hero-grad-mid', '中部金色', style, '渐变中部：暖金色，为主要显示色')}
       ${makeGlassColorRow('--hero-grad-bot', '底部淡色', style, '渐变底部：淡金色，渐隐到透明')}
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">角标</div>
       <div class="dev-section__desc">启动后左上角 "LENS Beta" 文字颜色和悬停色</div>
       ${makeGlassColorRow('--corner-logo-color', '角标颜色', style, '左上角 "LENS Beta" 文字颜色')}
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">副标题与装饰线</div>
@@ -983,8 +1051,21 @@ function renderVisualGroup() {
   const style = getComputedStyle(document.documentElement);
 
   const html = `
-    <div class="dev-section">
-      <div class="dev-section__title">配色</div>
+    <div class="dev-visual-layout">
+      <div class="dev-subnav">
+        <button class="dev-subnav__btn dev-subnav__btn--active" data-subtab="all">全部</button>
+        <button class="dev-subnav__btn" data-subtab="color">色彩</button>
+        <button class="dev-subnav__btn" data-subtab="glass">玻璃</button>
+        <button class="dev-subnav__btn" data-subtab="capsule">胶囊</button>
+        <button class="dev-subnav__btn" data-subtab="layout">布局</button>
+        <button class="dev-subnav__btn" data-subtab="font">字体</button>
+        <button class="dev-subnav__btn" data-subtab="motion">动效</button>
+        <button class="dev-subnav__btn" data-subtab="debug">调试</button>
+      </div>
+      <div class="dev-subcontent">
+    <div class="dev-section" data-subtab="color">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">配色</summary>
       <div class="dev-section__desc">全局色彩方案：强调色用于按钮和交互，文字三级用于标题/正文/辅助信息</div>
       ${makeColorRow('--accent', '强调色', style, '按钮悬停、激活态、图标的高亮色')}
       ${makeColorRow('--bg', '背景色', style, '页面主背景色')}
@@ -992,10 +1073,12 @@ function renderVisualGroup() {
       ${makeColorRow('--text', '主文字', style, '标题和重要文字的颜色')}
       ${makeColorRow('--text-2', '次文字', style, '正文和描述的默认颜色')}
       ${makeColorRow('--text-3', '三级文字', style, '辅助信息和标签的颜色')}
+    </details>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">表面</div>
-      <div class="dev-section__desc">毛玻璃面板和卡片的质感：背景透明度、边框、悬停态、阴影深度和模糊强度</div>
+    <div class="dev-section" data-subtab="glass">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">表面</summary>
+      <div class="dev-section__desc">全局毛玻璃参数。下方的「全局模糊叠加」是主控——它影响下方所有分区模糊的最终值（最终 = 分区基础值 + 全局叠加）</div>
       ${makeGlassColorRow('--glass-bg', '玻璃背景', style, '侧边栏/工具栏/面板的磨砂底色')}
       ${makeGlassColorRow('--glass-bg-hover', '玻璃悬停', style, '鼠标悬浮时加深的背景色')}
       ${makeGlassColorRow('--glass-border', '玻璃边框', style, '毛玻璃面板的边缘线条颜色')}
@@ -1004,25 +1087,100 @@ function renderVisualGroup() {
       ${makeGlassColorRow('--card-hover-bg', '悬停背景', style, '卡片悬浮时的加深背景')}
       ${makeTextInputRow('--card-shadow', '卡片阴影', style, 'CSS box-shadow 值，如 0 4px 24px rgba(0,0,0,0.3)')}
       ${makeSliderRow('--shadow-depth', '阴影深度', style, 0, 2.0, 'x', 0.05, 2, '阴影深浅倍率，0=无阴影 2=最深')}
-      ${makeSliderRow('--glass-blur', '模糊量', style, 0, 60, 'px', null, 0, '毛玻璃 backdrop-filter 的 blur 像素值')}
+      ${makeSliderRow('--glass-blur', '全局模糊叠加', style, 0, 60, 'px', null, 0, '重点！所有分区模糊的统一偏移量。最终模糊 = 分区基础值 + 此值。例：侧边栏 24px + 此值 10px = 最终34px')}
+      ${makeSliderRow('--dev-panel-blur', 'Dev面板模糊', style, 0, 120, 'px', null, 0, '开发者面板自身的毛玻璃模糊量(基础40px)')}
       ${makeGlassColorRow('--dev-panel-bg', 'Dev面板背景', style, '开发者面板自身的背景色')}
+    </details>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">圆角</div>
+    <div class="dev-section" data-subtab="glass">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">分区玻璃</summary>
+      <div class="dev-section__desc">每个 UI 区域的毛玻璃效果独立调节。默认值继承自全局暖色调。此处模糊值为「基础值」——最终渲染模糊 = 基础值 + 上方「全局模糊叠加」</div>
+      <details class="dev-zone">
+        <summary class="dev-zone__summary">侧边栏 (Sidebar)</summary>
+        ${makeGlassColorRow('--sidebar-glass-bg', '背景', style, '侧边栏面板毛玻璃背景色')}
+        ${makeGlassColorRow('--sidebar-glass-bg-hover', '悬停背景', style, '鼠标悬浮/激活时的背景色')}
+        ${makeGlassColorRow('--sidebar-glass-border', '边框', style, '侧边栏面板边框色')}
+        ${makeGlassColorRow('--sidebar-glass-border-bright', '亮边框', style, '悬浮/激活时的高亮边框色')}
+        ${makeSliderRow('--sidebar-glass-blur', '模糊量', style, 0, 80, 'px', null, 0, '侧边栏 backdrop-filter 模糊像素')}
+      </details>
+      <details class="dev-zone">
+        <summary class="dev-zone__summary">标题栏 (Titlebar)</summary>
+        ${makeGlassColorRow('--titlebar-glass-bg', '背景', style, '标题栏控件背景色')}
+        ${makeGlassColorRow('--titlebar-glass-bg-hover', '悬停背景', style, '标题栏按钮悬浮背景色')}
+        ${makeGlassColorRow('--titlebar-glass-border', '边框', style, '标题栏控件边框色')}
+        ${makeGlassColorRow('--titlebar-btn-color', '按钮文字', style, '标题栏按钮文字颜色')}
+        ${makeSliderRow('--titlebar-glass-blur', '模糊量', style, 0, 60, 'px', null, 0, '标题栏 backdrop-filter 模糊像素')}
+      </details>
+      <details class="dev-zone">
+        <summary class="dev-zone__summary">工具栏 (Toolbar)</summary>
+        ${makeGlassColorRow('--toolbar-glass-bg', '背景', style, '工具栏毛玻璃背景色')}
+        ${makeGlassColorRow('--toolbar-glass-bg-hover', '悬停背景', style, '工具栏按钮悬浮背景色')}
+        ${makeGlassColorRow('--toolbar-glass-border', '边框', style, '工具栏边框色')}
+        ${makeGlassColorRow('--toolbar-btn-color', '按钮文字', style, '工具栏按钮文字颜色')}
+        ${makeSliderRow('--toolbar-glass-blur', '模糊量', style, 0, 60, 'px', null, 0, '工具栏 backdrop-filter 模糊像素')}
+      </details>
+      <details class="dev-zone">
+        <summary class="dev-zone__summary">卡片 (Cards)</summary>
+        ${makeGlassColorRow('--card-glass-bg', '背景', style, '分类卡片默认背景色')}
+        ${makeGlassColorRow('--card-glass-bg-hover', '悬停背景', style, '卡片悬浮时背景色')}
+        ${makeGlassColorRow('--card-glass-border', '边框', style, '分类卡片默认边框色')}
+        ${makeGlassColorRow('--card-glass-border-bright', '亮边框', style, '卡片悬浮时边框色')}
+        ${makeSliderRow('--card-hover-blur', '卡片悬浮模糊', style, 0, 40, 'px', null, 0, '鼠标悬浮分类卡片/画廊图片时的模糊像素')}
+        ${makeSliderRow('--gallery-nav-blur', '导航条模糊', style, 0, 80, 'px', null, 0, '画廊顶部导航条的毛玻璃模糊像素')}
+        ${makeSliderRow('--dropdown-blur', '下拉菜单模糊', style, 0, 80, 'px', null, 0, '排序/筛选下拉菜单的毛玻璃模糊像素')}
+      </details>
+      <details class="dev-zone">
+        <summary class="dev-zone__summary">面板 (Panels)</summary>
+        ${makeGlassColorRow('--panel-glass-bg', '背景', style, '设置/快捷键面板背景色')}
+        ${makeGlassColorRow('--panel-glass-bg-hover', '悬停背景', style, '设置面板列表项悬停背景色')}
+        ${makeGlassColorRow('--panel-glass-border', '边框', style, '设置/快捷键面板边框色')}
+        ${makeSliderRow('--panel-glass-blur', '设置面板模糊', style, 0, 80, 'px', null, 0, '设置面板 backdrop-filter 模糊像素')}
+        ${makeSliderRow('--shortcuts-blur', '快捷键面板模糊', style, 0, 80, 'px', null, 0, '快捷键面板 backdrop-filter 模糊像素')}
+      </details>
+      <details class="dev-zone">
+        <summary class="dev-zone__summary">灯箱/幻灯片 (Lightbox)</summary>
+        ${makeGlassColorRow('--lightbox-glass-bg', '按钮背景', style, '灯箱/幻灯片按钮背景色')}
+        ${makeGlassColorRow('--lightbox-glass-bg-hover', '按钮悬停背景', style, '灯箱按钮悬浮背景色')}
+        ${makeGlassColorRow('--lightbox-glass-border', '按钮边框', style, '灯箱/幻灯片按钮边框色')}
+        ${makeSliderRow('--lightbox-glass-blur', '灯箱背景模糊', style, 0, 80, 'px', null, 0, '灯箱全屏背景 backdrop-filter 模糊像素')}
+        ${makeSliderRow('--lightbox-btn-blur', '按钮模糊', style, 0, 60, 'px', null, 0, '灯箱导航按钮(关闭/前后)的毛玻璃模糊像素')}
+        ${makeSliderRow('--lightbox-exif-blur', 'EXIF模糊', style, 0, 60, 'px', null, 0, '灯箱 EXIF 信息条的毛玻璃模糊像素')}
+        ${makeSliderRow('--slideshow-blur', '幻灯片模糊', style, 0, 60, 'px', null, 0, '幻灯片播放控件的毛玻璃模糊像素')}
+      </details>
+    </details>
+    </div>
+    <div class="dev-section" data-subtab="layout">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">圆角</summary>
       <div class="dev-section__desc">所有 UI 元素的转角弧度：大圆角影响卡片和面板，小圆角影响按钮和输入框，胶囊圆角影响开关和加载条</div>
       ${makeSliderRow('--radius', '大圆角', style, 0, 40, 'px', null, 0, '卡片、面板、弹窗等大元素的圆角')}
       ${makeSliderRow('--radius-sm', '小圆角', style, 0, 30, 'px', null, 0, '按钮、输入框、标签等小元素的圆角')}
-      ${makeSliderRow('--radius-pill', '胶囊圆角', style, 0, 100, 'px', null, 0, '开关、加载条、筛选按钮的胶囊圆角')}
+    </details>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">网格与间距</div>
+    <div class="dev-section" data-subtab="capsule">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">加载胶囊</summary>
+      <div class="dev-section__desc">启动加载进度条的胶囊外观：圆角、粗细和三级文字颜色。圆角影响所有胶囊元素（开关/筛选按钮等）</div>
+      ${makeSliderRow('--radius-pill', '胶囊圆角', style, 0, 100, 'px', null, 0, '胶囊圆角：影响加载条、开关、筛选按钮等')}
+      ${makeSliderRow('--loading-track-height', '轨道粗细', style, 1, 20, 'px', null, 0, '加载进度轨道的厚度')}
+      ${makeGlassColorRow('--loading-color', '加载主色', style, '进度文字和轨道颜色')}
+      ${makeGlassColorRow('--loading-color-dim', '加载次色', style, '首次加载提示文字颜色')}
+      ${makeGlassColorRow('--loading-color-soft', '加载柔色', style, '底部轮播金句颜色')}
+    </details>
+    </div>
+    <div class="dev-section" data-subtab="layout">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">网格与间距</summary>
       <div class="dev-section__desc">照片网格的卡片尺寸、元素之间的间距倍率和区块间距</div>
       ${makeSliderRow('--thumb-card-size', '缩略图尺寸', style, 120, 600, 'px', null, 0, '照片网格中每张卡片的大小')}
       ${makeSliderRow('--gap-scale', '间距倍率', style, 0.5, 2.0, 'x', 0.05, 2, '卡片之间的间距缩放 0.5=紧凑 2=宽松')}
       ${makeSliderRow('--section-gap', '区块间距', style, 0.5, 4, 'rem', 0.25, 2, '各页面区块之间的垂直间距')}
+    </details>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">字体</div>
+    <div class="dev-section" data-subtab="font">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">字体</summary>
       <div class="dev-section__desc">标题、正文、辅助标签和等宽文字的字体族、粗细、字距、斜体，以及全局大小写变换</div>
 
       <!-- 全局 -->
@@ -1059,16 +1217,11 @@ function renderVisualGroup() {
       ${makeSliderRow('--font-weight-mono', '字重', style, 100, 900, '', 100, 0, '100=纤细 400=常规 700=粗')}
       ${makeSliderRow('--letter-spacing-mono', '字距', style, -0.05, 0.3, 'em', 0.01, 2, '负值收紧 0=默认 正值放宽')}
       ${makeBtnGroupRow('--font-style-mono', '斜体', style, [['normal','常规'],['italic','斜体']], '等宽文字斜体/正体')}
+    </details>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">加载画面</div>
-      <div class="dev-section__desc">启动加载时的文字、提示和轮播金句的颜色（均为暖金基调 rgba，可分别调色相和透明度）</div>
-      ${makeGlassColorRow('--loading-color', '加载文字色', style, '加载进度文字和胶囊光点颜色')}
-      ${makeGlassColorRow('--loading-color-dim', '加载次色', style, '首次加载提示文字的颜色')}
-      ${makeGlassColorRow('--loading-color-soft', '加载柔色', style, '底部轮播金句的颜色')}
-    </div>
-    <div class="dev-section">
-      <div class="dev-section__title">动效</div>
+    <div class="dev-section" data-subtab="motion">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">动效</summary>
       <div class="dev-section__desc">过渡动画的缓动曲线和全局动画速度倍率（0=禁用全部动画）</div>
       ${makeTextInputRow('--ease-out', '缓出', style, 'CSS cubic-bezier 缓出曲线')}
       ${makeTextInputRow('--ease-spring', '弹簧', style, 'CSS cubic-bezier 弹性曲线')}
@@ -1077,33 +1230,47 @@ function renderVisualGroup() {
         <span class="dev-row__label">全部动画</span>
         <button class="dev-toggle dev-toggle--on" id="dev-toggle-anim" data-key="anim"></button>
       </div>
+    </details>
     </div>
-    <div class="dev-section">
-      <div class="dev-section__title">调试</div>
-      <div class="dev-section__desc">开发辅助工具：可视化元素边界、网格对齐、盒模型层级、溢出检测和层级标签</div>
-      <div class="dev-row">
-        <span class="dev-row__label">元素轮廓</span>
-        <button class="dev-toggle" id="dev-toggle-outline" data-key="outline"></button>
-      </div>
-      <div class="dev-row" style="margin-top:4px">
-        <span class="dev-row__label">网格线</span>
-        <button class="dev-toggle" id="dev-toggle-grid-lines" data-key="grid-lines"></button>
-      </div>
-      <div class="dev-row" style="margin-top:4px">
-        <span class="dev-row__label">盒模型层</span>
-        <button class="dev-toggle" id="dev-toggle-box-model" data-key="box-model"></button>
-      </div>
-      <div class="dev-row" style="margin-top:4px">
-        <span class="dev-row__label">overflow 标记</span>
-        <button class="dev-toggle" id="dev-toggle-overflow" data-key="overflow"></button>
-      </div>
-      <div class="dev-row" style="margin-top:4px">
-        <span class="dev-row__label">图片信息</span>
-        <button class="dev-toggle" id="dev-toggle-img-info" data-key="img-info"></button>
-      </div>
-      <div class="dev-row" style="margin-top:4px">
-        <span class="dev-row__label">z-index 标签</span>
-        <button class="dev-toggle" id="dev-toggle-z-index" data-key="z-index"></button>
+    <div class="dev-section" data-subtab="debug">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">调试</summary>
+      <div class="dev-section__desc">开发辅助工具集：关闭面板后持续生效，各开关独立控制</div>
+
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">布局分析</div>
+      <div class="dev-row" title="所有元素添加半透明强调色边框，看清每个元素的边界和占位"><span class="dev-row__label">元素轮廓</span><button class="dev-toggle" id="dev-toggle-outline" data-key="outline"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="主区域叠加 20px 网格背景线，检查像素级对齐和间距一致性"><span class="dev-row__label">网格线</span><button class="dev-toggle" id="dev-toggle-grid-lines" data-key="grid-lines"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="鼠标悬停时蓝色填充 + margin虚线，直观显示 content/padding/border/margin 四层"><span class="dev-row__label">盒模型层</span><button class="dev-toggle" id="dev-toggle-box-model" data-key="box-model"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="蓝色虚线标记 flex 容器，黄色虚线标记 grid 容器，快速识别页面布局模式"><span class="dev-row__label">Flex/Grid 高亮</span><button class="dev-toggle" id="dev-toggle-layout-hl" data-key="layout-hl"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="七色彩虹由浅入深着色(红橙黄绿蓝紫粉)，通过颜色快速判断元素在 DOM 树中的嵌套深度"><span class="dev-row__label">嵌套深度</span><button class="dev-toggle" id="dev-toggle-depth-color" data-key="depth-color"></button></div>
+
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">元素检测</div>
+      <div class="dev-row" title="红色边框标记所有 overflow:hidden 元素，快速定位可能导致内容被裁切隐藏的位置"><span class="dev-row__label">overflow 标记</span><button class="dev-toggle" id="dev-toggle-overflow" data-key="overflow"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="粉色标记空元素(无子节点无文本)，排除 br/hr/img/input 等自闭合标签"><span class="dev-row__label">空元素标记</span><button class="dev-toggle" id="dev-toggle-empty-el" data-key="empty-el"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="红色标记无 alt 属性的图片，黄色标记空 alt，虚线标记未设 width/height 的图片"><span class="dev-row__label">图片alt检查</span><button class="dev-toggle" id="dev-toggle-img-alt" data-key="img-alt"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="悬停链接显示 href 目标地址；橙色虚线标记无效链接(href为空或#)"><span class="dev-row__label">链接标记</span><button class="dev-toggle" id="dev-toggle-link-info" data-key="link-info"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="图片左上角叠加 src 文件路径，追踪每张图片的来源"><span class="dev-row__label">图片信息</span><button class="dev-toggle" id="dev-toggle-img-info" data-key="img-info"></button></div>
+
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">信息叠加</div>
+      <div class="dev-row" title="悬停时左上角显示标签名和类名如 <div.container>，快速识别元素类型和选择器"><span class="dev-row__label">元素标签</span><button class="dev-toggle" id="dev-toggle-tag-labels" data-key="tag-labels"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="悬停文本元素时显示字体族简称 + 字号 + 字重，检查排版一致性"><span class="dev-row__label">字体详情</span><button class="dev-toggle" id="dev-toggle-font-info" data-key="font-info"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="悬停时右下角显示元素实际渲染宽×高(px)，检查元素尺寸是否符合预期"><span class="dev-row__label">尺寸标注</span><button class="dev-toggle" id="dev-toggle-size-label" data-key="size-label"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="黄色标签显示内联 z-index 值，用于调试元素层叠顺序问题"><span class="dev-row__label">z-index 标签</span><button class="dev-toggle" id="dev-toggle-z-index" data-key="z-index"></button></div>
+
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">性能检测</div>
+      <div class="dev-row" title="左上角实时显示帧率(FPS)，刷新率低于60时数字变红"><span class="dev-row__label">FPS 角标</span><button class="dev-toggle" id="dev-toggle-fps-badge" data-key="fps-badge"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="红色标记渲染尺寸远小于原始尺寸的图片(浪费带宽)，悬停显示原始尺寸"><span class="dev-row__label">图片浪费</span><button class="dev-toggle" id="dev-toggle-img-waste" data-key="img-waste"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="左上角显示页面总 DOM 节点数，节点过多(>3000)时变红警告"><span class="dev-row__label">DOM 统计</span><button class="dev-toggle" id="dev-toggle-dom-stats" data-key="dom-stats"></button></div>
+
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">输入检测</div>
+      <div class="dev-row" title="屏幕底部显示最近按下的键名和键码，用于调试快捷键和键盘事件"><span class="dev-row__label">键盘日志</span><button class="dev-toggle" id="dev-toggle-key-log" data-key="key-log"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="鼠标/触摸点击位置显示波纹扩散动画，确认点击坐标和事件触发位置"><span class="dev-row__label">点击波纹</span><button class="dev-toggle" id="dev-toggle-click-ripple" data-key="click-ripple"></button></div>
+      <div class="dev-row" style="margin-top:3px" title="始终高亮当前 focus 元素(蓝色发光边框)，方便键盘导航调试"><span class="dev-row__label">焦点追踪</span><button class="dev-toggle" id="dev-toggle-focus-track" data-key="focus-track"></button></div>
+
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">测试实验</div>
+      <div class="dev-row" title="200px液态玻璃球完全跟随鼠标——径向渐变模拟折射高光 + 毛玻璃模糊穿透"><span class="dev-row__label">液态玻璃</span><button class="dev-toggle" id="dev-toggle-fluid-glass" data-key="fluid-glass"></button></div>
+    </details>
+    </div>
       </div>
     </div>
   `;
@@ -1128,7 +1295,11 @@ function makeColorRow(key, label, style, tip) {
 
 function makeSliderRow(key, label, style, min, max, unit, step, decimals, tip) {
   const raw = style.getPropertyValue(key).trim();
-  const num = parseFloat(raw) || min;
+  // 解析 calc() 表达式（如 "calc(24px + 0px)"），提取第一个数字
+  const calcMatch = raw.match(/^calc\(([\d.]+)px/);
+  // 解析 var() 表达式（如 "var(--glass-blur,0px)"），提取 fallback 数字
+  const varMatch = raw.match(/^var\([^,]+,\s*([\d.]+)px/);
+  const num = calcMatch ? parseFloat(calcMatch[1]) : (varMatch ? parseFloat(varMatch[1]) : (parseFloat(raw) || min));
   const s = step || (max - min > 100 ? 5 : 1);
   const d = decimals != null ? decimals : (s < 1 ? 2 : 0);
   const tipAttr = tip ? ` title="${tip}"` : '';
@@ -1201,6 +1372,17 @@ function makeFontFamilyRow(key, style, presets, tooltip) {
 function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function bindVisualControls(el) {
+  // 视觉面板左侧二级导航
+  el.querySelectorAll('.dev-subnav [data-subtab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const subtab = btn.dataset.subtab;
+      el.querySelectorAll('.dev-subnav [data-subtab]').forEach(b => b.classList.remove('dev-subnav__btn--active'));
+      btn.classList.add('dev-subnav__btn--active');
+      el.querySelectorAll('.dev-section[data-subtab]').forEach(sec => {
+        sec.style.display = (subtab === 'all' || sec.dataset.subtab === subtab) ? '' : 'none';
+      });
+    });
+  });
   // 颜色
   el.querySelectorAll('.dev-color').forEach(input => {
     input.addEventListener('input', () => {
@@ -1247,15 +1429,12 @@ function bindVisualControls(el) {
           if (ds) ds.remove();
         }
       }
-      if (key === '--glass-blur') {
-        const s = document.getElementById('dev-glass-blur-style');
-        if (s) s.remove();
-      }
       // 同步控件
       const slider = el.querySelector(`.dev-slider[data-css="${key}"]`);
       const color = el.querySelector(`.dev-color[data-css="${key}"]`);
       if (slider) {
-        const num = parseFloat(def) || 0;
+        const calcMatch = def.match(/^calc\(([\d.]+)px/);
+        const num = calcMatch ? parseFloat(calcMatch[1]) : (parseFloat(def) || 0);
         slider.value = num;
         const display = slider.parentElement.querySelector(`[data-display="${key}"]`);
         if (display) {
@@ -1350,20 +1529,12 @@ function bindVisualControls(el) {
     });
   }
 
-  // --glass-blur 滑块：注入 style 覆盖所有 backdrop-filter blur
+  // --glass-blur 滑块：直接设置 CSS 变量，所有 backdrop-filter 通过 var() 引用
   const glassBlurSlider = el.querySelector('.dev-slider[data-css="--glass-blur"]');
   if (glassBlurSlider) {
     glassBlurSlider.addEventListener('input', () => {
       const val = parseFloat(glassBlurSlider.value);
       document.documentElement.style.setProperty('--glass-blur', val + 'px');
-      let s = document.getElementById('dev-glass-blur-style');
-      if (s) s.remove();
-      if (val > 0) {
-        s = document.createElement('style'); s.id = 'dev-glass-blur-style';
-        // 选择所有带 backdrop-filter 的元素，额外叠加 blur
-        s.textContent = `[style*="backdrop-filter"], .sidebar, .dev-panel, .toolbar, .gallery__nav, .lightbox.active, .back-to-top { --_glass-blur-extra: ${val}px; }`;
-        document.head.appendChild(s);
-      }
     });
   }
 
@@ -1373,8 +1544,9 @@ function bindVisualControls(el) {
     outlineToggle.addEventListener('click', () => {
       const on = outlineToggle.classList.toggle('dev-toggle--on');
       if (on) {
+        const accentRgb = (() => { const a = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#c8a87c'; const m=a.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i); return m?`${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`:'200,168,124'; })();
         const s = document.createElement('style'); s.id = 'dev-outline-style';
-        s.textContent = `* { outline: 0.5px solid rgba(var(--accent-rgb), 0.15) !important; }`;
+        s.textContent = `*{outline:0.5px solid rgba(${accentRgb},0.15)!important}`;
         document.head.appendChild(s);
       } else {
         const s = document.getElementById('dev-outline-style');
@@ -1388,8 +1560,9 @@ function bindVisualControls(el) {
     gridToggle.addEventListener('click', () => {
       const on = gridToggle.classList.toggle('dev-toggle--on');
       if (on) {
+        const accentRgb = (() => { const a = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#c8a87c'; const m=a.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i); return m?`${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`:'200,168,124'; })();
         const s = document.createElement('style'); s.id = 'dev-grid-style';
-        s.textContent = `.main-area, .portfolio { background-image: linear-gradient(rgba(var(--accent-rgb), 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--accent-rgb), 0.04) 1px, transparent 1px); background-size: 20px 20px; }`;
+        s.textContent = `.main-area,.portfolio{background-image:linear-gradient(rgba(${accentRgb},0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(${accentRgb},0.04) 1px,transparent 1px)!important;background-size:20px 20px!important}`;
         document.head.appendChild(s);
       } else {
         const s = document.getElementById('dev-grid-style');
@@ -1466,6 +1639,406 @@ function bindVisualControls(el) {
       } else {
         const s = document.getElementById('dev-z-index-style');
         if (s) s.remove();
+      }
+    });
+  }
+
+  // 元素标签 — hover 显示标签名和类名
+  const tagLabelsToggle = el.querySelector('#dev-toggle-tag-labels');
+  if (tagLabelsToggle) {
+    let tagLabelsObserver = null;
+    tagLabelsToggle.addEventListener('click', () => {
+      const on = tagLabelsToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-tag-labels-style';
+        s.textContent = '*[data-dev-tag]:hover::after{content:attr(data-dev-tag)!important;position:absolute!important;top:-20px!important;left:0!important;font-size:10px!important;font-family:monospace!important;color:#fff!important;background:rgba(0,0,0,0.85)!important;padding:2px 6px!important;border-radius:3px!important;z-index:999999!important;pointer-events:none!important;white-space:nowrap!important}';
+        document.head.appendChild(s);
+        // 一次扫描给元素打标签
+        const tagAll = () => document.querySelectorAll('*').forEach(el => {
+          if (el === document.documentElement || el === document.body) return;
+          const tag = el.tagName.toLowerCase();
+          const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').filter(c=>c).slice(0,2).join('.') : '';
+          el.setAttribute('data-dev-tag', `<${tag}${cls}>`);
+        });
+        tagAll();
+        tagLabelsObserver = new MutationObserver(() => tagAll());
+        tagLabelsObserver.observe(document.body, { childList: true, subtree: true });
+      } else {
+        const s = document.getElementById('dev-tag-labels-style'); if (s) s.remove();
+        if (tagLabelsObserver) { tagLabelsObserver.disconnect(); tagLabelsObserver = null; }
+        document.querySelectorAll('[data-dev-tag]').forEach(el => el.removeAttribute('data-dev-tag'));
+      }
+    });
+  }
+
+  // Flex/Grid 高亮
+  const layoutHlToggle = el.querySelector('#dev-toggle-layout-hl');
+  if (layoutHlToggle) {
+    layoutHlToggle.addEventListener('click', () => {
+      const on = layoutHlToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-layout-hl-style';
+        s.textContent = `[style*="display:flex" i],[style*="display: flex" i],.toolbar,.sidebar,.categories,.gallery__grid,.portfolio,.gallery__nav,.custom-dropdown__menu{outline:2px dashed rgba(0,200,255,0.5)!important;outline-offset:-1px!important}
+[style*="display:grid" i],[style*="display: grid" i],[class*="grid"]{outline:2px dashed rgba(255,200,0,0.5)!important;outline-offset:-1px!important}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-layout-hl-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 空元素标记
+  const emptyElToggle = el.querySelector('#dev-toggle-empty-el');
+  if (emptyElToggle) {
+    emptyElToggle.addEventListener('click', () => {
+      const on = emptyElToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-empty-el-style';
+        s.textContent = `*:empty:not(script):not(style):not(link):not(meta):not(br):not(hr):not(img):not(input):not(source):not(track):not(col){outline:2px solid rgba(255,100,200,0.6)!important;outline-offset:-1px!important;background:rgba(255,100,200,0.06)!important;min-width:20px!important;min-height:12px!important}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-empty-el-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 嵌套深度着色
+  const depthToggle = el.querySelector('#dev-toggle-depth-color');
+  if (depthToggle) {
+    depthToggle.addEventListener('click', () => {
+      const on = depthToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-depth-color-style';
+        s.textContent = `body>*{outline:1px solid rgba(255,80,80,0.35)!important;outline-offset:-1px}
+body>*>*{outline:1px solid rgba(255,180,60,0.35)!important;outline-offset:-1px}
+body>*>*>*{outline:1px solid rgba(255,255,80,0.35)!important;outline-offset:-1px}
+body>*>*>*>*{outline:1px solid rgba(80,255,80,0.35)!important;outline-offset:-1px}
+body>*>*>*>*>*{outline:1px solid rgba(80,180,255,0.35)!important;outline-offset:-1px}
+body>*>*>*>*>*>*{outline:1px solid rgba(120,80,255,0.35)!important;outline-offset:-1px}
+body>*>*>*>*>*>*>*{outline:1px solid rgba(255,80,255,0.35)!important;outline-offset:-1px}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-depth-color-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 字体详情 — hover 显示字体栈
+  const fontInfoToggle = el.querySelector('#dev-toggle-font-info');
+  if (fontInfoToggle) {
+    let fontInfoObserver = null;
+    fontInfoToggle.addEventListener('click', () => {
+      const on = fontInfoToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-font-info-style';
+        s.textContent = `*[data-dev-font]:hover::after{content:attr(data-dev-font)!important;position:absolute!important;top:-28px!important;left:0!important;font-size:10px!important;font-family:monospace!important;color:#ff0!important;background:rgba(0,0,0,0.9)!important;padding:2px 8px!important;border-radius:3px!important;z-index:999999!important;pointer-events:none!important;white-space:nowrap!important;max-width:400px!important;overflow:hidden!important;text-overflow:ellipsis!important}`;
+        document.head.appendChild(s);
+        const tagFonts = () => document.querySelectorAll('p,span,a,h1,h2,h3,h4,h5,h6,div,button,li,td,th,label,figcaption,blockquote').forEach(el => {
+          const cs = getComputedStyle(el);
+          const info = `${cs.fontFamily.split(',')[0].trim()} ${cs.fontSize} w${cs.fontWeight}`;
+          el.setAttribute('data-dev-font', info);
+        });
+        tagFonts();
+        fontInfoObserver = new MutationObserver(() => tagFonts());
+        fontInfoObserver.observe(document.body, { childList: true, subtree: true });
+      } else {
+        const s = document.getElementById('dev-font-info-style'); if (s) s.remove();
+        if (fontInfoObserver) { fontInfoObserver.disconnect(); fontInfoObserver = null; }
+        document.querySelectorAll('[data-dev-font]').forEach(el => el.removeAttribute('data-dev-font'));
+      }
+    });
+  }
+
+  // 链接标记
+  const linkInfoToggle = el.querySelector('#dev-toggle-link-info');
+  if (linkInfoToggle) {
+    linkInfoToggle.addEventListener('click', () => {
+      const on = linkInfoToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-link-info-style';
+        s.textContent = `a[href]:not([href="#"]):not([href=""]):hover::after{content:" → " attr(href)!important;position:absolute!important;top:100%!important;left:0!important;font-size:10px!important;font-family:monospace!important;color:#0ff!important;background:rgba(0,0,0,0.9)!important;padding:2px 8px!important;border-radius:3px!important;z-index:999999!important;pointer-events:none!important;white-space:nowrap!important;max-width:400px!important;overflow:hidden!important;text-overflow:ellipsis!important}
+a:not([href]),a[href="#"],a[href=""]{outline:2px dotted rgba(255,120,0,0.6)!important;outline-offset:2px!important}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-link-info-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 图片alt检查
+  const imgAltToggle = el.querySelector('#dev-toggle-img-alt');
+  if (imgAltToggle) {
+    imgAltToggle.addEventListener('click', () => {
+      const on = imgAltToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-img-alt-style';
+        s.textContent = `img:not([alt]){outline:3px solid rgba(255,60,60,0.7)!important;outline-offset:2px!important;filter:sepia(0.8) hue-rotate(-20deg)!important}
+img[alt=""]{outline:3px solid rgba(255,180,60,0.7)!important;outline-offset:2px!important}
+img:not([width]):not([height]){outline:1px dotted rgba(255,200,0,0.4)!important;outline-offset:3px!important}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-img-alt-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 尺寸标注 — 悬浮显示元素宽高
+  const sizeLabelToggle = el.querySelector('#dev-toggle-size-label');
+  if (sizeLabelToggle) {
+    let sizeLabelObserver = null;
+    sizeLabelToggle.addEventListener('click', () => {
+      const on = sizeLabelToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-size-label-style';
+        s.textContent = `*[data-dev-size]:hover::after{content:attr(data-dev-size)!important;position:absolute!important;bottom:-22px!important;right:0!important;font-size:10px!important;font-family:monospace!important;color:#0f0!important;background:rgba(0,0,0,0.9)!important;padding:2px 6px!important;border-radius:3px!important;z-index:999999!important;pointer-events:none!important;white-space:nowrap!important}`;
+        document.head.appendChild(s);
+        const tagSizes = () => document.querySelectorAll('div,section,article,main,nav,aside,header,footer,img,picture,video,canvas,iframe').forEach(el => {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 || r.height > 0) el.setAttribute('data-dev-size', `${Math.round(r.width)}×${Math.round(r.height)}`);
+        });
+        tagSizes();
+        sizeLabelObserver = new MutationObserver(() => tagSizes());
+        sizeLabelObserver.observe(document.body, { childList: true, subtree: true });
+      } else {
+        const s = document.getElementById('dev-size-label-style'); if (s) s.remove();
+        if (sizeLabelObserver) { sizeLabelObserver.disconnect(); sizeLabelObserver = null; }
+        document.querySelectorAll('[data-dev-size]').forEach(el => el.removeAttribute('data-dev-size'));
+      }
+    });
+  }
+
+  // FPS 角标 — 实时帧率显示
+  const fpsBadgeToggle = el.querySelector('#dev-toggle-fps-badge');
+  if (fpsBadgeToggle) {
+    let fpsBadgeRaf = null, fpsBadgeLast = 0, fpsBadgeFrames = 0, fpsBadgeEl = null;
+    fpsBadgeToggle.addEventListener('click', () => {
+      const on = fpsBadgeToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        fpsBadgeEl = document.createElement('div'); fpsBadgeEl.id = 'dev-fps-badge';
+        fpsBadgeEl.style.cssText = 'position:fixed;top:8px;left:8px;z-index:999999;font-family:monospace;font-size:12px;font-weight:700;color:#0f0;background:rgba(0,0,0,0.8);padding:3px 8px;border-radius:4px;pointer-events:none;';
+        document.body.appendChild(fpsBadgeEl);
+        const tick = (now) => {
+          fpsBadgeFrames++;
+          if (now - fpsBadgeLast >= 1000) {
+            const fps = Math.round(fpsBadgeFrames * 1000 / (now - fpsBadgeLast));
+            fpsBadgeEl.textContent = fps + ' FPS';
+            fpsBadgeEl.style.color = fps < 30 ? '#f44' : fps < 60 ? '#fa0' : '#0f0';
+            fpsBadgeFrames = 0; fpsBadgeLast = now;
+          }
+          fpsBadgeRaf = requestAnimationFrame(tick);
+        };
+        fpsBadgeLast = performance.now();
+        fpsBadgeRaf = requestAnimationFrame(tick);
+      } else {
+        if (fpsBadgeRaf) { cancelAnimationFrame(fpsBadgeRaf); fpsBadgeRaf = null; }
+        if (fpsBadgeEl) { fpsBadgeEl.remove(); fpsBadgeEl = null; }
+      }
+    });
+  }
+
+  // 图片浪费检测
+  const imgWasteToggle = el.querySelector('#dev-toggle-img-waste');
+  if (imgWasteToggle) {
+    imgWasteToggle.addEventListener('click', () => {
+      const on = imgWasteToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-img-waste-style';
+        s.textContent = `img[data-dev-wasted]{outline:2px solid rgba(255,60,60,0.6)!important;outline-offset:2px!important;filter:sepia(0.3)!important}
+img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;position:absolute!important;top:0!important;left:0!important;font-size:10px!important;font-family:monospace!important;color:#f44!important;background:rgba(0,0,0,0.9)!important;padding:2px 6px!important;z-index:999999!important;pointer-events:none!important;white-space:nowrap!important}`;
+        document.head.appendChild(s);
+        document.querySelectorAll('img').forEach(img => {
+          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+            const rw = img.clientWidth || img.width || 0;
+            const rh = img.clientHeight || img.height || 0;
+            if (rw > 0 && (img.naturalWidth > rw * 2 || img.naturalHeight > rh * 2)) {
+              img.setAttribute('data-dev-wasted', `浪费 ${img.naturalWidth}×${img.naturalHeight} → ${rw}×${rh}`);
+            }
+          }
+        });
+      } else {
+        const s = document.getElementById('dev-img-waste-style'); if (s) s.remove();
+        document.querySelectorAll('[data-dev-wasted]').forEach(el => el.removeAttribute('data-dev-wasted'));
+      }
+    });
+  }
+
+  // DOM 统计角标
+  const domStatsToggle = el.querySelector('#dev-toggle-dom-stats');
+  if (domStatsToggle) {
+    let domStatsInterval = null, domStatsEl = null;
+    domStatsToggle.addEventListener('click', () => {
+      const on = domStatsToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        domStatsEl = document.createElement('div'); domStatsEl.id = 'dev-dom-stats';
+        domStatsEl.style.cssText = 'position:fixed;top:30px;left:8px;z-index:999999;font-family:monospace;font-size:11px;color:#aaa;background:rgba(0,0,0,0.8);padding:2px 8px;border-radius:4px;pointer-events:none;';
+        document.body.appendChild(domStatsEl);
+        const update = () => {
+          const nodes = document.querySelectorAll('*').length;
+          const imgs = document.querySelectorAll('img').length;
+          domStatsEl.textContent = `DOM: ${nodes} nodes | ${imgs} imgs`;
+          domStatsEl.style.color = nodes > 3000 ? '#f44' : nodes > 1500 ? '#fa0' : '#aaa';
+        };
+        update();
+        domStatsInterval = setInterval(update, 2000);
+      } else {
+        if (domStatsInterval) { clearInterval(domStatsInterval); domStatsInterval = null; }
+        if (domStatsEl) { domStatsEl.remove(); domStatsEl = null; }
+      }
+    });
+  }
+
+  // 键盘日志
+  const keyLogToggle = el.querySelector('#dev-toggle-key-log');
+  if (keyLogToggle) {
+    let keyLogHandler = null, keyLogEl = null, keyLogTimer = null;
+    keyLogToggle.addEventListener('click', () => {
+      const on = keyLogToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        keyLogEl = document.createElement('div'); keyLogEl.id = 'dev-key-log';
+        keyLogEl.style.cssText = 'position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:999999;font-family:monospace;font-size:11px;color:#0ff;background:rgba(0,0,0,0.85);padding:4px 14px;border-radius:6px;pointer-events:none;min-width:120px;text-align:center;';
+        document.body.appendChild(keyLogEl);
+        keyLogHandler = (e) => {
+          keyLogEl.textContent = `${e.key}  code:${e.keyCode}  ${e.ctrlKey?'Ctrl+':''}${e.shiftKey?'Shift+':''}${e.altKey?'Alt+':''}`;
+          clearTimeout(keyLogTimer);
+          keyLogTimer = setTimeout(() => { keyLogEl.textContent = ''; }, 2000);
+        };
+        document.addEventListener('keydown', keyLogHandler);
+      } else {
+        if (keyLogHandler) { document.removeEventListener('keydown', keyLogHandler); keyLogHandler = null; }
+        if (keyLogEl) { keyLogEl.remove(); keyLogEl = null; }
+        clearTimeout(keyLogTimer);
+      }
+    });
+  }
+
+  // 点击波纹
+  const clickRippleToggle = el.querySelector('#dev-toggle-click-ripple');
+  if (clickRippleToggle) {
+    let clickRippleHandler = null;
+    clickRippleToggle.addEventListener('click', () => {
+      const on = clickRippleToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        clickRippleHandler = (e) => {
+          const ripple = document.createElement('div');
+          ripple.style.cssText = `position:fixed;left:${e.clientX - 15}px;top:${e.clientY - 15}px;width:30px;height:30px;border-radius:50%;border:2px solid rgba(0,200,255,0.8);z-index:999999;pointer-events:none;animation:devRipple 0.6s ease-out forwards;`;
+          document.body.appendChild(ripple);
+          const s = document.getElementById('dev-ripple-keyframes') || (() => { const st = document.createElement('style'); st.id = 'dev-ripple-keyframes'; st.textContent = '@keyframes devRipple{0%{transform:scale(0.3);opacity:1}100%{transform:scale(3);opacity:0}}'; document.head.appendChild(st); return st; })();
+          ripple.addEventListener('animationend', () => ripple.remove());
+        };
+        document.addEventListener('click', clickRippleHandler);
+      } else {
+        if (clickRippleHandler) { document.removeEventListener('click', clickRippleHandler); clickRippleHandler = null; }
+        document.querySelectorAll('[style*="devRipple"]').forEach(el => el.remove()); // cleanup ripples
+      }
+    });
+  }
+
+  // 焦点追踪 — 始终高亮 focus 元素
+  const focusTrackToggle = el.querySelector('#dev-toggle-focus-track');
+  if (focusTrackToggle) {
+    focusTrackToggle.addEventListener('click', () => {
+      const on = focusTrackToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        const s = document.createElement('style'); s.id = 'dev-focus-track-style';
+        s.textContent = `*:focus{outline:3px solid rgba(0,150,255,0.8)!important;outline-offset:3px!important;box-shadow:0 0 16px rgba(0,150,255,0.4)!important}`;
+        document.head.appendChild(s);
+      } else {
+        const s = document.getElementById('dev-focus-track-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 液态玻璃 — SVG feDisplacementMap + backdrop-filter 折射页面内容
+  const fluidGlassToggle = el.querySelector('#dev-toggle-fluid-glass');
+  if (fluidGlassToggle) {
+    let svgEl = null, backdropEl = null, highlightEl = null, ringEl = null, raf = null, mh = null, turbEl = null, t = 0;
+
+    fluidGlassToggle.addEventListener('click', () => {
+      const on = fluidGlassToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        // SVG 滤镜定义（隐藏，只提供滤镜）
+        const ns = 'http://www.w3.org/2000/svg';
+        svgEl = document.createElementNS(ns, 'svg');
+        svgEl.setAttribute('width', '0'); svgEl.setAttribute('height', '0');
+        svgEl.style.position = 'fixed'; svgEl.style.pointerEvents = 'none';
+        svgEl.id = 'dev-fluid-svg';
+        const defs = document.createElementNS(ns, 'defs');
+        const filter = document.createElementNS(ns, 'filter');
+        filter.setAttribute('id', 'fluid-lens-filter');
+        filter.setAttribute('x', '-50%'); filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%'); filter.setAttribute('height', '200%');
+        turbEl = document.createElementNS(ns, 'feTurbulence');
+        turbEl.setAttribute('type', 'fractalNoise');
+        turbEl.setAttribute('baseFrequency', '0.005');
+        turbEl.setAttribute('numOctaves', '2');
+        turbEl.setAttribute('result', 'noise');
+        filter.appendChild(turbEl);
+        // 高斯模糊平滑噪点 → 产生有机流体波浪（而非尖锐噪点）
+        const blur = document.createElementNS(ns, 'feGaussianBlur');
+        blur.setAttribute('in', 'noise');
+        blur.setAttribute('stdDeviation', '2');
+        blur.setAttribute('result', 'smooth');
+        filter.appendChild(blur);
+        const disp = document.createElementNS(ns, 'feDisplacementMap');
+        disp.setAttribute('in', 'SourceGraphic');
+        disp.setAttribute('in2', 'smooth');
+        disp.setAttribute('scale', '80');
+        disp.setAttribute('xChannelSelector', 'R');
+        disp.setAttribute('yChannelSelector', 'G');
+        filter.appendChild(disp);
+        defs.appendChild(filter); svgEl.appendChild(defs);
+        document.body.appendChild(svgEl);
+
+        // 全视口 backdrop 层（clip-path 约束为透镜圆形）
+        backdropEl = document.createElement('div'); backdropEl.id = 'dev-fluid-backdrop';
+        backdropEl.style.cssText = 'position:fixed;inset:0;z-index:99999;pointer-events:none;'
+          + 'backdrop-filter:url(#fluid-lens-filter) saturate(130%);'
+          + '-webkit-backdrop-filter:url(#fluid-lens-filter) saturate(130%);'
+          + 'clip-path:circle(100px at 50% 50%);';
+        document.body.appendChild(backdropEl);
+
+        // 透镜高光层（模拟球面反射）
+        highlightEl = document.createElement('div'); highlightEl.id = 'dev-fluid-highlight';
+        highlightEl.style.cssText = `position:fixed;width:200px;height:200px;border-radius:50%;pointer-events:none;z-index:100000;transform:translate(-50%,-50%);left:50%;top:50%;
+          background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.08) 35%,transparent 60%,rgba(0,0,0,0.1) 85%,rgba(0,0,0,0.25) 100%);mix-blend-mode:overlay;`;
+        document.body.appendChild(highlightEl);
+
+        // 透镜边框
+        ringEl = document.createElement('div'); ringEl.id = 'dev-fluid-ring';
+        ringEl.style.cssText = `position:fixed;width:200px;height:200px;border-radius:50%;pointer-events:none;z-index:100001;transform:translate(-50%,-50%);left:50%;top:50%;
+          border:0.5px solid rgba(255,255,255,0.15);box-shadow:0 0 0 1px rgba(255,255,255,0.04) inset,0 20px 60px rgba(0,0,0,0.3);`;
+        document.body.appendChild(ringEl);
+
+        t = 0;
+        mh = (e) => {
+          const x = e.clientX, y = e.clientY;
+          const cp = `circle(100px at ${x}px ${y}px)`;
+          backdropEl.style.clipPath = cp;
+          backdropEl.style.webkitClipPath = cp;
+          highlightEl.style.left = x + 'px'; highlightEl.style.top = y + 'px';
+          ringEl.style.left = x + 'px'; ringEl.style.top = y + 'px';
+        };
+        document.addEventListener('mousemove', mh);
+
+        // RAF 流体动画：微调 turbulence 频率
+        let lt = performance.now();
+        const tick = (now) => {
+          const dt = Math.min((now - lt) / 1000, 0.1); lt = now; t += dt;
+          if (turbEl) {
+            const bf = 0.005 + Math.sin(t * 0.4) * 0.002;
+            turbEl.setAttribute('baseFrequency', bf.toFixed(4));
+          }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      } else {
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+        if (mh) { document.removeEventListener('mousemove', mh); mh = null; }
+        if (svgEl) { svgEl.remove(); svgEl = null; }
+        if (backdropEl) { backdropEl.remove(); backdropEl = null; }
+        if (highlightEl) { highlightEl.remove(); highlightEl = null; }
+        if (ringEl) { ringEl.remove(); ringEl = null; }
+        turbEl = null;
       }
     });
   }
@@ -1855,6 +2428,7 @@ function renderGamepadGroup() {
       <div class="dev-stat"><span class="dev-stat__label" id="dev-gp-connected">未连接</span></div>
       <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">ID</span><span class="dev-stat__value" id="dev-gp-id">--</span></div>
       <div class="dev-stat" style="margin-top:4px"><span class="dev-stat__label">控制器</span><span class="dev-stat__value" id="dev-gp-layout">--</span></div>
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">状态机</div>
@@ -1864,12 +2438,14 @@ function renderGamepadGroup() {
       <div class="dev-state-row"><span class="dev-state-row__label">焦点</span><span class="dev-state-row__value" id="dev-st-focus">--</span></div>
       <div class="dev-state-row"><span class="dev-state-row__label">元素</span><span class="dev-state-row__value" id="dev-st-els">--</span></div>
       <div class="dev-state-row"><span class="dev-state-row__label">冷却</span><span class="dev-state-row__value" id="dev-st-cooldown">--</span></div>
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">按钮</div>
       <div class="dev-row dev-row--col" data-gp-zone="buttons">
         <div class="dev-gp-grid" id="dev-gp-btn-grid"></div>
       </div>
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">摇杆 & 扳机</div>
@@ -1891,6 +2467,7 @@ function renderGamepadGroup() {
           <div style="flex:2"><div class="dev-row__label" style="margin-bottom:4px">RT</div><div class="dev-trigger"><div class="dev-trigger__fill" id="dev-trigger-rt" style="width:0%"></div></div></div>
         </div>
       </div>
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">事件日志</div>
@@ -2212,18 +2789,21 @@ function loadPreset(preset) {
   HERO_KEYS.forEach(k => {
     if (!(k in preset.vars)) document.documentElement.style.removeProperty(k);
   });
+  // 清除分区玻璃覆盖并允许 applyDirectStyles 重设（预设通过 generateFullCSS 重新派生默认值）
+  window.__lensZoneGlassDirty = true;
+  ZONE_GLASS_VARS.forEach(k => document.documentElement.style.removeProperty(k));
   // 设置 CSS 变量（用于面板控件同步）
   Object.entries(preset.vars).forEach(([k, v]) => {
     document.documentElement.style.setProperty(k, v);
   });
   // 清理注入样式
-  ['dev-anim-speed','dev-anim-disable','dev-glass-blur-style','dev-shadow-style','dev-gap-style','dev-heading-style'].forEach(id => {
+  ['dev-anim-speed','dev-anim-disable','dev-shadow-style','dev-gap-style','dev-heading-style'].forEach(id => {
     const s = document.getElementById(id); if (s) s.remove();
   });
+  // 记录激活预设（必须在 applySpecialVarEffects 之前，确保 COLOR_PRESETS ID 匹配拿到正确的 warm/glassBlur）
+  localStorage.setItem(ACTIVE_PRESET_KEY, preset.id);
   // 更新颜色系统（零 var() CSS 注入）
   applySpecialVarEffects();
-  // 记录激活预设
-  localStorage.setItem(ACTIVE_PRESET_KEY, preset.id);
   syncVisualControls();
   renderPresetsGroup();
   autoSaveSession();
@@ -2297,7 +2877,9 @@ function syncVisualControls() {
   });
   el.querySelectorAll('.dev-slider[data-css]').forEach(s => {
     const raw = style.getPropertyValue(s.dataset.css).trim();
-    const num = parseFloat(raw) || 0;
+    const calcMatch = raw.match(/^calc\(([\d.]+)px/);
+    const varMatch = raw.match(/^var\([^,]+,\s*([\d.]+)px/);
+    const num = calcMatch ? parseFloat(calcMatch[1]) : (varMatch ? parseFloat(varMatch[1]) : (parseFloat(raw) || 0));
     s.value = num;
     const key = s.dataset.css;
     const display = s.parentElement.querySelector(`[data-display="${key}"]`);
@@ -2407,6 +2989,7 @@ function renderPresetsGroup() {
     <div class="dev-section">
       <div class="dev-section__title">内置预设</div>
       ${BUILTIN_PRESETS.map(p => makePresetCard(p, activeId, false)).join('')}
+    </details>
     </div>
     <div class="dev-section">
       <div class="dev-section__title">保存预设</div>
@@ -2462,8 +3045,9 @@ function renderPresetsGroup() {
     URL.revokeObjectURL(url);
   });
   document.getElementById('dev-preset-reset')?.addEventListener('click', () => {
-    // 重置 CSS 变量为默认
+    // 重置 CSS 变量为默认（含分区玻璃清除）
     loadPreset(BUILTIN_PRESETS[0]);
+    ZONE_GLASS_VARS.forEach(k => document.documentElement.style.removeProperty(k));
     // 重置性能开关为全开
     D.perfToggles = { fps: true, metrics: true, invoke: true, console: true };
     el.querySelectorAll('.dev-chip-toggle').forEach(btn => {
@@ -2471,14 +3055,14 @@ function renderPresetsGroup() {
     });
     applyPerfToggles();
     // 重置调试开关
-    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style'].forEach(id => {
+    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style','dev-tag-labels-style','dev-layout-hl-style','dev-empty-el-style','dev-depth-color-style','dev-font-info-style','dev-link-info-style','dev-img-alt-style','dev-size-label-style','dev-fps-badge','dev-img-waste-style','dev-dom-stats','dev-key-log','dev-ripple-keyframes','dev-focus-track-style','dev-fluid-glass'].forEach(id => {
       const s = document.getElementById(id); if (s) s.remove();
     });
     document.body.classList.remove('dev-bm-active');
     // 同步视觉 tab 调试 toggle 状态（仅调试开关，保留动画开关）
     const visEl = document.getElementById('dev-group-visual');
     if (visEl) {
-      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index'].forEach(id => {
+      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track','dev-toggle-fluid-glass'].forEach(id => {
         const t = document.getElementById(id);
         if (t) t.classList.remove('dev-toggle--on');
       });
@@ -2577,13 +3161,7 @@ function stopAllMonitors() {
   if (D.perfInterval) { clearInterval(D.perfInterval); D.perfInterval = null; }
   if (_gpFloatRaf) { cancelAnimationFrame(_gpFloatRaf); _gpFloatRaf = null; }
   stopConsoleCapture();
-  document.body.classList.remove('dev-bm-active');
-  // 只清理调试注入样式（视觉配置如 anim-speed/glass-blur/gap 应保留）
-  ['dev-anim-disable','dev-outline-style','dev-grid-style',
-   'dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style'].forEach(id => {
-    const s = document.getElementById(id);
-    if (s) s.remove();
-  });
+  // 调试注入样式全部保留（由各自的 toggle 控制开关，关闭面板后继续生效；restoreDebugStyles 在关闭后恢复 body class）
 }
 
 // ═══════════════════════════════════════════
@@ -2607,13 +3185,7 @@ function applySpecialVarEffects() {
     s.textContent = `:root { --_anim-mult: ${as}; }`;
   }
 
-  // --glass-blur → injected style
-  const gb = parseFloat(vars['--glass-blur']) || 0;
-  if (gb > 0) {
-    let s = document.getElementById('dev-glass-blur-style');
-    if (!s) { s = document.createElement('style'); s.id = 'dev-glass-blur-style'; document.head.appendChild(s); }
-    s.textContent = `[style*="backdrop-filter"], .sidebar, .dev-panel, .toolbar, .gallery__nav, .lightbox.active, .back-to-top { --_glass-blur-extra: ${gb}px; }`;
-  }
+  // --glass-blur 由各 CSS 文件直接通过 var(--glass-blur, 0px) 引用，无需注入
 
   // --anim-speed = 0 → 禁用动画
   if (as === 0) {
@@ -2627,7 +3199,20 @@ function applySpecialVarEffects() {
   const _bgDeepRgb = hexToRgbStr(vars['--bg-deep'] || '#060605') || '6,6,5';
   const _accentRgb = hexToRgbStr(vars['--accent'] || '#c8a87c') || '200,168,124';
   const _textRgb = hexToRgbStr(vars['--text'] || '#e8e4e0') || '232,228,224';
-  const _warm = deriveWarmTint(vars);
+  // 从活跃颜色预设获取真实 warm/surface/errRgb（避免硬编码二选一）
+  const _activePresetId = localStorage.getItem(ACTIVE_PRESET_KEY);
+  let _warm = null, _surfaceRgb = null, _surface2Rgb = null, _errRgb = null, _glassBlur = null;
+  if (_activePresetId) {
+    const cp = COLOR_PRESETS.find(p => p.id === _activePresetId);
+    if (cp) {
+      _warm = cp.palette.warm;
+      _surfaceRgb = cp.palette.surfaceRgb;
+      _surface2Rgb = cp.palette.surface2Rgb;
+      _errRgb = cp.palette.errRgb;
+      _glassBlur = cp.palette.glassBlur;
+    }
+  }
+  if (!_warm) _warm = deriveWarmTint(vars);
   const palette = {
     bg: vars['--bg'] || '#0a0a08',
     bgDeep: vars['--bg-deep'] || '#060605',
@@ -2639,9 +3224,10 @@ function applySpecialVarEffects() {
     accentRgb: _accentRgb,
     bgRgb: _bgRgb,
     bgDeepRgb: _bgDeepRgb,
-    surfaceRgb: '30,28,26',
-    surface2Rgb: '20,18,15',
-    errRgb: '232,112,112',
+    surfaceRgb: _surfaceRgb || '30,28,26',
+    surface2Rgb: _surface2Rgb || '20,18,15',
+    errRgb: _errRgb || '232,112,112',
+    glassBlur: _glassBlur || '0px',
     heroGradTop: parseRgbPart(vars['--hero-grad-top']) || (()=>{const t=_textRgb.split(',');return `${Math.round(t[0]*0.3+255*0.7)},${Math.round(t[1]*0.3+255*0.7)},${Math.round(t[2]*0.3+255*0.7)}`;})(),
     heroGradMid: parseRgbPart(vars['--hero-grad-mid']) || _accentRgb,
     heroGradBot: parseRgbPart(vars['--hero-grad-bot']) || (()=>{const a=_accentRgb.split(',');return `${Math.round(a[0]*0.85)},${Math.round(a[1]*0.78)},${Math.round(a[2]*0.7)}`;})(),
@@ -2765,11 +3351,11 @@ export function initDevPanel() {
     if (!CSS_DEFAULTS[k]) CSS_DEFAULTS[k] = v;
   });
 
-  // 一次性清理：清除可能损坏的旧会话缓存（v1.6.2 变量体系重构）
-  if (!localStorage.getItem('lens-dev-session-v2')) {
+  // 一次性清理：清除旧版本的分区玻璃残留（v1.7.0 分区玻璃解耦）
+  if (!localStorage.getItem('lens-dev-session-v3')) {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(ACTIVE_PRESET_KEY);
-    localStorage.setItem('lens-dev-session-v2', '1');
+    localStorage.setItem('lens-dev-session-v3', '1');
   }
 
   // 恢复上次会话的调节
@@ -2784,6 +3370,9 @@ export function initDevPanel() {
 
   setupDevPanelEvents();
   setupDevTabs();
+
+  // 会话恢复后强制重写分区玻璃默认值（覆盖旧版本的残留/冲突数据）
+  window.__lensZoneGlassDirty = true;
 
   // 恢复会话变量的特殊副作用（注入样式等）—— 内部已包含 buildDevPreview + 动画启动
   applySpecialVarEffects();
@@ -2824,13 +3413,13 @@ export function initDevPanel() {
     D.perfToggles = { fps: true, metrics: true, invoke: true, console: true };
     document.querySelectorAll('.dev-chip-toggle').forEach(btn => btn.classList.add('dev-chip-toggle--on'));
     applyPerfToggles();
-    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style'].forEach(id => {
+    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style','dev-tag-labels-style','dev-layout-hl-style','dev-empty-el-style','dev-depth-color-style','dev-font-info-style','dev-link-info-style','dev-img-alt-style','dev-size-label-style','dev-fps-badge','dev-img-waste-style','dev-dom-stats','dev-key-log','dev-ripple-keyframes','dev-focus-track-style','dev-fluid-glass'].forEach(id => {
       const s = document.getElementById(id); if (s) s.remove();
     });
     document.body.classList.remove('dev-bm-active');
     const visEl2 = document.getElementById('dev-group-visual');
     if (visEl2) {
-      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index'].forEach(id => {
+      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track','dev-toggle-fluid-glass'].forEach(id => {
         const t = document.getElementById(id);
         if (t) t.classList.remove('dev-toggle--on');
       });

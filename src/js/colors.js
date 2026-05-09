@@ -16,6 +16,7 @@ const DEFAULT_PALETTE = {
   surfaceRgb:   '30,28,26',      // 浮动面板
   surface2Rgb:  '20,18,15',      // 近底面板
   errRgb:       '232,112,112',   // 关闭/收藏红色
+  glassBlur:    '0px',           // 全局毛玻璃模糊叠加量
   devPanelBg:        'rgba(10,10,8,0.94)',
   heroLineColor:     'rgba(220,200,180,0.35)',
   heroSubtitleColor: 'rgba(220,200,180,0.3)',
@@ -36,18 +37,18 @@ const BUILTIN_PALETTES = [
     heroGradTop:'220,220,225', heroGradMid:'180,180,190', heroGradBot:'80,80,90',
   }},
   { id:'__apple-light__', name:'Apple Light', palette: {
-    bg:'#ffffff', bgDeep:'#f5f5f7', accent:'#0066cc', text:'#1d1d1f', text2:'#86868b', text3:'#aeaeb2',
-    warm:'29,29,31', accentRgb:'0,102,204', bgRgb:'255,255,255', bgDeepRgb:'245,245,247',
-    surfaceRgb:'250,250,252', surface2Rgb:'245,245,247', errRgb:'255,69,58',
-    devPanelBg:'rgba(250,250,252,0.96)', heroLineColor:'rgba(0,0,0,0.12)', heroSubtitleColor:'rgba(0,0,0,0.35)', cornerLogoColor:'rgba(29,29,31,0.85)',
-    heroGradTop:'29,29,31', heroGradMid:'80,80,85', heroGradBot:'160,160,165',
+    bg:'#ffffff', bgDeep:'#f5f5f7', accent:'#0066cc', text:'#1d1d1f', text2:'#6e6e73', text3:'#aeaeb2',
+    warm:'50,50,55', accentRgb:'0,102,204', bgRgb:'255,255,255', bgDeepRgb:'245,245,247',
+    surfaceRgb:'248,248,250', surface2Rgb:'240,240,244', errRgb:'255,69,58',
+    devPanelBg:'rgba(250,250,252,0.97)', heroLineColor:'rgba(0,0,0,0.08)', heroSubtitleColor:'rgba(0,0,0,0.35)', cornerLogoColor:'rgba(29,29,31,0.85)',
+    heroGradTop:'29,29,31', heroGradMid:'90,90,95', heroGradBot:'170,170,175',
   }},
   { id:'__apple-parchment__', name:'Apple Parchment', palette: {
     bg:'#f5f5f7', bgDeep:'#e8e8ed', accent:'#0066cc', text:'#1d1d1f', text2:'#6e6e73', text3:'#aeaeb2',
-    warm:'29,29,31', accentRgb:'0,102,204', bgRgb:'245,245,247', bgDeepRgb:'232,232,237',
-    surfaceRgb:'255,255,255', surface2Rgb:'250,250,252', errRgb:'255,69,58',
-    devPanelBg:'rgba(245,245,247,0.96)', heroLineColor:'rgba(0,0,0,0.10)', heroSubtitleColor:'rgba(0,0,0,0.3)', cornerLogoColor:'rgba(29,29,31,0.8)',
-    heroGradTop:'29,29,31', heroGradMid:'80,80,85', heroGradBot:'180,180,185',
+    warm:'40,40,45', accentRgb:'0,102,204', bgRgb:'245,245,247', bgDeepRgb:'232,232,237',
+    surfaceRgb:'255,255,255', surface2Rgb:'248,248,250', errRgb:'255,69,58',
+    devPanelBg:'rgba(248,248,250,0.97)', heroLineColor:'rgba(0,0,0,0.07)', heroSubtitleColor:'rgba(0,0,0,0.3)', cornerLogoColor:'rgba(29,29,31,0.8)',
+    heroGradTop:'29,29,31', heroGradMid:'85,85,90', heroGradBot:'175,175,180',
   }},
   { id:'__ibm__', name:'IBM', palette: {
     bg:'#161616', bgDeep:'#0d0d0d', accent:'#0f62fe', text:'#ffffff', text2:'#c6c6c6', text3:'#8c8c8c',
@@ -57,11 +58,11 @@ const BUILTIN_PALETTES = [
     heroGradTop:'230,235,255', heroGradMid:'150,170,230', heroGradBot:'15,98,254',
   }},
   { id:'__ibm-light__', name:'IBM Light', palette: {
-    bg:'#ffffff', bgDeep:'#f4f4f4', accent:'#0f62fe', text:'#161616', text2:'#525252', text3:'#8c8c8c',
+    bg:'#ffffff', bgDeep:'#f4f4f4', accent:'#0f62fe', text:'#161616', text2:'#525252', text3:'#8d8d8d',
     warm:'22,22,22', accentRgb:'15,98,254', bgRgb:'255,255,255', bgDeepRgb:'244,244,244',
     surfaceRgb:'244,244,244', surface2Rgb:'224,224,224', errRgb:'218,30,40',
-    devPanelBg:'rgba(255,255,255,0.96)', heroLineColor:'rgba(15,98,254,0.2)', heroSubtitleColor:'rgba(22,22,22,0.3)', cornerLogoColor:'rgba(15,98,254,0.8)',
-    heroGradTop:'22,22,22', heroGradMid:'80,80,85', heroGradBot:'200,210,230',
+    devPanelBg:'rgba(255,255,255,0.97)', heroLineColor:'rgba(15,98,254,0.2)', heroSubtitleColor:'rgba(22,22,22,0.35)', cornerLogoColor:'rgba(15,98,254,0.85)',
+    heroGradTop:'22,22,22', heroGradMid:'70,70,75', heroGradBot:'170,190,220',
   }},
   { id:'__bugatti__', name:'Bugatti', palette: {
     bg:'#000000', bgDeep:'#000000', accent:'#ffffff', text:'#ffffff', text2:'#cccccc', text3:'#999999',
@@ -72,10 +73,10 @@ const BUILTIN_PALETTES = [
   }},
   { id:'__bugatti-silver__', name:'Bugatti Silver', palette: {
     bg:'#0d0d0d', bgDeep:'#080808', accent:'#c3d9f3', text:'#ffffff', text2:'#e6e6e6', text3:'#999999',
-    warm:'255,255,255', accentRgb:'195,217,243', bgRgb:'13,13,13', bgDeepRgb:'8,8,8',
+    warm:'210,220,235', accentRgb:'195,217,243', bgRgb:'13,13,13', bgDeepRgb:'8,8,8',
     surfaceRgb:'20,20,20', surface2Rgb:'15,15,15', errRgb:'218,30,40',
-    devPanelBg:'rgba(13,13,13,0.96)', heroLineColor:'rgba(195,217,243,0.2)', heroSubtitleColor:'rgba(255,255,255,0.2)', cornerLogoColor:'rgba(195,217,243,0.85)',
-    heroGradTop:'255,255,255', heroGradMid:'195,217,243', heroGradBot:'60,70,90',
+    devPanelBg:'rgba(13,13,13,0.96)', heroLineColor:'rgba(195,217,243,0.2)', heroSubtitleColor:'rgba(210,220,235,0.22)', cornerLogoColor:'rgba(195,217,243,0.85)',
+    heroGradTop:'240,245,255', heroGradMid:'195,217,243', heroGradBot:'50,60,80',
   }},
   { id:'__warm__', name:'暖琥珀', palette: {
     bg:'#0a0804', bgDeep:'#060402', accent:'#d4a040', text:'#f0e8d8', text2:'#b0a080', text3:'#908870',
@@ -104,44 +105,45 @@ const BUILTIN_PALETTES = [
   { id:'__forest__', name:'暗林深绿', palette: {
     bg:'#0a0c08', bgDeep:'#060804', accent:'#7a9a6e', text:'#e4e8e0', text2:'#8c9488', text3:'#788470',
     warm:'160,200,140', accentRgb:'122,154,110', bgRgb:'10,12,8', bgDeepRgb:'6,8,4',
-    surfaceRgb:'26,28,24', surface2Rgb:'16,18,14', errRgb:'232,130,130',
+    surfaceRgb:'26,28,24', surface2Rgb:'16,18,14', errRgb:'232,130,130', glassBlur:'6px',
     devPanelBg:'rgba(10,12,8,0.94)', heroLineColor:'rgba(160,200,140,0.35)', heroSubtitleColor:'rgba(160,200,140,0.3)', cornerLogoColor:'rgba(160,200,140,0.85)',
   }},
   { id:'__industrial__', name:'工业粗矿', palette: {
     bg:'#0c0c0c', bgDeep:'#080808', accent:'#cc9966', text:'#e0e0e0', text2:'#a0a0a0', text3:'#808080',
     warm:'200,180,160', accentRgb:'204,153,102', bgRgb:'12,12,12', bgDeepRgb:'8,8,8',
-    surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'232,112,112',
+    surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'232,112,112', glassBlur:'20px',
     devPanelBg:'rgba(12,12,12,0.94)', heroLineColor:'rgba(200,180,160,0.35)', heroSubtitleColor:'rgba(200,180,160,0.3)', cornerLogoColor:'rgba(200,180,160,0.85)',
   }},
   { id:'__mist__', name:'轻雾胶片', palette: {
     bg:'#0a0908', bgDeep:'#080706', accent:'#b8a090', text:'#e8e4e0', text2:'#a09890', text3:'#908880',
     warm:'210,190,170', accentRgb:'184,160,144', bgRgb:'10,9,8', bgDeepRgb:'8,7,6',
-    surfaceRgb:'30,28,26', surface2Rgb:'20,18,16', errRgb:'232,112,112',
+    surfaceRgb:'30,28,26', surface2Rgb:'20,18,16', errRgb:'232,112,112', glassBlur:'6px',
     devPanelBg:'rgba(10,9,8,0.94)', heroLineColor:'rgba(210,190,170,0.35)', heroSubtitleColor:'rgba(210,190,170,0.3)', cornerLogoColor:'rgba(210,190,170,0.85)',
   }},
   { id:'__editorial__', name:'编辑排版', palette: {
     bg:'#0c0b09', bgDeep:'#080706', accent:'#b8a080', text:'#e8e4de', text2:'#a09888', text3:'#908070',
     warm:'210,190,160', accentRgb:'184,160,128', bgRgb:'12,11,9', bgDeepRgb:'8,7,6',
-    surfaceRgb:'32,30,26', surface2Rgb:'22,20,16', errRgb:'232,112,112',
+    surfaceRgb:'32,30,26', surface2Rgb:'22,20,16', errRgb:'232,112,112', glassBlur:'8px',
     devPanelBg:'rgba(12,11,9,0.94)', heroLineColor:'rgba(210,190,160,0.35)', heroSubtitleColor:'rgba(210,190,160,0.3)', cornerLogoColor:'rgba(210,190,160,0.85)',
   }},
   { id:'__terminal__', name:'终端矩阵', palette: {
     bg:'#0a0a0a', bgDeep:'#050505', accent:'#66cc88', text:'#d0d0d0', text2:'#909090', text3:'#707070',
     warm:'100,200,130', accentRgb:'102,204,136', bgRgb:'10,10,10', bgDeepRgb:'5,5,5',
-    surfaceRgb:'26,26,26', surface2Rgb:'16,16,16', errRgb:'255,100,100',
+    surfaceRgb:'26,26,26', surface2Rgb:'16,16,16', errRgb:'255,100,100', glassBlur:'8px',
     devPanelBg:'rgba(10,10,10,0.94)', heroLineColor:'rgba(100,200,130,0.35)', heroSubtitleColor:'rgba(100,200,130,0.3)', cornerLogoColor:'rgba(100,200,130,0.85)',
   }},
   { id:'__neon__', name:'霓虹夜色', palette: {
     bg:'#080010', bgDeep:'#040008', accent:'#ff66cc', text:'#f0e0f0', text2:'#b0a0b8', text3:'#908098',
     warm:'255,100,200', accentRgb:'255,102,204', bgRgb:'8,0,16', bgDeepRgb:'4,0,8',
-    surfaceRgb:'24,16,32', surface2Rgb:'14,8,20', errRgb:'255,100,150',
+    surfaceRgb:'24,16,32', surface2Rgb:'14,8,20', errRgb:'255,100,150', glassBlur:'12px',
     devPanelBg:'rgba(8,0,16,0.94)', heroLineColor:'rgba(255,100,200,0.35)', heroSubtitleColor:'rgba(255,100,200,0.3)', cornerLogoColor:'rgba(255,100,200,0.85)',
   }},
   { id:'__paper__', name:'暖纸书香', palette: {
     bg:'#faf8f0', bgDeep:'#f0ece0', accent:'#8b7355', text:'#333028', text2:'#6b6050', text3:'#908878',
-    warm:'139,115,85', accentRgb:'139,115,85', bgRgb:'250,248,240', bgDeepRgb:'240,236,224',
-    surfaceRgb:'240,236,224', surface2Rgb:'230,226,214', errRgb:'200,80,80',
-    devPanelBg:'rgba(250,248,240,0.94)', heroLineColor:'rgba(139,115,85,0.35)', heroSubtitleColor:'rgba(139,115,85,0.3)', cornerLogoColor:'rgba(139,115,85,0.85)',
+    warm:'120,100,75', accentRgb:'139,115,85', bgRgb:'250,248,240', bgDeepRgb:'240,236,224',
+    surfaceRgb:'240,236,224', surface2Rgb:'230,226,214', errRgb:'200,80,80', glassBlur:'4px',
+    devPanelBg:'rgba(250,248,240,0.96)', heroLineColor:'rgba(139,115,85,0.28)', heroSubtitleColor:'rgba(139,115,85,0.35)', cornerLogoColor:'rgba(139,115,85,0.82)',
+    heroGradTop:'51,48,40', heroGradMid:'100,95,85', heroGradBot:'180,175,165',
   }},
   { id:'__void__', name:'极致纯黑', palette: {
     bg:'#000000', bgDeep:'#000000', accent:'#aaaaaa', text:'#ffffff', text2:'#999999', text3:'#777777',
@@ -152,7 +154,7 @@ const BUILTIN_PALETTES = [
   { id:'__brutal__', name:'野兽粗野', palette: {
     bg:'#0c0c0c', bgDeep:'#080808', accent:'#ff6633', text:'#e0e0e0', text2:'#a0a0a0', text3:'#808080',
     warm:'255,100,50', accentRgb:'255,102,51', bgRgb:'12,12,12', bgDeepRgb:'8,8,8',
-    surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'255,100,80',
+    surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'255,100,80', glassBlur:'4px',
     devPanelBg:'rgba(12,12,12,0.94)', heroLineColor:'rgba(255,100,50,0.35)', heroSubtitleColor:'rgba(255,100,50,0.3)', cornerLogoColor:'rgba(255,100,50,0.85)',
   }},
 ];
@@ -199,7 +201,16 @@ function generateFullCSS(p) {
   const LSM = p.letterSpacingMono || '0';
 
   return `/* === LENS 颜色系统 — 零 var() 依赖 === */
-:root{--danger:#e87070;}
+:root{
+--danger:rgb(${E});--danger-rgb:${E};--warm-rgb:${W};--bg-deep-rgb:${BgD};--glass-blur:${p.glassBlur || '0px'};
+--sidebar-glass-bg:rgba(${W},0.08);--sidebar-glass-border:rgba(${W},0.12);--sidebar-glass-bg-hover:rgba(${W},0.14);--sidebar-glass-border-bright:rgba(${W},0.22);--sidebar-glass-blur:calc(24px + var(--glass-blur,0px));
+--titlebar-glass-bg:rgba(${W},0.06);--titlebar-glass-border:rgba(${W},0.10);--titlebar-glass-bg-hover:rgba(${W},0.12);--titlebar-btn-color:rgba(${W},0.45);--titlebar-glass-blur:calc(12px + var(--glass-blur,0px));
+--toolbar-glass-bg:rgba(${W},0.06);--toolbar-glass-border:rgba(${W},0.10);--toolbar-glass-bg-hover:rgba(${W},0.10);--toolbar-btn-color:rgba(${W},0.45);--toolbar-glass-blur:calc(16px + var(--glass-blur,0px));
+--card-glass-bg:rgba(${W},0.015);--card-glass-border:rgba(${W},0.05);--card-glass-bg-hover:rgba(${W},0.06);--card-glass-border-bright:rgba(${W},0.16);--card-hover-blur:calc(6px + var(--glass-blur,0px));--gallery-nav-blur:calc(24px + var(--glass-blur,0px));--dropdown-blur:calc(12px + var(--glass-blur,0px));
+--panel-glass-bg:rgba(${S},0.92);--panel-glass-border:rgba(${A},0.15);--panel-glass-bg-hover:rgba(${A},0.06);--panel-glass-blur:calc(24px + var(--glass-blur,0px));--shortcuts-blur:calc(30px + var(--glass-blur,0px));
+--lightbox-glass-bg:rgba(${W},0.12);--lightbox-glass-border:rgba(${W},0.20);--lightbox-glass-bg-hover:rgba(${W},0.18);--lightbox-glass-blur:calc(30px + var(--glass-blur,0px));--lightbox-btn-blur:calc(20px + var(--glass-blur,0px));--lightbox-exif-blur:calc(16px + var(--glass-blur,0px));--slideshow-blur:calc(20px + var(--glass-blur,0px));
+--hero-scroll-blur:calc(20px + var(--glass-blur,0px));--back-to-top-blur:calc(20px + var(--glass-blur,0px));--dev-panel-blur:calc(40px + var(--glass-blur,0px));--loading-track-height:4px;
+}
 body{background:${p.bg}!important;color:${p.text}!important;}
 
 /* ═══ Hero ═══ */
@@ -214,64 +225,64 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 
 /* ═══ 侧边栏 ═══ */
 .sidebar-frame{text-shadow:0 0 8px rgba(${Bg},0.5)!important}
-.sidebar{background:rgba(${W},0.08)!important;border:0.5px solid rgba(${W},0.12)!important}
+.sidebar{background:var(--sidebar-glass-bg,rgba(${W},0.08))!important;border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.12))!important;backdrop-filter:blur(var(--sidebar-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--sidebar-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important}
 .sidebar__header{color:${p.text2}!important}
 .sidebar__header-icon{opacity:0.55}
 .sidebar__item{color:${p.text2}}
-.sidebar__item:hover{background:rgba(${W},0.08);border-color:rgba(${W},0.12)}
-.sidebar__item--active{background:rgba(${W},0.12);border-color:rgba(${W},0.22)}
+.sidebar__item:hover{background:var(--sidebar-glass-bg,rgba(${W},0.08));border-color:var(--sidebar-glass-border,rgba(${W},0.12))}
+.sidebar__item--active{background:var(--sidebar-glass-bg-hover,rgba(${W},0.12));border-color:var(--sidebar-glass-border-bright,rgba(${W},0.22))}
 .sidebar__item-icon{color:${p.text3}}
 .sidebar__item:hover .sidebar__item-icon,.sidebar__item--active .sidebar__item-icon{color:${p.text2}}
 .sidebar__item-name{color:${p.text2}}
 .sidebar__item:hover .sidebar__item-name,.sidebar__item--active .sidebar__item-name{color:${p.text}}
-.sidebar__item-remove{color:${p.text};background:rgba(${W},0.10)}
-.sidebar__item-remove:hover{background:rgba(${W},0.22)}
+.sidebar__item-remove{color:${p.text};background:var(--sidebar-glass-border,rgba(${W},0.10))}
+.sidebar__item-remove:hover{background:var(--sidebar-glass-border-bright,rgba(${W},0.22))}
 .sidebar__empty{color:${p.text3}}
-.sidebar__add{color:${p.text2};border:0.5px solid rgba(${W},0.12);background:rgba(${W},0.08)}
-.sidebar__add:hover{color:${p.text};border-color:rgba(${W},0.22);background:rgba(${W},0.14)}
-#dir-label{color:rgba(${W},0.25);background:rgba(${Bg},0.3);border:0.5px solid rgba(${W},0.06)}
+.sidebar__add{color:${p.text2};border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.12));background:var(--sidebar-glass-bg,rgba(${W},0.08))}
+.sidebar__add:hover{color:${p.text};border-color:var(--sidebar-glass-border-bright,rgba(${W},0.22));background:var(--sidebar-glass-bg-hover,rgba(${W},0.14))}
+#dir-label{color:rgba(${W},0.25);background:rgba(${Bg},0.3);border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.06))}
 #corner-logo{color:${p.cornerLogoColor || 'rgba(' + W + ',0.85)'}!important}
 #corner-logo:hover{color:${p.accent}!important}
-#cache-section{border-top:1px solid rgba(${W},0.06)}
+#cache-section{border-top:1px solid var(--sidebar-glass-border,rgba(${W},0.06))}
 #cache-info{color:rgba(${W},0.25)}
-#lens-glow{background:rgba(${W},0.04);border:0.5px solid rgba(${W},0.06)}
+#lens-glow{background:var(--sidebar-glass-bg,rgba(${W},0.04));border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.06))}
 
 /* ═══ 工具栏 ═══ */
-.toolbar{background:rgba(${W},0.06);border:0.5px solid rgba(${W},0.10);box-shadow:0 4px 24px rgba(0,0,0,0.3);text-shadow:0 0 6px rgba(${Bg},0.5)}
-.toolbar__btn{color:rgba(${W},0.45)}
-.toolbar__btn:hover{color:${p.text};background:rgba(${W},0.10)}
+.toolbar{background:var(--toolbar-glass-bg,rgba(${W},0.06))!important;border:0.5px solid var(--toolbar-glass-border,rgba(${W},0.10))!important;box-shadow:0 4px 24px rgba(0,0,0,0.3);text-shadow:0 0 6px rgba(${Bg},0.5);backdrop-filter:blur(var(--toolbar-glass-blur,calc(16px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--toolbar-glass-blur,calc(16px + ${p.glassBlur || '0px'})))!important}
+.toolbar__btn{color:var(--toolbar-btn-color,rgba(${W},0.45))}
+.toolbar__btn:hover{color:${p.text};background:var(--toolbar-glass-bg-hover,rgba(${W},0.10))}
 
 /* ═══ 标题栏 ═══ */
-.titlebar__btn{color:rgba(${W},0.45)}
-.titlebar__btn:hover{color:${p.accent};background:rgba(${W},0.12)}
+.titlebar__btn{color:var(--titlebar-btn-color,rgba(${W},0.45))}
+.titlebar__btn:hover{color:${p.accent};background:var(--titlebar-glass-bg-hover,rgba(${W},0.12))}
 .titlebar__btn--close:hover{color:var(--danger);background:rgba(${E},0.18)}
-.titlebar__controls{background:rgba(${W},0.06);border:0.5px solid rgba(${W},0.10)}
+.titlebar__controls{background:var(--titlebar-glass-bg,rgba(${W},0.06))!important;border:0.5px solid var(--titlebar-glass-border,rgba(${W},0.10))!important;backdrop-filter:blur(var(--titlebar-glass-blur,calc(12px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--titlebar-glass-blur,calc(12px + ${p.glassBlur || '0px'})))!important}
 
 /* ═══ Portfolio / 画廊 ═══ */
-.portfolio::before{background:rgba(${Bg},0.75);border:0.5px solid rgba(${W},0.06)}
+.portfolio::before{background:rgba(${Bg},0.75);border:0.5px solid var(--card-glass-border,rgba(${W},0.06))}
 .portfolio__title{color:${p.text}}
 .portfolio__desc{color:${p.text3}}
-.category-card{background:rgba(${W},0.015);border:1px solid rgba(${W},0.05)}
-.category-card:hover{border-color:rgba(${W},0.16);box-shadow:0 24px 48px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(${W},0.04)}
-.category-card__info{background:rgba(${S2},0.92);border:0.5px solid rgba(${W},0.08)}
+.category-card{background:var(--card-glass-bg,rgba(${W},0.015));border:1px solid var(--card-glass-border,rgba(${W},0.05))}
+.category-card:hover{border-color:var(--card-glass-border-bright,rgba(${W},0.16))}
+.category-card__info{background:rgba(${S2},0.92);border:0.5px solid var(--card-glass-border,rgba(${W},0.08))}
 .category-card__name{color:${p.text}}
-.category-card__count{color:rgba(${W},0.7);background:rgba(${W},0.08);border:0.5px solid rgba(${W},0.12)}
-.category-card__count:hover{background:rgba(${W},0.12);border-color:rgba(${W},0.22)}
-.category-card__label{background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.4) 60%,transparent 100%)}
+.category-card__count{color:rgba(${W},0.7);background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12))}
+.category-card__count:hover{background:var(--card-glass-bg-hover,rgba(${W},0.12));border-color:var(--card-glass-border-bright,rgba(${W},0.22))}
+.category-card__label{background:linear-gradient(to top,rgba(${BgD},0.85) 0%,rgba(${BgD},0.4) 60%,transparent 100%)}
 .category-card__label-count{color:${p.text2}}
 .category-card__rating{color:${p.accent}}
-.gallery__nav{background:rgba(${Bg},0.55);border:0.5px solid rgba(${W},0.12)}
+.gallery__nav{background:rgba(${Bg},0.55);border:0.5px solid var(--card-glass-border,rgba(${W},0.12))}
 .gallery__nav *{text-shadow:0 1px 4px rgba(0,0,0,0.5)}
 .gallery__back{color:${p.text}}
 .gallery__back:hover{color:${p.accent}}
 .gallery__info{color:${p.text2}}
-.category-card::before,.gallery__item::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),rgba(255,245,235,0.06) 0%,rgba(255,245,235,0.02) 40%,transparent 70%)}
+.category-card::before,.gallery__item::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),var(--card-glass-bg-hover,rgba(${W},0.06)) 0%,rgba(${W},0.02) 40%,transparent 70%)}
 .density-sweep{background:linear-gradient(to right,transparent 0%,rgba(${A},0.1) 50%,rgba(${Bg},0.92) 100%)}
 .card--focused{outline:1.5px solid ${p.accent}}
-.load-more-btn{background:rgba(${W},0.05);border:0.5px solid rgba(${W},0.10);color:rgba(${W},0.4)}
-.load-more-btn:hover{background:rgba(${W},0.10);border-color:rgba(${W},0.22);color:${p.text};box-shadow:0 8px 24px rgba(0,0,0,0.4)}
-.custom-dropdown__trigger{background:rgba(${W},0.08);border:0.5px solid rgba(${W},0.12);color:${p.text2}}
-.custom-dropdown__trigger:hover{background:rgba(${W},0.14);border-color:rgba(${W},0.22);color:${p.text}}
+.load-more-btn{background:var(--card-glass-bg,rgba(${W},0.05));border:0.5px solid var(--card-glass-border,rgba(${W},0.10));color:rgba(${W},0.4)}
+.load-more-btn:hover{background:var(--card-glass-bg-hover,rgba(${W},0.10));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:${p.text};box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.custom-dropdown__trigger{background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12));color:${p.text2}}
+.custom-dropdown__trigger:hover{background:var(--card-glass-bg-hover,rgba(${W},0.14));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:${p.text}}
 .custom-dropdown__trigger--open{background:rgba(${A},0.12);border-color:rgba(${A},0.30);color:${p.accent}}
 .custom-dropdown__menu{background:rgba(${S},0.95);border:0.5px solid rgba(${A},0.15);box-shadow:0 12px 40px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.04)}
 .custom-dropdown__option{color:${p.text2}}
@@ -280,11 +291,11 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 
 /* ═══ 灯箱 ═══ */
 .lightbox{background:rgba(0,0,0,0)}
-.lightbox.active{background:rgba(0,0,0,0.85)}
-.lightbox__close{color:${p.text};background:rgba(${W},0.12);border:0.5px solid rgba(${W},0.20)}
-.lightbox__close:hover{background:rgba(${W},0.18);border-color:rgba(${W},0.30)}
-.lightbox__prev,.lightbox__next{color:${p.text};background:rgba(${W},0.10);border:0.5px solid rgba(${W},0.18)}
-.lightbox__prev:hover,.lightbox__next:hover{background:rgba(${W},0.16);border-color:rgba(${W},0.28)}
+.lightbox.active{background:rgba(0,0,0,0.85);backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important}
+.lightbox__close{color:${p.text};background:var(--lightbox-glass-bg,rgba(${W},0.12));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.20))}
+.lightbox__close:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.18));border-color:var(--lightbox-glass-border,rgba(${W},0.30))}
+.lightbox__prev,.lightbox__next{color:${p.text};background:var(--lightbox-glass-bg,rgba(${W},0.10));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.18))}
+.lightbox__prev:hover,.lightbox__next:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.16));border-color:var(--lightbox-glass-border,rgba(${W},0.28))}
 .lightbox__title{color:${p.text3}}
 .lightbox__counter{color:${p.text3}}
 .rating__star{color:rgba(${W},0.2)}
@@ -301,16 +312,16 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 /* ═══ 幻灯片 ═══ */
 .slideshow{background:${p.bg}}
 .slideshow__counter{color:${p.text3}}
-.slideshow__controls{background:rgba(${W},0.06);border:0.5px solid rgba(${W},0.08)}
-.slideshow__btn{color:rgba(${W},0.5);background:rgba(${W},0.05);border:0.5px solid rgba(${W},0.08)}
-.slideshow__btn:hover{color:${p.text};background:rgba(${W},0.10);border-color:rgba(${W},0.20)}
-#sl-exit{border-color:rgba(${W},0.14);color:rgba(${W},0.6)}
-#sl-exit:hover{background:rgba(${W},0.12);border-color:rgba(${W},0.3);color:${p.accent}}
+.slideshow__controls{background:var(--lightbox-glass-bg,rgba(${W},0.06));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.08))}
+.slideshow__btn{color:var(--lightbox-glass-bg-hover,rgba(${W},0.5));background:var(--lightbox-glass-bg,rgba(${W},0.05));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.08))}
+.slideshow__btn:hover{color:${p.text};background:var(--lightbox-glass-bg-hover,rgba(${W},0.10));border-color:var(--lightbox-glass-border,rgba(${W},0.20))}
+#sl-exit{border-color:var(--lightbox-glass-border,rgba(${W},0.14));color:rgba(${W},0.6)}
+#sl-exit:hover{background:var(--lightbox-glass-bg,rgba(${W},0.12));border-color:var(--lightbox-glass-border,rgba(${W},0.3));color:${p.accent}}
 
 /* ═══ 设置面板 ═══ */
-.settings-panel{background:rgba(${S},0.92);border:0.5px solid rgba(${A},0.15);box-shadow:0 8px 32px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.04)}
+.settings-panel{background:var(--panel-glass-bg,rgba(${S},0.92))!important;border:0.5px solid var(--panel-glass-border,rgba(${A},0.15))!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.04);backdrop-filter:blur(var(--panel-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--panel-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important}
 .settings-panel__label{color:${p.text2}}
-.settings-panel__item:hover{background:rgba(${A},0.06)}
+.settings-panel__item:hover{background:var(--panel-glass-bg-hover,rgba(${A},0.06))}
 .settings-panel__divider{background:rgba(${A},0.08)}
 .cache-dir-path{color:${p.text3};background:rgba(0,0,0,0.2)}
 .cache-dir-btn{color:${p.text2};background:rgba(${A},0.08);border:0.5px solid rgba(${A},0.12)}
@@ -337,7 +348,7 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .dev-overlay{background:rgba(${BgD},0.55)}
 .dev-panel{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
 .dev-nav{background:rgba(${BgD},0.6)}
-.dev-panel,.dev-preview__inner,.dev-gp-float,.dev-hints{backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px)}
+.dev-panel,.dev-preview__inner,.dev-gp-float,.dev-hints{backdrop-filter:blur(var(--dev-panel-blur,calc(40px + var(--glass-blur,0px))))!important;-webkit-backdrop-filter:blur(var(--dev-panel-blur,calc(40px + var(--glass-blur,0px))))!important}
 .dev-preview__inner{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
 .dev-gp-float{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
 .dev-hints{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
@@ -382,11 +393,11 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 	.dev-chip-toggle.hero--focused{background:${p.accent}!important;color:${p.bg}!important;box-shadow:0 0 16px rgba(${A},0.5);border-color:${p.accent}!important}
 /* ═══ 加载画面 ═══ */
 .loading-screen{background:rgba(${BgD},0.9)}
-#loading-track{background:rgba(${A},0.1)}
+#loading-track{background:var(--loading-color,rgba(${W},0.55))!important;height:var(--loading-track-height,4px)!important;border-radius:var(--radius-pill,100px)!important}
 #loading-orbit-light{stroke:rgba(${A},0.55)}
-#loading-text{color:rgba(${W},0.55)}
-#loading-hint{color:rgba(${W},0.4)}
-#loading-quote{color:rgba(${W},0.45)}
+#loading-text{color:var(--loading-color,rgba(${W},0.55))}
+#loading-hint{color:var(--loading-color-dim,rgba(${W},0.4))}
+#loading-quote{color:var(--loading-color-soft,rgba(${W},0.45))}
 
 /* ═══ 动画关键帧 ═══ */
 @keyframes starGlow{
@@ -473,9 +484,57 @@ body,
 // ── 直接内联样式（最高优先级，@import CSS 无法覆盖）──
 function applyDirectStyles(p) {
   const W = p.warm;
+  const GB = p.glassBlur || '0px';
+  const root = document.documentElement;
+
   // body
   document.body.style.backgroundColor = p.bg;
   document.body.style.color = p.text;
+
+  // 分区玻璃 CSS 变量设为 documentElement 内联样式（WebView2 兼容：getComputedStyle 可读）
+  // 仅当 __lensZoneGlassDirty 为 true 时写入（预设切换后），否则保留用户手动覆盖
+  // 模糊值使用 calc(Npx + var(--glass-blur,0px)) 动态表达式，让全局 --glass-blur 滑块实时生效
+  if (window.__lensZoneGlassDirty) {
+    root.style.setProperty('--sidebar-glass-bg', `rgba(${W},0.08)`);
+    root.style.setProperty('--sidebar-glass-border', `rgba(${W},0.12)`);
+    root.style.setProperty('--sidebar-glass-bg-hover', `rgba(${W},0.14)`);
+    root.style.setProperty('--sidebar-glass-border-bright', `rgba(${W},0.22)`);
+    root.style.setProperty('--sidebar-glass-blur', 'calc(24px + var(--glass-blur,0px))');
+    root.style.setProperty('--titlebar-glass-bg', `rgba(${W},0.06)`);
+    root.style.setProperty('--titlebar-glass-border', `rgba(${W},0.10)`);
+    root.style.setProperty('--titlebar-glass-bg-hover', `rgba(${W},0.12)`);
+    root.style.setProperty('--titlebar-btn-color', `rgba(${W},0.45)`);
+    root.style.setProperty('--titlebar-glass-blur', 'calc(12px + var(--glass-blur,0px))');
+    root.style.setProperty('--toolbar-glass-bg', `rgba(${W},0.06)`);
+    root.style.setProperty('--toolbar-glass-border', `rgba(${W},0.10)`);
+    root.style.setProperty('--toolbar-glass-bg-hover', `rgba(${W},0.10)`);
+    root.style.setProperty('--toolbar-btn-color', `rgba(${W},0.45)`);
+    root.style.setProperty('--toolbar-glass-blur', 'calc(16px + var(--glass-blur,0px))');
+    root.style.setProperty('--card-glass-bg', `rgba(${W},0.015)`);
+    root.style.setProperty('--card-glass-border', `rgba(${W},0.05)`);
+    root.style.setProperty('--card-glass-bg-hover', `rgba(${W},0.06)`);
+    root.style.setProperty('--card-glass-border-bright', `rgba(${W},0.16)`);
+    root.style.setProperty('--card-hover-blur', 'calc(6px + var(--glass-blur,0px))');
+    root.style.setProperty('--gallery-nav-blur', 'calc(24px + var(--glass-blur,0px))');
+    root.style.setProperty('--dropdown-blur', 'calc(12px + var(--glass-blur,0px))');
+    root.style.setProperty('--panel-glass-bg', `rgba(${p.surfaceRgb},0.92)`);
+    root.style.setProperty('--panel-glass-border', `rgba(${p.accentRgb},0.15)`);
+    root.style.setProperty('--panel-glass-bg-hover', `rgba(${p.accentRgb},0.06)`);
+    root.style.setProperty('--panel-glass-blur', 'calc(24px + var(--glass-blur,0px))');
+    root.style.setProperty('--shortcuts-blur', 'calc(30px + var(--glass-blur,0px))');
+    root.style.setProperty('--lightbox-glass-bg', `rgba(${W},0.12)`);
+    root.style.setProperty('--lightbox-glass-border', `rgba(${W},0.20)`);
+    root.style.setProperty('--lightbox-glass-bg-hover', `rgba(${W},0.18)`);
+    root.style.setProperty('--lightbox-glass-blur', 'calc(30px + var(--glass-blur,0px))');
+    root.style.setProperty('--lightbox-btn-blur', 'calc(20px + var(--glass-blur,0px))');
+    root.style.setProperty('--lightbox-exif-blur', 'calc(16px + var(--glass-blur,0px))');
+    root.style.setProperty('--slideshow-blur', 'calc(20px + var(--glass-blur,0px))');
+    root.style.setProperty('--hero-scroll-blur', 'calc(20px + var(--glass-blur,0px))');
+    root.style.setProperty('--back-to-top-blur', 'calc(20px + var(--glass-blur,0px))');
+    root.style.setProperty('--dev-panel-blur', 'calc(40px + var(--glass-blur,0px))');
+    window.__lensZoneGlassDirty = false;
+  }
+
   // Hero 标题 — 必须用 setProperty priority=important 才能在零var()体系内击败样式表!important
   const heroTitle = document.querySelector('.hero__title');
   if (heroTitle) {
@@ -492,11 +551,7 @@ function applyDirectStyles(p) {
   const cornerLogo = document.getElementById('corner-logo');
   if (cornerLogo) cornerLogo.style.color = p.cornerLogoColor || `rgba(${W},0.85)`;
   // 装饰线（伪元素无法用内联样式，保留 CSS 规则）
-  // 各面板背景
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) { sidebar.style.background = `rgba(${W},0.08)`; sidebar.style.backdropFilter = 'blur(24px)'; }
-  const toolbar = document.getElementById('toolbar');
-  if (toolbar) { toolbar.style.background = `rgba(${W},0.06)`; }
+  // 各面板背景 — 由 generateFullCSS !important 规则处理，不在元素上设置内联（避免覆盖CSS var()）
   const devPanel = document.getElementById('dev-panel');
   if (devPanel) devPanel.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
   const devOverlay = document.getElementById('dev-overlay');
@@ -508,14 +563,12 @@ function applyDirectStyles(p) {
   if (devGpFloat) devGpFloat.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
   const devHints = document.querySelector('.dev-hints');
   if (devHints) devHints.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
-  const settingsPanel = document.getElementById('settings-panel');
-  if (settingsPanel) settingsPanel.style.background = `rgba(${p.surfaceRgb},0.92)`;
-  const shortcutsPanel = document.querySelector('.shortcuts-panel');
-  if (shortcutsPanel) shortcutsPanel.style.background = `rgba(${p.surfaceRgb},0.94)`;
 }
 
 // ── 注入 / 更新 ──
 function initColorSystem(palette) {
+  // 首次初始化时允许 applyDirectStyles 写入分区玻璃默认值
+  if (window.__lensZoneGlassDirty === undefined) window.__lensZoneGlassDirty = true;
   const css = generateFullCSS(palette || DEFAULT_PALETTE);
   let s = document.getElementById('lens-colors');
   if (!s) {

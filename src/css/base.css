@@ -30,8 +30,8 @@
     width: 42px; height: 42px;
     border-radius: var(--radius-pill);
     background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(var(--back-to-top-blur, calc(20px + var(--glass-blur, 0px))));
+    -webkit-backdrop-filter: blur(var(--back-to-top-blur, calc(20px + var(--glass-blur, 0px))));
     border: 0.5px solid var(--glass-border);
     color: var(--text-3);
     display: flex; align-items: center; justify-content: center;
