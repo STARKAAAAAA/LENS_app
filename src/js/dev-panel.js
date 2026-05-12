@@ -4,6 +4,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
+import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted } from './liquid-glass.js';
 
 // dev panel 使用独立的预设系统，不依赖 toggles.js
 
@@ -25,6 +26,8 @@ const D = {
   perfToggles: { fps: true, metrics: true, invoke: true, console: true },
   _previewAnimRaf: null,
   _previewAnimStart: 0,
+  liquidGlassInstances: [],
+  liquidGlassOn: false,
 };
 const CONSOLE_MAX = 200;
 const FPS_MAX = 60;
@@ -633,7 +636,7 @@ function restoreDebugStyles() {
       if (cfg.extraClass) document.body.classList.remove(cfg.extraClass);
     }
   });
-  ['dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track','dev-toggle-fluid-glass'].forEach(toggleId => {
+  ['dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track'].forEach(toggleId => {
     const toggle = document.getElementById(toggleId);
     if (!toggle?.classList.contains('dev-toggle--on')) return;
     const key = toggleId.replace('dev-toggle-', '');
@@ -1048,6 +1051,19 @@ function renderVisualGroup() {
   if (!el || el.dataset.rendered) return;
   el.dataset.rendered = '1';
 
+  // 液态玻璃 CSS 变量默认值（makeSliderRow 需要从 getComputedStyle 读取初始值）
+  const lgInit = {
+    '--lg-displacement-scale': '70',
+    '--lg-blur-amount': '0.0625',
+    '--lg-saturation': '140',
+    '--lg-aberration': '2',
+    '--lg-elasticity': '0.15',
+    '--lg-radius': '999',
+  };
+  for (const [k, v] of Object.entries(lgInit)) {
+    document.documentElement.style.setProperty(k, v);
+  }
+
   const style = getComputedStyle(document.documentElement);
 
   const html = `
@@ -1061,6 +1077,7 @@ function renderVisualGroup() {
         <button class="dev-subnav__btn" data-subtab="font">字体</button>
         <button class="dev-subnav__btn" data-subtab="motion">动效</button>
         <button class="dev-subnav__btn" data-subtab="debug">调试</button>
+        <button class="dev-subnav__btn" data-subtab="lg">液态玻璃</button>
       </div>
       <div class="dev-subcontent">
     <div class="dev-section" data-subtab="color">
@@ -1267,8 +1284,31 @@ function renderVisualGroup() {
       <div class="dev-row" style="margin-top:3px" title="鼠标/触摸点击位置显示波纹扩散动画，确认点击坐标和事件触发位置"><span class="dev-row__label">点击波纹</span><button class="dev-toggle" id="dev-toggle-click-ripple" data-key="click-ripple"></button></div>
       <div class="dev-row" style="margin-top:3px" title="始终高亮当前 focus 元素(蓝色发光边框)，方便键盘导航调试"><span class="dev-row__label">焦点追踪</span><button class="dev-toggle" id="dev-toggle-focus-track" data-key="focus-track"></button></div>
 
-      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">测试实验</div>
-      <div class="dev-row" title="200px液态玻璃球完全跟随鼠标——径向渐变模拟折射高光 + 毛玻璃模糊穿透"><span class="dev-row__label">液态玻璃</span><button class="dev-toggle" id="dev-toggle-fluid-glass" data-key="fluid-glass"></button></div>
+    </details>
+    </div>
+    <div class="dev-section" data-subtab="lg">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">液态玻璃</summary>
+      <div class="dev-section__desc">基于 liquid-glass-react 方案，纯 CSS + SVG 实现 Apple Liquid Glass 效果。开启后在屏幕上显示两个演示面板（信息卡片 + 胶囊按钮），鼠标移动时面板弹性跟随并呈现液态折射效果。仅 Chromium 浏览器完整支持 SVG 滤镜</div>
+      <div class="dev-row">
+        <span class="dev-row__label">启用液态玻璃</span>
+        <button class="dev-toggle" id="dev-toggle-liquid-glass" data-key="liquid-glass"></button>
+      </div>
+      <div class="dev-row" style="margin-top:3px">
+        <span class="dev-row__label" title="亮色背景适配：加深面板 + 增强模糊">亮色背景</span>
+        <button class="dev-toggle" id="dev-toggle-lg-overlight" data-key="lg-overlight"></button>
+      </div>
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">折射参数</div>
+      ${makeSliderRow('--lg-displacement-scale', '折射强度', style, 0, 200, '', 5, 0, 'feDisplacementMap scale — 控制边缘扭曲强度')}
+      ${makeSliderRow('--lg-aberration', '色差强度', style, 0, 10, '', 0.5, 1, 'R/G/B 三通道位移差异 → 边缘色散效果')}
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">毛玻璃参数</div>
+      ${makeSliderRow('--lg-blur-amount', '模糊系数', style, 0, 1, '', 0.01, 2, 'backdrop-filter blur 系数 — 实际 blur = (4 + 值 × 32)px')}
+      ${makeSliderRow('--lg-saturation', '饱和度', style, 0, 300, '%', 10, 0, 'backdrop-filter saturate — 透过玻璃的颜色饱和度')}
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">交互参数</div>
+      ${makeSliderRow('--lg-elasticity', '弹性系数', style, 0, 0.5, '', 0.01, 2, '鼠标追踪弹性 — 0=刚体无响应 0.5=极液态')}
+      ${makeSliderRow('--lg-radius', '圆角', style, 0, 999, 'px', 10, 0, '玻璃面板的 border-radius 像素')}
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">折射模式</div>
+      ${makeBtnGroupRow('--lg-mode', '位移图模式', style, [['standard','标准'],['polar','极坐标'],['prominent','强化'],['shader','着色器']], 'feDisplacementMap 的位移图来源：标准噪声/极坐标纹理/强化噪声/Canvas SDF动态生成')}
     </details>
     </div>
       </div>
@@ -1948,101 +1988,6 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
     });
   }
 
-  // 液态玻璃 — SVG feDisplacementMap + backdrop-filter 折射页面内容
-  const fluidGlassToggle = el.querySelector('#dev-toggle-fluid-glass');
-  if (fluidGlassToggle) {
-    let svgEl = null, backdropEl = null, highlightEl = null, ringEl = null, raf = null, mh = null, turbEl = null, t = 0;
-
-    fluidGlassToggle.addEventListener('click', () => {
-      const on = fluidGlassToggle.classList.toggle('dev-toggle--on');
-      if (on) {
-        // SVG 滤镜定义（隐藏，只提供滤镜）
-        const ns = 'http://www.w3.org/2000/svg';
-        svgEl = document.createElementNS(ns, 'svg');
-        svgEl.setAttribute('width', '0'); svgEl.setAttribute('height', '0');
-        svgEl.style.position = 'fixed'; svgEl.style.pointerEvents = 'none';
-        svgEl.id = 'dev-fluid-svg';
-        const defs = document.createElementNS(ns, 'defs');
-        const filter = document.createElementNS(ns, 'filter');
-        filter.setAttribute('id', 'fluid-lens-filter');
-        filter.setAttribute('x', '-50%'); filter.setAttribute('y', '-50%');
-        filter.setAttribute('width', '200%'); filter.setAttribute('height', '200%');
-        turbEl = document.createElementNS(ns, 'feTurbulence');
-        turbEl.setAttribute('type', 'fractalNoise');
-        turbEl.setAttribute('baseFrequency', '0.005');
-        turbEl.setAttribute('numOctaves', '2');
-        turbEl.setAttribute('result', 'noise');
-        filter.appendChild(turbEl);
-        // 高斯模糊平滑噪点 → 产生有机流体波浪（而非尖锐噪点）
-        const blur = document.createElementNS(ns, 'feGaussianBlur');
-        blur.setAttribute('in', 'noise');
-        blur.setAttribute('stdDeviation', '2');
-        blur.setAttribute('result', 'smooth');
-        filter.appendChild(blur);
-        const disp = document.createElementNS(ns, 'feDisplacementMap');
-        disp.setAttribute('in', 'SourceGraphic');
-        disp.setAttribute('in2', 'smooth');
-        disp.setAttribute('scale', '80');
-        disp.setAttribute('xChannelSelector', 'R');
-        disp.setAttribute('yChannelSelector', 'G');
-        filter.appendChild(disp);
-        defs.appendChild(filter); svgEl.appendChild(defs);
-        document.body.appendChild(svgEl);
-
-        // 全视口 backdrop 层（clip-path 约束为透镜圆形）
-        backdropEl = document.createElement('div'); backdropEl.id = 'dev-fluid-backdrop';
-        backdropEl.style.cssText = 'position:fixed;inset:0;z-index:99999;pointer-events:none;'
-          + 'backdrop-filter:url(#fluid-lens-filter) saturate(130%);'
-          + '-webkit-backdrop-filter:url(#fluid-lens-filter) saturate(130%);'
-          + 'clip-path:circle(100px at 50% 50%);';
-        document.body.appendChild(backdropEl);
-
-        // 透镜高光层（模拟球面反射）
-        highlightEl = document.createElement('div'); highlightEl.id = 'dev-fluid-highlight';
-        highlightEl.style.cssText = `position:fixed;width:200px;height:200px;border-radius:50%;pointer-events:none;z-index:100000;transform:translate(-50%,-50%);left:50%;top:50%;
-          background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.5) 0%,rgba(255,255,255,0.08) 35%,transparent 60%,rgba(0,0,0,0.1) 85%,rgba(0,0,0,0.25) 100%);mix-blend-mode:overlay;`;
-        document.body.appendChild(highlightEl);
-
-        // 透镜边框
-        ringEl = document.createElement('div'); ringEl.id = 'dev-fluid-ring';
-        ringEl.style.cssText = `position:fixed;width:200px;height:200px;border-radius:50%;pointer-events:none;z-index:100001;transform:translate(-50%,-50%);left:50%;top:50%;
-          border:0.5px solid rgba(255,255,255,0.15);box-shadow:0 0 0 1px rgba(255,255,255,0.04) inset,0 20px 60px rgba(0,0,0,0.3);`;
-        document.body.appendChild(ringEl);
-
-        t = 0;
-        mh = (e) => {
-          const x = e.clientX, y = e.clientY;
-          const cp = `circle(100px at ${x}px ${y}px)`;
-          backdropEl.style.clipPath = cp;
-          backdropEl.style.webkitClipPath = cp;
-          highlightEl.style.left = x + 'px'; highlightEl.style.top = y + 'px';
-          ringEl.style.left = x + 'px'; ringEl.style.top = y + 'px';
-        };
-        document.addEventListener('mousemove', mh);
-
-        // RAF 流体动画：微调 turbulence 频率
-        let lt = performance.now();
-        const tick = (now) => {
-          const dt = Math.min((now - lt) / 1000, 0.1); lt = now; t += dt;
-          if (turbEl) {
-            const bf = 0.005 + Math.sin(t * 0.4) * 0.002;
-            turbEl.setAttribute('baseFrequency', bf.toFixed(4));
-          }
-          raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-      } else {
-        if (raf) { cancelAnimationFrame(raf); raf = null; }
-        if (mh) { document.removeEventListener('mousemove', mh); mh = null; }
-        if (svgEl) { svgEl.remove(); svgEl = null; }
-        if (backdropEl) { backdropEl.remove(); backdropEl = null; }
-        if (highlightEl) { highlightEl.remove(); highlightEl = null; }
-        if (ringEl) { ringEl.remove(); ringEl = null; }
-        turbEl = null;
-      }
-    });
-  }
-
   // 毛玻璃颜色（rgba 颜色 + alpha 滑块联动）
   el.querySelectorAll('.dev-glass-color').forEach(colorInput => {
     const key = colorInput.dataset.css;
@@ -2123,6 +2068,59 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
       scheduleApplyEffects();
     });
   });
+
+  // ═══════════════════════════════════════════════════
+  // 液态玻璃控件
+  // ═══════════════════════════════════════════════════
+
+  // ── 液态玻璃 React 组件 ──
+
+  const getLGOptions = () => ({
+    displacementScale: parseFloat(el.querySelector('[data-css="--lg-displacement-scale"]')?.value || 70),
+    blurAmount: parseFloat(el.querySelector('[data-css="--lg-blur-amount"]')?.value || 0.0625),
+    saturation: parseFloat(el.querySelector('[data-css="--lg-saturation"]')?.value || 140),
+    aberrationIntensity: parseFloat(el.querySelector('[data-css="--lg-aberration"]')?.value || 2),
+    elasticity: parseFloat(el.querySelector('[data-css="--lg-elasticity"]')?.value || 0.15),
+    cornerRadius: parseFloat(el.querySelector('[data-css="--lg-radius"]')?.value || 32),
+    mode: el.querySelector('.dev-btn--active[data-css-btn="--lg-mode"]')?.dataset?.value || 'standard',
+    overLight: el.querySelector('#dev-toggle-lg-overlight')?.classList.contains('dev-toggle--on') || false,
+  });
+
+  // 总开关
+  const lgToggle = el.querySelector('#dev-toggle-liquid-glass');
+  if (lgToggle) {
+    lgToggle.addEventListener('click', () => {
+      const on = lgToggle.classList.toggle('dev-toggle--on');
+      D.liquidGlassOn = on;
+      if (on) {
+        mountLiquidGlass(getLGOptions());
+      } else {
+        unmountLiquidGlass();
+      }
+    });
+  }
+
+  // 亮色背景开关
+  const lgOverlightToggle = el.querySelector('#dev-toggle-lg-overlight');
+  if (lgOverlightToggle) {
+    lgOverlightToggle.addEventListener('click', () => {
+      lgOverlightToggle.classList.toggle('dev-toggle--on');
+      if (isLiquidGlassMounted()) {
+        unmountLiquidGlass();
+        mountLiquidGlass(getLGOptions());
+      }
+    });
+  }
+
+  // 滑块 + 模式：卸载后重新挂载
+  const lgRerender = () => {
+    if (isLiquidGlassMounted()) {
+      unmountLiquidGlass();
+      mountLiquidGlass(getLGOptions());
+    }
+  };
+  el.querySelectorAll('.dev-slider[data-css^="--lg-"]').forEach(s => s.addEventListener('input', lgRerender));
+  el.querySelectorAll('[data-css-btn="--lg-mode"]').forEach(b => b.addEventListener('click', () => setTimeout(lgRerender, 50)));
 
   // 全局委托：任何控件变动自动保存 + 更新直接样式
   el.addEventListener('input', (e) => {
@@ -3055,14 +3053,14 @@ function renderPresetsGroup() {
     });
     applyPerfToggles();
     // 重置调试开关
-    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style','dev-tag-labels-style','dev-layout-hl-style','dev-empty-el-style','dev-depth-color-style','dev-font-info-style','dev-link-info-style','dev-img-alt-style','dev-size-label-style','dev-fps-badge','dev-img-waste-style','dev-dom-stats','dev-key-log','dev-ripple-keyframes','dev-focus-track-style','dev-fluid-glass'].forEach(id => {
+    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style','dev-tag-labels-style','dev-layout-hl-style','dev-empty-el-style','dev-depth-color-style','dev-font-info-style','dev-link-info-style','dev-img-alt-style','dev-size-label-style','dev-fps-badge','dev-img-waste-style','dev-dom-stats','dev-key-log','dev-ripple-keyframes','dev-focus-track-style'].forEach(id => {
       const s = document.getElementById(id); if (s) s.remove();
     });
     document.body.classList.remove('dev-bm-active');
     // 同步视觉 tab 调试 toggle 状态（仅调试开关，保留动画开关）
     const visEl = document.getElementById('dev-group-visual');
     if (visEl) {
-      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track','dev-toggle-fluid-glass'].forEach(id => {
+      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track'].forEach(id => {
         const t = document.getElementById(id);
         if (t) t.classList.remove('dev-toggle--on');
       });
@@ -3413,13 +3411,13 @@ export function initDevPanel() {
     D.perfToggles = { fps: true, metrics: true, invoke: true, console: true };
     document.querySelectorAll('.dev-chip-toggle').forEach(btn => btn.classList.add('dev-chip-toggle--on'));
     applyPerfToggles();
-    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style','dev-tag-labels-style','dev-layout-hl-style','dev-empty-el-style','dev-depth-color-style','dev-font-info-style','dev-link-info-style','dev-img-alt-style','dev-size-label-style','dev-fps-badge','dev-img-waste-style','dev-dom-stats','dev-key-log','dev-ripple-keyframes','dev-focus-track-style','dev-fluid-glass'].forEach(id => {
+    ['dev-outline-style','dev-grid-style','dev-box-model-style','dev-box-model-hover','dev-overflow-style','dev-img-info-style','dev-z-index-style','dev-tag-labels-style','dev-layout-hl-style','dev-empty-el-style','dev-depth-color-style','dev-font-info-style','dev-link-info-style','dev-img-alt-style','dev-size-label-style','dev-fps-badge','dev-img-waste-style','dev-dom-stats','dev-key-log','dev-ripple-keyframes','dev-focus-track-style'].forEach(id => {
       const s = document.getElementById(id); if (s) s.remove();
     });
     document.body.classList.remove('dev-bm-active');
     const visEl2 = document.getElementById('dev-group-visual');
     if (visEl2) {
-      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track','dev-toggle-fluid-glass'].forEach(id => {
+      ['dev-toggle-outline','dev-toggle-grid-lines','dev-toggle-box-model','dev-toggle-overflow','dev-toggle-img-info','dev-toggle-z-index','dev-toggle-tag-labels','dev-toggle-layout-hl','dev-toggle-empty-el','dev-toggle-depth-color','dev-toggle-font-info','dev-toggle-link-info','dev-toggle-img-alt','dev-toggle-size-label','dev-toggle-fps-badge','dev-toggle-img-waste','dev-toggle-dom-stats','dev-toggle-key-log','dev-toggle-click-ripple','dev-toggle-focus-track'].forEach(id => {
         const t = document.getElementById(id);
         if (t) t.classList.remove('dev-toggle--on');
       });

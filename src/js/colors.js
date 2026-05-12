@@ -291,7 +291,7 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 
 /* ═══ 灯箱 ═══ */
 .lightbox{background:rgba(0,0,0,0)}
-.lightbox.active{background:rgba(0,0,0,0.85);backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important}
+.lightbox.active{background:rgba(0,0,0,0.85)!important;backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important}
 .lightbox__close{color:${p.text};background:var(--lightbox-glass-bg,rgba(${W},0.12));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.20))}
 .lightbox__close:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.18));border-color:var(--lightbox-glass-border,rgba(${W},0.30))}
 .lightbox__prev,.lightbox__next{color:${p.text};background:var(--lightbox-glass-bg,rgba(${W},0.10));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.18))}
