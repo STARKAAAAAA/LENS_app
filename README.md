@@ -77,10 +77,12 @@
 ### 视觉 / Design
 - 暖黑底色 `#0a0a08`，暖金强调色 `#c8a87c`
 - 全面毛玻璃效果 (backdrop-filter blur)
+- 液态玻璃面板（CSS blur+saturate+弹性弹簧跟踪+双层边框光照）
 - Cormorant Garamond / Cormorant 衬线字体
 - cubic-bezier(0.16, 1, 0.3, 1) 统一缓出曲线
 - 全部交互均配有丝滑入场/退场动画
 - CSS @layer 架构 (reset / base / components / utilities)
+- 2026 新技术: Container Queries / CSS HDR / Popover API / WebCodecs
 
 ### 手柄 / Gamepad
 - 全功能导航：方向键/摇杆焦点移动，A确认/B返回/X收藏+Y幻灯片
@@ -95,10 +97,9 @@
 - 飞智八爪鱼4、Xbox、PS5、Switch Pro 控制器兼容
 
 ### 工程 / Engineering
-- CSS 模块化拆分（12 文件）：reset, variables, base, titlebar, toolbar, sidebar, loading, hero, gallery, lightbox, panels, utilities
-- JS 模块化拆分（10 文件）：utils, config, scanner, titlebar, toggles, sidebar, loading, gallery, lightbox, panels
-- main.js 精简为 315 行编排层，依赖注入模式
-- Rust 端错误日志 (eprintln)
+- CSS 模块化拆分（13 文件）：reset, variables, base, titlebar, toolbar, sidebar, loading, hero, gallery, lightbox, panels, utilities, modern-features
+- JS 模块化拆分（13 文件）：utils, config, scanner, titlebar, toggles, sidebar, loading, gallery, lightbox, panels, colors, liquid-glass, webcodecs-helper
+- 开发者面板：36变量+14预设+8分段+预览面板+分区玻璃解耦+液态玻璃+调试工具
 
 ## 版本历史 / Changelog
 
@@ -137,7 +138,7 @@ src/
 ├── index.html              # 入口 HTML
 ├── style.css               # CSS 入口 (@import 12 模块)
 ├── main.js                 # JS 入口 (编排层, ~315 行)
-├── css/                    # CSS 模块 (12 文件)
+├── css/                    # CSS 模块 (13 文件)
 │   ├── reset.css           #   CSS reset
 │   ├── variables.css       #   CSS 变量 + @property
 │   ├── base.css            #   基础排版布局
@@ -150,7 +151,7 @@ src/
 │   ├── lightbox.css        #   灯箱 + 幻灯片 + EXIF
 │   ├── panels.css          #   设置面板 + 快捷键面板
 │   └── utilities.css       #   响应式工具类
-└── js/                     # JS 模块 (10 文件)
+└── js/                     # JS 模块 (13 文件)
     ├── utils.js            #   工具函数
     ├── config.js           #   配置管理
     ├── scanner.js          #   文件夹扫描
