@@ -1,7 +1,8 @@
 // ========== 灯箱 & 幻灯片 & 评分系统 ==========
 
-import { invoke } from '@tauri-apps/api/core';
 import { formatBytes } from './utils.js';
+
+const api = window.electronAPI;
 
 // ========== 评分数据（内存缓存 + localStorage 持久化） ==========
 const RATING_KEY = 'lens-photo-ratings';

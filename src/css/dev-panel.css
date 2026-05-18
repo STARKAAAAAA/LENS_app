@@ -446,6 +446,12 @@
     box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5);
   }
 
+  /* ========== 背景选择器 ========== */
+  .dev-bg-item--active {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
+  }
+
   /* ========== FPS 柱状图 ========== */
   .dev-fps-chart {
     display: flex; align-items: flex-end; gap: 2px;

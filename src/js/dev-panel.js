@@ -1,10 +1,10 @@
 // ========== 开发者面板 — LENS Developer Panel ==========
 // 快捷键 Ctrl+Shift+D 打开  手柄 START+BACK 打开
 
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
-import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted } from './liquid-glass.js';
+import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
+
+const api = window.electronAPI;
 
 // dev panel 使用独立的预设系统，不依赖 toggles.js
 
@@ -1051,19 +1051,6 @@ function renderVisualGroup() {
   if (!el || el.dataset.rendered) return;
   el.dataset.rendered = '1';
 
-  // 液态玻璃 CSS 变量默认值（makeSliderRow 需要从 getComputedStyle 读取初始值）
-  const lgInit = {
-    '--lg-displacement-scale': '70',
-    '--lg-blur-amount': '0.0625',
-    '--lg-saturation': '140',
-    '--lg-aberration': '2',
-    '--lg-elasticity': '0.15',
-    '--lg-radius': '999',
-  };
-  for (const [k, v] of Object.entries(lgInit)) {
-    document.documentElement.style.setProperty(k, v);
-  }
-
   const style = getComputedStyle(document.documentElement);
 
   const html = `
@@ -1289,26 +1276,31 @@ function renderVisualGroup() {
     <div class="dev-section" data-subtab="lg">
       <details class="dev-zone" open>
         <summary class="dev-zone__summary">液态玻璃</summary>
-      <div class="dev-section__desc">基于 liquid-glass-react 方案，纯 CSS + SVG 实现 Apple Liquid Glass 效果。开启后在屏幕上显示两个演示面板（信息卡片 + 胶囊按钮），鼠标移动时面板弹性跟随并呈现液态折射效果。仅 Chromium 浏览器完整支持 SVG 滤镜</div>
+      <div class="dev-section__desc">CSS backdrop-filter 磨砂玻璃 — 模糊 + 半透明 + 边缘高光 + 投影。鼠标移动时弹性跟随。</div>
       <div class="dev-row">
         <span class="dev-row__label">启用液态玻璃</span>
         <button class="dev-toggle" id="dev-toggle-liquid-glass" data-key="liquid-glass"></button>
       </div>
-      <div class="dev-row" style="margin-top:3px">
-        <span class="dev-row__label" title="亮色背景适配：加深面板 + 增强模糊">亮色背景</span>
-        <button class="dev-toggle" id="dev-toggle-lg-overlight" data-key="lg-overlight"></button>
+      <div class="dev-row">
+        <span class="dev-row__label">测试背景</span>
+        <button class="dev-toggle" id="dev-toggle-lg-test-bg" data-key="lg-test-bg"></button>
       </div>
-      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">折射参数</div>
-      ${makeSliderRow('--lg-displacement-scale', '折射强度', style, 0, 200, '', 5, 0, 'feDisplacementMap scale — 控制边缘扭曲强度')}
-      ${makeSliderRow('--lg-aberration', '色差强度', style, 0, 10, '', 0.5, 1, 'R/G/B 三通道位移差异 → 边缘色散效果')}
-      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">毛玻璃参数</div>
-      ${makeSliderRow('--lg-blur-amount', '模糊系数', style, 0, 1, '', 0.01, 2, 'backdrop-filter blur 系数 — 实际 blur = (4 + 值 × 32)px')}
-      ${makeSliderRow('--lg-saturation', '饱和度', style, 0, 300, '%', 10, 0, 'backdrop-filter saturate — 透过玻璃的颜色饱和度')}
-      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">交互参数</div>
-      ${makeSliderRow('--lg-elasticity', '弹性系数', style, 0, 0.5, '', 0.01, 2, '鼠标追踪弹性 — 0=刚体无响应 0.5=极液态')}
-      ${makeSliderRow('--lg-radius', '圆角', style, 0, 999, 'px', 10, 0, '玻璃面板的 border-radius 像素')}
-      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">折射模式</div>
-      ${makeBtnGroupRow('--lg-mode', '位移图模式', style, [['standard','标准'],['polar','极坐标'],['prominent','强化'],['shader','着色器']], 'feDisplacementMap 的位移图来源：标准噪声/极坐标纹理/强化噪声/Canvas SDF动态生成')}
+      ${lgSlider('宽度', 'width', 60, 600, 240, 10, 'px')}
+      ${lgSlider('高度', 'height', 60, 600, 240, 10, 'px')}
+      ${lgSlider('圆角', 'radius', 0, 100, 36, 2, 'px')}
+      ${lgSlider('模糊', 'blur', 0, 40, 6, 1, 'px')}
+      ${lgSlider('折射', 'refraction', 0, 200, 150, 2, '')}
+      <div class="dev-row">
+        <span class="dev-row__label">球型玻璃</span>
+        <button class="dev-toggle" id="dev-toggle-lg-sphere" data-key="lg-sphere"></button>
+      </div>
+      ${lgSlider('饱和度', 'saturate', 0.5, 3, 1.3, 0.1, '')}
+      ${lgSlider('底色', 'bgOpacity', 0, 0.5, 0.06, 0.01, '')}
+      ${lgSlider('边框', 'borderOpacity', 0, 0.5, 0.15, 0.01, '')}
+      ${lgSlider('投影', 'shadowBlur', 0, 80, 40, 2, 'px')}
+      ${lgSlider('投影深', 'shadowOpacity', 0, 0.5, 0.15, 0.01, '')}
+      ${lgSlider('弹性', 'tension', 50, 400, 170, 10, '')}
+      ${lgSlider('阻尼', 'friction', 5, 60, 26, 1, '')}
     </details>
     </div>
       </div>
@@ -1317,6 +1309,105 @@ function renderVisualGroup() {
   el.innerHTML = html;
   bindVisualControls(el);
   buildDevPreview();
+
+  // 液态玻璃：读取滑块值更新 glass div
+  const applyLG = () => {
+    const g = document.getElementById('liquid-glass');
+    if (!g) return;
+    const rv = (n, fb) => { const e2 = el.querySelector('[data-lg="' + n + '"]'); if (!e2) return fb; const v = parseFloat(e2.value); return isNaN(v) ? fb : v; };
+    const bp = rv('blur', 6), sat = rv('saturate', 1.3), rf = rv('refraction', 0);
+    g.style.width = rv('width', 240) + 'px';
+    g.style.height = rv('height', 240) + 'px';
+    g.style.borderRadius = rv('radius', 36) + 'px';
+    g.style.background = 'rgba(255,255,255,' + rv('bgOpacity', 0.06) + ')';
+    g.style.border = '1px solid rgba(255,255,255,' + rv('borderOpacity', 0.15) + ')';
+    g.style.boxShadow = '0 8px ' + rv('shadowBlur', 40) + 'px rgba(0,0,0,' + rv('shadowOpacity', 0.15) + '), inset 0 1px 0 rgba(255,255,255,0.2)';
+    const bf = 'blur(' + bp + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
+    g.style.backdropFilter = bf;
+    g.style.WebkitBackdropFilter = bf;
+    const st = getStudio();
+    if (st) { st.setShape(rv('width', 240), rv('height', 240), rv('radius', 36)); st.setRefraction(rf); st.updateControls({ tension: rv('tension', 170), friction: rv('friction', 26) }); }
+  };
+
+  // 开关
+  const lgToggle = el.querySelector('#dev-toggle-liquid-glass');
+  if (lgToggle) {
+    lgToggle.addEventListener('click', () => {
+      const on = lgToggle.classList.toggle('dev-toggle--on');
+      D.liquidGlassOn = on;
+      if (on) { mountLiquidGlass(); setTimeout(applyLG, 50); setTimeout(applyLG, 300); }
+      else { unmountLiquidGlass(); }
+    });
+  }
+
+  // 测试背景 — 单击轮播（liquid-glass-studio 案例图片）
+  let _lgBgIdx = 0;
+  const _lgBgLabel = ['网格', '条纹', '半色', '太浩湖', '建筑', '文字', 'TimCook', 'UI界面'];
+  const _lgBgUrls = ['assets/bg-grid.png', 'assets/bg-bars.png', 'assets/bg-half.png', 'assets/bg-tahoe-light.webp', 'assets/bg-buildings.png', 'assets/bg-text.jpg', 'assets/bg-timcook.png', 'assets/bg-ui.svg'];
+  const _makeBg = (url) => {
+    const bg = document.createElement('div');
+    bg.style.cssText = 'position:fixed;inset:0;z-index:9997;pointer-events:none;' +
+      'background: url(' + url + ') center/cover no-repeat;';
+    return bg;
+  };
+
+  const lgTestBg = el.querySelector('#dev-toggle-lg-test-bg');
+  if (lgTestBg) {
+    lgTestBg.addEventListener('click', () => {
+      const old = document.getElementById('__lg_test_bg');
+      if (old) {
+        old.remove();
+        _lgBgIdx = (_lgBgIdx + 1) % _lgBgUrls.length;
+      } else {
+        _lgBgIdx = 0;
+      }
+      const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
+      bg.id = '__lg_test_bg';
+      document.body.appendChild(bg);
+      lgTestBg.classList.add('dev-toggle--on');
+      D.liquidGlassTestBg = true;
+      lgTestBg.title = '测试背景: ' + _lgBgLabel[_lgBgIdx] + ' (再点切换)';
+    });
+    // 右键关闭
+    lgTestBg.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const old = document.getElementById('__lg_test_bg');
+      if (old) old.remove();
+      lgTestBg.classList.remove('dev-toggle--on');
+      D.liquidGlassTestBg = false;
+      lgTestBg.title = '测试背景';
+    });
+  }
+
+  // 球型玻璃
+  const lgSphere = el.querySelector('#dev-toggle-lg-sphere');
+  if (lgSphere) {
+    lgSphere.addEventListener('click', () => {
+      const on = lgSphere.classList.toggle('dev-toggle--on');
+      const g = document.getElementById('liquid-glass');
+      if (g) {
+        if (on) {
+          g.dataset.sphere = '1';
+          const s = Math.max(g.offsetWidth, g.offsetHeight);
+          g.style.width = s + 'px'; g.style.height = s + 'px';
+          g.style.borderRadius = '50%';
+        } else {
+          g.dataset.sphere = '0';
+          applyLG();
+        }
+      }
+    });
+  }
+
+  // 滑块
+  el.querySelectorAll('[data-lg]').forEach(sl => {
+    sl.addEventListener('input', () => {
+      const val = parseFloat(sl.value);
+      const display = sl.parentElement.querySelector('.dev-row__value');
+      if (display) display.textContent = val;
+      applyLG();
+    });
+  });
 }
 
 function makeColorRow(key, label, style, tip) {
@@ -1330,6 +1421,14 @@ function makeColorRow(key, label, style, tip) {
     <input type="color" class="dev-color" data-css="${key}" value="${hex}">
     <span class="dev-row__value">${val}</span>
     <button class="dev-btn" data-reset="${key}" title="复位">↺</button>
+  </div>`;
+}
+
+function lgSlider(label, name, min, max, val, step, unit) {
+  return `<div class="dev-row">
+    <span class="dev-row__label">${label}</span>
+    <input type="range" class="dev-slider" data-lg="${name}" min="${min}" max="${max}" step="${step}" value="${val}">
+    <span class="dev-row__value">${val}${unit}</span>
   </div>`;
 }
 
@@ -2073,55 +2172,6 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
   // 液态玻璃控件
   // ═══════════════════════════════════════════════════
 
-  // ── 液态玻璃 React 组件 ──
-
-  const getLGOptions = () => ({
-    displacementScale: parseFloat(el.querySelector('[data-css="--lg-displacement-scale"]')?.value || 70),
-    blurAmount: parseFloat(el.querySelector('[data-css="--lg-blur-amount"]')?.value || 0.0625),
-    saturation: parseFloat(el.querySelector('[data-css="--lg-saturation"]')?.value || 140),
-    aberrationIntensity: parseFloat(el.querySelector('[data-css="--lg-aberration"]')?.value || 2),
-    elasticity: parseFloat(el.querySelector('[data-css="--lg-elasticity"]')?.value || 0.15),
-    cornerRadius: parseFloat(el.querySelector('[data-css="--lg-radius"]')?.value || 32),
-    mode: el.querySelector('.dev-btn--active[data-css-btn="--lg-mode"]')?.dataset?.value || 'standard',
-    overLight: el.querySelector('#dev-toggle-lg-overlight')?.classList.contains('dev-toggle--on') || false,
-  });
-
-  // 总开关
-  const lgToggle = el.querySelector('#dev-toggle-liquid-glass');
-  if (lgToggle) {
-    lgToggle.addEventListener('click', () => {
-      const on = lgToggle.classList.toggle('dev-toggle--on');
-      D.liquidGlassOn = on;
-      if (on) {
-        mountLiquidGlass(getLGOptions());
-      } else {
-        unmountLiquidGlass();
-      }
-    });
-  }
-
-  // 亮色背景开关
-  const lgOverlightToggle = el.querySelector('#dev-toggle-lg-overlight');
-  if (lgOverlightToggle) {
-    lgOverlightToggle.addEventListener('click', () => {
-      lgOverlightToggle.classList.toggle('dev-toggle--on');
-      if (isLiquidGlassMounted()) {
-        unmountLiquidGlass();
-        mountLiquidGlass(getLGOptions());
-      }
-    });
-  }
-
-  // 滑块 + 模式：卸载后重新挂载
-  const lgRerender = () => {
-    if (isLiquidGlassMounted()) {
-      unmountLiquidGlass();
-      mountLiquidGlass(getLGOptions());
-    }
-  };
-  el.querySelectorAll('.dev-slider[data-css^="--lg-"]').forEach(s => s.addEventListener('input', lgRerender));
-  el.querySelectorAll('[data-css-btn="--lg-mode"]').forEach(b => b.addEventListener('click', () => setTimeout(lgRerender, 50)));
-
   // 全局委托：任何控件变动自动保存 + 更新直接样式
   el.addEventListener('input', (e) => {
     if (e.target.closest('.dev-slider, .dev-color, .dev-glass-color, .dev-glass-alpha, .dev-input--text')) {
@@ -2825,9 +2875,13 @@ function exportPreset(preset) {
 
 async function importPreset() {
   try {
-    const selected = await open({ filters: [{ name: '预设', extensions: ['json'] }], multiple: false });
+    const selected = api
+      ? await api.invoke('dialog:open', { filters: [{ name: '预设', extensions: ['json'] }] })
+      : (await import('@tauri-apps/plugin-dialog')).open({ filters: [{ name: '预设', extensions: ['json'] }], multiple: false });
     if (selected) {
-      const content = await invoke('read_text_file', { path: selected });
+      const content = api
+        ? (await api.invoke('fs:readFile', { path: selected })).toString()
+        : await (await import('@tauri-apps/api/core')).invoke('read_text_file', { path: selected });
       const preset = JSON.parse(content);
       if (!preset.vars) throw new Error('无效预设格式');
       const presets = getPresets();

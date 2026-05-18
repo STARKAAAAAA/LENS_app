@@ -1,0 +1,30 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>液态玻璃测试 — feTurbulence</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;overflow:hidden;font-family:system-ui,sans-serif}
+#bg{position:fixed;inset:0;z-index:0;background:url(../dist/assets/bg-buildings.png) center/cover no-repeat}
+#glass{position:fixed;top:0;left:0;pointer-events:none;z-index:9998;width:240px;height:240px;border-radius:36px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(12px) saturate(1.3) url(#lg-refract);-webkit-backdrop-filter:blur(12px) saturate(1.3) url(#lg-refract)}
+.panel{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10000;background:rgba(0,0,0,0.8);color:#fff;padding:16px 24px;border-radius:12px;display:flex;gap:20px;align-items:center;font-size:14px}
+.panel input[type=range]{width:100px}
+.panel button{padding:6px 14px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;cursor:pointer}
+.panel button.on{background:rgba(255,255,255,0.3)}
+</style></head><body>
+<div id="bg"></div><div id="glass"></div>
+<div class="panel">
+ <label>折射<input type="range" id="refr" min="0" max="100" value="32"></label><span id="rv">32</span>
+ <label>模糊<input type="range" id="blur" min="0" max="40" value="12"></label><span id="bv">12</span>
+ <button onclick="cycleBg()">换背景</button>
+</div>
+<svg id="s" style="position:absolute;width:0;height:0"></svg>
+<script>
+const bgs=['../dist/assets/bg-grid.png','../dist/assets/bg-bars.png','../dist/assets/bg-half.png','../dist/assets/bg-tahoe-light.webp','../dist/assets/bg-buildings.png','../dist/assets/bg-text.jpg','../dist/assets/bg-timcook.png'];
+let bi=4;
+function rebuild(s){
+ document.getElementById('s').innerHTML='<filter id="lg-refract" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="3" result="n"/><feGaussianBlur in="n" stdDeviation="6" result="s"/><feDisplacementMap in="SourceGraphic" in2="s" scale="'+s+'" xChannelSelector="R" yChannelSelector="G"/></filter>';
+}
+rebuild(32);
+document.addEventListener('pointermove',e=>{glass.style.left=(e.clientX-120)+'px';glass.style.top=(e.clientY-120)+'px'});
+refr.oninput=function(){rv.textContent=this.value;rebuild(+this.value);glass.style.backdropFilter='blur('+blur.value+'px) saturate(1.3) url(#lg-refract)'};
+blur.oninput=function(){bv.textContent=this.value;glass.style.backdropFilter='blur('+this.value+'px) saturate(1.3) url(#lg-refract)'};
+function cycleBg(){bi=(bi+1)%bgs.length;bg.style.backgroundImage='url('+bgs[bi]+')'}
+</script></body></html>

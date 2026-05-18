@@ -1,6 +1,31 @@
-// ===== Imports =====
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+// ===== API 抽象层 — 统一 Tauri 和 Electron 接口 =====
+const api = window.electronAPI;
+
+// 命令通道名映射 (Tauri → Electron)
+const CHANNEL_MAP = {
+  'generate_thumbnails': 'thumbnail:generate',
+  'get_cache_info': 'cache:info',
+  'clear_cache': 'cache:clear',
+  'get_exif_info': 'exif:read',
+  'read_text_file': 'fs:readFile',
+};
+
+// 统一 invoke (Electron: 自动映射通道名; Tauri: 直通)
+const _rawInvoke = api?.invoke;
+const invoke = async (cmd, args) => {
+  const channel = CHANNEL_MAP[cmd] || cmd;
+  return _rawInvoke(channel, args);
+};
+
+// 图片路径转换
+const convertFileSrc = api?.convertFileSrc
+  || ((path) => path);
+
+// 事件监听
+const listen = (event, callback) => {
+  if (api?.on) return api.on(event, callback);
+  return () => {}; // Tauri fallback: dynamic import on demand
+};
 
 // ===== Invoke 日志包装 =====
 async function loggedInvoke(cmd, args) {
@@ -245,8 +270,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       let unlisten = null;
       let thumbMap = {};
       try {
-        unlisten = await listen('thumbnail-progress', (event) => {
-          const { current, total, fresh } = event.payload;
+        unlisten = await listen('thumbnail-progress', (data) => {
+          const { current, total, fresh } = api ? data : data.payload;
           updateLoadingScreen(`正在生成缩略图... ${current} / ${total}`);
           if (!firstLoadHintShown && fresh > 0 && fresh > total * 0.3) {
             firstLoadHintShown = true;

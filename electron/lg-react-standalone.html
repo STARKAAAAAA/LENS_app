@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>液态玻璃 — 纯 HTML/CSS/SVG</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Geist', system-ui, sans-serif; }
+
+  .bg-scroll { position: fixed; inset: 0; overflow-y: auto; z-index: 0; }
+  .bg-section { height: 100vh; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; position: relative; }
+  .bg-section::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.35); }
+  .bg-label { position: relative; z-index: 1; font-size: 72px; font-weight: 700; color: #fff; letter-spacing: 12px; pointer-events: none; user-select: none; }
+
+  .glass-card { position: fixed; z-index: 10; top: 20%; left: 50%; }
+  .glass-inner { position: relative; display: inline-flex; align-items: center; gap: 24px; border-radius: var(--r,28px); padding: 24px 30px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+  .glass-warp { position: absolute; inset: 0; backdrop-filter: blur(var(--blur,20px)) saturate(var(--sat,160%)); filter: url(#gf); }
+  .glass-content { position: relative; z-index: 1; color: #fff; font: 500 20px/1 system-ui; text-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+
+  .border-layer { position: fixed; z-index: 10; pointer-events: none; padding: 1.5px; top: 20%; left: 50%; border-radius: var(--r,28px); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; box-shadow: 0 0 0 0.5px rgba(255,255,255,0.5) inset, 0 1px 3px rgba(255,255,255,0.25) inset, 0 1px 4px rgba(0,0,0,0.35); }
+  #b1 { mix-blend-mode: screen; opacity: 0.2; }
+  #b2 { mix-blend-mode: overlay; }
+
+  .panel { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 14px 18px; border-radius: 16px; background: rgba(10,10,20,0.85); backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.1); max-width: 96vw; transition: bottom 0.35s ease; }
+  .panel.hidden { bottom: -340px; }
+  .ctrl { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 64px; }
+  .ctrl-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.45); }
+  .ctrl-row { display: flex; align-items: center; gap: 4px; }
+  .ctrl-val { font-size: 10px; font-variant-numeric: tabular-nums; color: #a5b4fc; min-width: 28px; text-align: right; }
+  input[type=range] { width: 60px; accent-color: #818cf8; }
+  .chip { padding: 1px 8px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #fff; font-size: 9px; cursor: pointer; font-family: 'Geist', system-ui, sans-serif; }
+  .chip.on { background: rgba(255,255,255,0.18); font-weight: 600; }
+  .toggle-btn { position: fixed; bottom: 16px; right: 20px; z-index: 40; padding: 8px 18px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6); color: #fff; font-size: 13px; cursor: pointer; backdrop-filter: blur(10px); font-family: 'Geist', system-ui, sans-serif; }
+  .svg-defs { position: absolute; width: 0; height: 0; }
+</style>
+</head>
+<body>
+
+<!-- ====== 先生成位移图 data URL ====== -->
+<script>
+(function() {
+  const S = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(S, S);
+  const d = img.data;
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const nx = (x / S - 0.5) * 2;
+      const ny = (y / S - 0.5) * 2;
+      const dist = Math.sqrt(nx * nx + ny * ny);
+      const str = Math.pow(Math.min(1, dist), 3);
+      const i = (y * S + x) * 4;
+      d[i]     = Math.max(0, Math.min(255, (nx * str * 0.5 + 0.5) * 255));
+      d[i + 1] = Math.max(0, Math.min(255, (ny * str * 0.5 + 0.5) * 255));
+      d[i + 2] = Math.max(0, Math.min(255, (ny * str * 0.5 + 0.5) * 255));
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  window.__DMAP_URL = c.toDataURL();
+})();
+</script>
+
+<!-- ====== 用 JS 动态创建 SVG 滤镜（href 预填） ====== -->
+<script>
+(function() {
+  const mapUrl = window.__DMAP_URL;
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  function el(tag, attrs, children) {
+    const e = document.createElementNS(svgNS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    if (children) for (const ch of children) e.appendChild(typeof ch === 'string' ? document.createTextNode(ch) : ch);
+    return e;
+  }
+
+  const svg = el('svg', { class: 'svg-defs', 'aria-hidden': 'true' });
+  const defs = el('defs');
+
+  // edge-mask radialGradient
+  defs.appendChild(el('radialGradient', { id: 'edge-mask', cx: '50%', cy: '50%', r: '50%' }, [
+    el('stop', { offset: '0%', 'stop-color': 'black', 'stop-opacity': '0' }),
+    el('stop', { offset: '72%', 'stop-color': 'black', 'stop-opacity': '0' }),
+    el('stop', { offset: '100%', 'stop-color': 'white', 'stop-opacity': '1' }),
+  ]));
+
+  // filter
+  const filter = el('filter', { id: 'gf', x: '-35%', y: '-35%', width: '170%', height: '170%', 'color-interpolation-filters': 'sRGB' }, [
+    el('feImage', { x: '0', y: '0', width: '100%', height: '100%', result: 'DMAP', href: mapUrl, preserveAspectRatio: 'xMidYMid slice' }),
+    el('feColorMatrix', { in: 'DMAP', type: 'matrix', values: '0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0 0 0 1 0', result: 'EI' }),
+    el('feComponentTransfer', { in: 'EI', result: 'EM' }, [
+      el('feFuncA', { type: 'discrete', tableValues: '0 0.2 1' }),
+    ]),
+    el('feOffset', { in: 'SourceGraphic', dx: '0', dy: '0', result: 'CENTER' }),
+    el('feDisplacementMap', { in: 'SourceGraphic', in2: 'DMAP', scale: '100', xChannelSelector: 'R', yChannelSelector: 'B', result: 'RD' }),
+    el('feColorMatrix', { in: 'RD', type: 'matrix', values: '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0', result: 'RC' }),
+    el('feDisplacementMap', { in: 'SourceGraphic', in2: 'DMAP', scale: '95', xChannelSelector: 'R', yChannelSelector: 'B', result: 'GD' }),
+    el('feColorMatrix', { in: 'GD', type: 'matrix', values: '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0', result: 'GC' }),
+    el('feDisplacementMap', { in: 'SourceGraphic', in2: 'DMAP', scale: '93', xChannelSelector: 'R', yChannelSelector: 'B', result: 'BD' }),
+    el('feColorMatrix', { in: 'BD', type: 'matrix', values: '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0', result: 'BC' }),
+    el('feBlend', { in: 'GC', in2: 'BC', mode: 'screen', result: 'GBC' }),
+    el('feBlend', { in: 'RC', in2: 'GBC', mode: 'screen', result: 'RGB' }),
+    el('feGaussianBlur', { in: 'RGB', stdDeviation: '0.3', result: 'AB' }),
+    el('feComposite', { in: 'AB', in2: 'EM', operator: 'in', result: 'EDGE' }),
+    el('feComponentTransfer', { in: 'EM', result: 'INV' }, [
+      el('feFuncA', { type: 'table', tableValues: '1 0' }),
+    ]),
+    el('feComposite', { in: 'CENTER', in2: 'INV', operator: 'in', result: 'CLEAN' }),
+    el('feComposite', { in: 'EDGE', in2: 'CLEAN', operator: 'over' }),
+  ]);
+
+  defs.appendChild(filter);
+  svg.appendChild(defs);
+  document.body.appendChild(svg);
+})();
+</script>
+
+<!-- ====== 滚动背景 ====== -->
+<div class="bg-scroll" id="bgScroll">
+  <div class="bg-section" style="background-image:url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80)"><span class="bg-label">深海</span></div>
+  <div class="bg-section" style="background-image:url(https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=1920&q=80)"><span class="bg-label">紫渊</span></div>
+  <div class="bg-section" style="background-image:url(https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&q=80)"><span class="bg-label">森林</span></div>
+  <div class="bg-section" style="background-image:url(https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80)"><span class="bg-label">暖土</span></div>
+  <div class="bg-section" style="background-image:url(https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1920&q=80)"><span class="bg-label">冰川</span></div>
+</div>
+
+<!-- ====== 液态玻璃 ====== -->
+<div class="glass-card" id="glassCard">
+  <div class="glass-inner" id="glassInner">
+    <span class="glass-warp" id="glassWarp"></span>
+    <div class="glass-content">
+      <h3 style="font-size:20px;font-weight:600;margin-bottom:8px">液态玻璃</h3>
+      <p style="font-size:13px;opacity:0.7;line-height:1.5">鼠标移动看弹性效果<br>滚动页面看折射变化</p>
+      <div id="cardInfo" style="margin-top:10px;font-size:11px;display:flex;gap:12px"></div>
+    </div>
+  </div>
+</div>
+<div class="border-layer" id="b1"></div>
+<div class="border-layer" id="b2"></div>
+
+<!-- ====== 控制面板 ====== -->
+<div class="panel" id="panel">
+  <div class="ctrl"><span class="ctrl-label">位移</span><div class="ctrl-row"><input type="range" id="disp" min="0" max="200" value="100"><span class="ctrl-val" id="dispV">100</span></div></div>
+  <div class="ctrl"><span class="ctrl-label">模糊</span><div class="ctrl-row"><input type="range" id="blur" min="0" max="1" step="0.01" value="0.5"><span class="ctrl-val" id="blurV">0.50</span></div></div>
+  <div class="ctrl"><span class="ctrl-label">饱和度</span><div class="ctrl-row"><input type="range" id="sat" min="100" max="300" step="10" value="160"><span class="ctrl-val" id="satV">160</span></div></div>
+  <div class="ctrl"><span class="ctrl-label">色散</span><div class="ctrl-row"><input type="range" id="aber" min="0" max="20" value="4"><span class="ctrl-val" id="aberV">4</span></div></div>
+  <div class="ctrl"><span class="ctrl-label">弹性</span><div class="ctrl-row"><input type="range" id="elas" min="0" max="1" step="0.05" value="0.25"><span class="ctrl-val" id="elasV">0.25</span></div></div>
+  <div class="ctrl"><span class="ctrl-label">圆角</span><div class="ctrl-row"><input type="range" id="rad" min="0" max="100" value="28"><span class="ctrl-val" id="radV">28</span></div></div>
+  <div class="ctrl"><span class="ctrl-label">模式</span><div class="ctrl-row" id="modes"></div></div>
+  <div class="ctrl"><span class="ctrl-label">亮色</span><div class="ctrl-row"><button class="chip" id="olBtn" onclick="toggleOL()">关</button></div></div>
+</div>
+
+<button class="toggle-btn" id="togBtn" onclick="togglePanel()">收起面板</button>
+
+<!-- ====== 主逻辑 ====== -->
+<script>
+// ── 状态 ──
+let S = { disp: 100, blur: 0.5, sat: 160, aber: 4, elas: 0.25, rad: 28, ol: false, mode: 'shader', panel: true };
+let mx = 0, my = 0, gw = 300, gh = 80;
+
+// ── 更新全部参数 ──
+function up() {
+  S.disp = +disp.value; S.blur = +blur.value; S.sat = +sat.value; S.aber = +aber.value; S.elas = +elas.value; S.rad = +rad.value;
+  dispV.textContent = S.disp; blurV.textContent = S.blur.toFixed(2); satV.textContent = S.sat; aberV.textContent = S.aber; elasV.textContent = S.elas.toFixed(2); radV.textContent = S.rad;
+  cardInfo.innerHTML = `位移:<b>${S.disp}</b> 模糊:<b>${S.blur.toFixed(2)}</b> 色散:<b>${S.aber}</b>`;
+
+  glassInner.style.setProperty('--r', S.rad + 'px');
+  glassInner.style.boxShadow = S.ol ? '0 16px 70px rgba(0,0,0,0.75)' : '0 12px 40px rgba(0,0,0,0.25)';
+
+  const bv = (S.ol ? 12 : 4) + S.blur * 32;
+  glassWarp.style.setProperty('--blur', bv + 'px');
+  glassWarp.style.setProperty('--sat', S.sat + '%');
+
+  const filter = document.getElementById('gf');
+  if (!filter) return;
+  const dmaps = filter.querySelectorAll('feDisplacementMap');
+  dmaps[0].setAttribute('scale', S.disp);
+  dmaps[1].setAttribute('scale', S.disp - S.aber * 0.05 * S.disp / 5);
+  dmaps[2].setAttribute('scale', S.disp - S.aber * 0.10 * S.disp / 5);
+
+  const stops = filter.closest('svg').querySelectorAll('#edge-mask stop');
+  if (stops[1]) stops[1].setAttribute('offset', Math.max(30, 80 - S.aber * 2) + '%');
+
+  const ffa = filter.querySelector('feFuncA');
+  if (ffa) ffa.setAttribute('tableValues', '0 ' + (S.aber * 0.05) + ' 1');
+
+  const gb = filter.querySelector('feGaussianBlur');
+  if (gb) gb.setAttribute('stdDeviation', String(Math.max(0.1, 0.5 - S.aber * 0.1)));
+
+  resize();
+}
+
+// ── 测量尺寸 ──
+function resize() {
+  const r = glassInner.getBoundingClientRect();
+  gw = r.width; gh = r.height;
+  glassCard.style.width = gw + 'px';
+  glassCard.style.height = gh + 'px';
+  b1.style.width = b2.style.width = gw + 'px';
+  b1.style.height = b2.style.height = gh + 'px';
+  b1.style.borderRadius = b2.style.borderRadius = S.rad + 'px';
+}
+
+// ── 鼠标弹性 ──
+bgScroll.addEventListener('mousemove', function(e) {
+  mx = e.clientX; my = e.clientY;
+  requestAnimationFrame(elastic);
+});
+
+function elastic() {
+  const r = glassCard.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const dx = mx - cx, dy = my - cy;
+  const edx = Math.max(0, Math.abs(dx) - gw / 2);
+  const edy = Math.max(0, Math.abs(dy) - gh / 2);
+  const ed = Math.sqrt(edx * edx + edy * edy);
+  if (ed > 200) {
+    glassCard.style.transform = 'translate(-50%,-50%) scale(1)';
+    b1.style.transform = b2.style.transform = 'translate(-50%,-50%) scale(1)';
+    return;
+  }
+  const fi = 1 - ed / 200;
+  const cd = Math.sqrt(dx * dx + dy * dy);
+  const nx = cd ? dx / cd : 0, ny = cd ? dy / cd : 0;
+  const si = Math.min(cd / 300, 1) * S.elas * fi;
+  const sx = Math.max(0.8, 1 + Math.abs(nx) * si * 0.3 - Math.abs(ny) * si * 0.15);
+  const sy = Math.max(0.8, 1 + Math.abs(ny) * si * 0.3 - Math.abs(nx) * si * 0.15);
+  const tx = dx * S.elas * 0.1 * fi, ty = dy * S.elas * 0.1 * fi;
+  const t = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scaleX(${sx}) scaleY(${sy})`;
+  glassCard.style.transform = t;
+  b1.style.transform = b2.style.transform = t;
+
+  // 边框光照
+  const mox = ((mx - cx) / r.width) * 100;
+  const moy = ((my - cy) / r.height) * 100;
+  const deg = 135 + mox * 1.2;
+  const a1 = 0.12 + Math.abs(mox) * 0.008, a2 = 0.4 + Math.abs(mox) * 0.012;
+  const p1 = Math.max(10, 33 + moy * 0.3), p2 = Math.min(90, 66 + moy * 0.4);
+  b1.style.background = `linear-gradient(${deg}deg, rgba(255,255,255,0) 0%, rgba(255,255,255,${a1}) ${p1}%, rgba(255,255,255,${a2}) ${p2}%, rgba(255,255,255,0) 100%)`;
+  b2.style.background = `linear-gradient(${deg}deg, rgba(255,255,255,0) 0%, rgba(255,255,255,${a1 + 0.2}) ${p1}%, rgba(255,255,255,${a2 + 0.2}) ${p2}%, rgba(255,255,255,0) 100%)`;
+}
+
+// ── 面板 / overLight ──
+function togglePanel() { S.panel = !S.panel; panel.classList.toggle('hidden', !S.panel); togBtn.textContent = S.panel ? '收起面板' : '展开面板'; }
+function toggleOL() { S.ol = !S.ol; olBtn.textContent = S.ol ? '开' : '关'; olBtn.classList.toggle('on', S.ol); up(); }
+
+// ── 模式按钮 ──
+['standard','polar','prominent','shader'].forEach(function(m) {
+  var b = document.createElement('button');
+  b.className = 'chip' + (m === 'shader' ? ' on' : '');
+  b.textContent = m;
+  b.onclick = function() { S.mode = m; modes.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('on'); }); b.classList.add('on'); };
+  modes.appendChild(b);
+});
+
+// ── 绑定滑块 ──
+[disp, blur, sat, aber, elas, rad].forEach(function(s) { s.addEventListener('input', up); });
+
+// ── 初始化 ──
+window.addEventListener('resize', resize);
+up(); resize();
+</script>
+
+</body>
+</html>

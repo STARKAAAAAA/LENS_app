@@ -1,7 +1,14 @@
 // ========== 设置面板 & 快捷键面板 ==========
 
-import { open } from '@tauri-apps/plugin-dialog';
 import { saveToggles, applyTogglesUI } from './toggles.js';
+
+const api = window.electronAPI;
+
+async function openDialog(opts) {
+  // Electron path
+  const result = await api.invoke('dialog:open', { directory: opts?.directory || false, filters: opts?.filters || [] });
+  return result;
+}
 
 // ========== 设置面板 ==========
 
@@ -54,7 +61,7 @@ export function initSettingsPanel({ settingsBtn, settingsPanel, featureToggles, 
     }
     const cacheBtn = e.target.closest('#cache-dir-btn');
     if (cacheBtn) {
-      const selected = await open({ directory: true, multiple: false, title: '选择缓存文件夹' });
+      const selected = await openDialog({ directory: true });
       if (selected) {
         const cachePath = selected + '\\thumbnails';
         featureToggles.cacheDir = cachePath;
