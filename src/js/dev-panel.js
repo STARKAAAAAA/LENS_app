@@ -3,7 +3,7 @@
 
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
-import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive } from './lg-panels.js';
+import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction } from './lg-panels.js';
 import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
 import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview } from './loading-shaders.js';
 
@@ -1386,29 +1386,34 @@ function renderVisualGroup() {
   buildDevPreview();
 
   // 液态玻璃：读取滑块值更新 glass div
+  const BASE_W = 240, BASE_H = 240;
   const applyLG = () => {
     const g = document.getElementById('liquid-glass');
     if (!g) return;
     const rv = (n, fb) => { const e2 = el.querySelector('[data-lg="' + n + '"]'); if (!e2) return fb; const v = parseFloat(e2.value); return isNaN(v) ? fb : v; };
     const bp = rv('blur', 6), sat = rv('saturate', 1.3), rf = rv('refraction', 0);
-    g.style.width = rv('width', 240) + 'px';
-    g.style.height = rv('height', 240) + 'px';
+    const w = rv('width', BASE_W), h = rv('height', BASE_H);
+    // 模糊度跟随尺寸等比缩放，保持视觉一致
+    const scale = Math.sqrt((w * h) / (BASE_W * BASE_H));
+    const effectiveBlur = bp * scale;
+    const effectiveRefraction = rf * scale;
+    g.style.width = w + 'px';
+    g.style.height = h + 'px';
     g.style.borderRadius = rv('radius', 36) + 'px';
     g.style.background = 'rgba(255,255,255,' + rv('bgOpacity', 0.06) + ')';
     g.style.border = '1px solid rgba(255,255,255,' + rv('borderOpacity', 0.15) + ')';
     g.style.boxShadow = '0 8px ' + rv('shadowBlur', 40) + 'px rgba(0,0,0,' + rv('shadowOpacity', 0.15) + '), inset 0 1px 0 rgba(255,255,255,0.2)';
-    const bf = 'blur(' + bp + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
+    const bf = 'blur(' + effectiveBlur.toFixed(1) + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
     g.style.backdropFilter = bf;
     g.style.WebkitBackdropFilter = bf;
     const st = getStudio();
-    if (st) { st.setShape(rv('width', 240), rv('height', 240), rv('radius', 36)); st.setRefraction(rf); st.updateControls({ tension: rv('tension', 170), friction: rv('friction', 26) }); }
+    if (st) { st.setShape(w, h, rv('radius', 36)); st.setRefraction(effectiveRefraction); st.updateControls({ tension: rv('tension', 170), friction: rv('friction', 26) }); }
   };
 
   // 开关
   const lgToggle = el.querySelector('#dev-toggle-liquid-glass');
   if (lgToggle) {
     lgToggle.addEventListener('click', () => {
-      if (isLiquidGlassPanelsActive()) return; // 面板模式由预设控制，toggle 不干预
       const on = lgToggle.classList.toggle('dev-toggle--on');
       D.liquidGlassOn = on;
       if (on) { mountLiquidGlass(); setTimeout(applyLG, 50); setTimeout(applyLG, 300); }
@@ -1433,25 +1438,28 @@ function renderVisualGroup() {
       const old = document.getElementById('__lg_test_bg');
       if (old) {
         old.remove();
-        _lgBgIdx = (_lgBgIdx + 1) % _lgBgUrls.length;
+        lgTestBg.classList.remove('dev-toggle--on');
+        D.liquidGlassTestBg = false;
+        lgTestBg.title = '测试背景';
       } else {
-        _lgBgIdx = 0;
+        const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
+        bg.id = '__lg_test_bg';
+        document.body.appendChild(bg);
+        lgTestBg.classList.add('dev-toggle--on');
+        D.liquidGlassTestBg = true;
+        lgTestBg.title = '测试背景: ' + _lgBgLabel[_lgBgIdx] + ' (再点关闭 / 右键切换)';
       }
-      const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
-      bg.id = '__lg_test_bg';
-      document.body.appendChild(bg);
-      lgTestBg.classList.add('dev-toggle--on');
-      D.liquidGlassTestBg = true;
-      lgTestBg.title = '测试背景: ' + _lgBgLabel[_lgBgIdx] + ' (再点切换)';
     });
-    // 右键关闭
     lgTestBg.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const old = document.getElementById('__lg_test_bg');
-      if (old) old.remove();
-      lgTestBg.classList.remove('dev-toggle--on');
-      D.liquidGlassTestBg = false;
-      lgTestBg.title = '测试背景';
+      if (!old) return;
+      old.remove();
+      _lgBgIdx = (_lgBgIdx + 1) % _lgBgUrls.length;
+      const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
+      bg.id = '__lg_test_bg';
+      document.body.appendChild(bg);
+      lgTestBg.title = '测试背景: ' + _lgBgLabel[_lgBgIdx] + ' (再点关闭 / 右键切换)';
     });
   }
 
@@ -2961,23 +2969,21 @@ function loadPreset(preset) {
   });
   // 记录激活预设（必须在 applySpecialVarEffects 之前，确保 COLOR_PRESETS ID 匹配拿到正确的 warm/glassBlur）
   localStorage.setItem(ACTIVE_PRESET_KEY, preset.id);
-  // 更新颜色系统（零 var() CSS 注入）
+  // 液态玻璃模式：设置标志位让 generateFullCSS 直接输出透明面板+backdrop-filter
+  window.__lensLiquidGlass = (preset.id === '__liquid-glass__');
+  if (window.__lensLiquidGlass) {
+    enableLiquidGlassPanels(); // 创建 SVG 滤镜
+  } else if (isLiquidGlassPanelsActive()) {
+    disableLiquidGlassPanels(); // 移除 SVG 滤镜
+  }
+  // 更新颜色系统（零 var() CSS 注入）—— 内部检查 __lensLiquidGlass 决定面板样式
   applySpecialVarEffects();
   syncVisualControls();
   renderPresetsGroup();
   autoSaveSession();
-  // 液态玻璃预设：重写面板渲染为透明+backdrop-filter+SVG折射
-  if (preset.id === '__liquid-glass__') {
-    enableLiquidGlassPanels();
-    const lgToggle = document.getElementById('dev-toggle-liquid-glass');
-    if (lgToggle) lgToggle.classList.add('dev-toggle--on');
-  } else {
-    if (isLiquidGlassPanelsActive()) {
-      disableLiquidGlassPanels();
-      const lgToggle = document.getElementById('dev-toggle-liquid-glass');
-      if (lgToggle) lgToggle.classList.remove('dev-toggle--on');
-    }
-  }
+  // 同步 toggle UI
+  const lgToggle = document.getElementById('dev-toggle-liquid-glass');
+  if (lgToggle) { lgToggle.classList.toggle('dev-toggle--on', window.__lensLiquidGlass); }
 }
 
 function deletePreset(id) {
@@ -3135,6 +3141,25 @@ function renderPresetsGroup() {
       ${BUILTIN_PRESETS.map(p => makePresetCard(p, activeId, false)).join('')}
     </details>
     </div>
+  `;
+
+  // 液态玻璃预设专属配置
+  if (activeId === '__liquid-glass__') {
+    html += `
+    <div class="dev-section" id="lg-preset-config">
+      <div class="dev-section__title">液态玻璃配置</div>
+      ${lgSlider('面板模糊', 'panelBlur', 2, 40, 6, 1, 'px')}
+      ${lgSlider('面板折射', 'panelRefraction', 0, 250, 150, 2, '')}
+      ${lgSlider('面板饱和度', 'panelSaturate', 0.5, 3, 1.3, 0.1, '')}
+      ${lgSlider('玻璃雾度', 'panelBgAlpha', 0, 0.08, 0, 0.002, '')}
+      ${lgSlider('边框透明度', 'panelBorderAlpha', 0, 0.4, 0.12, 0.01, '')}
+      ${lgSlider('高光强度', 'panelHighlight', 0, 0.2, 0.08, 0.005, '')}
+      ${lgSlider('阴影深度', 'panelShadowAlpha', 0, 0.6, 0.3, 0.01, '')}
+    </div>
+    `;
+  }
+
+  html += `
     <div class="dev-section">
       <div class="dev-section__title">保存预设</div>
       <div class="dev-row">
@@ -3166,6 +3191,30 @@ function renderPresetsGroup() {
 
   // 仅更新动态内容，保留 section 结构
   el.innerHTML = html;
+
+  // 液态玻璃预设配置滑块事件（委托）
+  el.querySelectorAll('#lg-preset-config [data-lg]').forEach(sl => {
+    sl.addEventListener('input', () => {
+      const val = parseFloat(sl.value);
+      const d = sl.parentElement.querySelector('.dev-row__value');
+      if (d) d.textContent = val;
+      const name = sl.dataset.lg;
+      if (name === 'panelBlur') updatePanelBlur(val);
+      else if (name === 'panelSaturate') updatePanelSaturate(val);
+      else if (name === 'panelRefraction') updatePanelRefraction(val);
+      else if (name === 'panelBorderAlpha') document.documentElement.style.setProperty('--lg-panel-border-alpha', val);
+      else if (name === 'panelShadowAlpha') document.documentElement.style.setProperty('--lg-panel-shadow-alpha', val);
+      else if (name === 'panelBgAlpha') document.documentElement.style.setProperty('--lg-panel-bg-alpha', val);
+      else if (name === 'panelHighlight') document.documentElement.style.setProperty('--lg-panel-highlight', val);
+    });
+  });
+  // 同步面板 slider 值为当前 CSS 变量
+  const root = document.documentElement.style;
+  const _sync = (sel, prop) => { const sl = el.querySelector('[data-lg="' + sel + '"]'); if (sl) { const v = parseFloat(root.getPropertyValue(prop)); if (!isNaN(v)) sl.value = v; } };
+  _sync('panelBlur', '--lg-panel-blur'); _sync('panelRefraction', '--lg-panel-refraction');
+  _sync('panelSaturate', '--lg-panel-saturate'); _sync('panelBgAlpha', '--lg-panel-bg-alpha');
+  _sync('panelBorderAlpha', '--lg-panel-border-alpha'); _sync('panelHighlight', '--lg-panel-highlight');
+  _sync('panelShadowAlpha', '--lg-panel-shadow-alpha');
 
   // 绑定事件
   const saveBtn = document.getElementById('dev-preset-save');
@@ -3518,13 +3567,15 @@ export function initDevPanel() {
   // 会话恢复后强制重写分区玻璃默认值（覆盖旧版本的残留/冲突数据）
   window.__lensZoneGlassDirty = true;
 
-  // 恢复会话变量的特殊副作用（注入样式等）—— 内部已包含 buildDevPreview + 动画启动
-  applySpecialVarEffects();
-
-  // 如果是液态玻璃预设，启动面板渲染重写
+  // 液态玻璃预设：先创建 SVG 滤镜 + 设置标志位，再调用 applySpecialVarEffects
+  // 这样 generateFullCSS 内部能检测到标志位并输出玻璃 CSS
   if (localStorage.getItem(ACTIVE_PRESET_KEY) === '__liquid-glass__') {
     enableLiquidGlassPanels();
+    window.__lensLiquidGlass = true;
   }
+
+  // 恢复会话变量的特殊副作用（注入样式等）—— 内部已包含 buildDevPreview + 动画启动
+  applySpecialVarEffects();
 
   window.__lensToggleDev = toggleDevPanel;
   // 暴露 invoke 日志缓冲供 main.js 写入

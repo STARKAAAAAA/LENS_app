@@ -157,6 +157,13 @@ const BUILTIN_PALETTES = [
     surfaceRgb:'32,32,32', surface2Rgb:'22,22,22', errRgb:'255,100,80', glassBlur:'4px',
     devPanelBg:'rgba(12,12,12,0.94)', heroLineColor:'rgba(255,100,50,0.35)', heroSubtitleColor:'rgba(255,100,50,0.3)', cornerLogoColor:'rgba(255,100,50,0.85)',
   }},
+  { id:'__liquid-glass__', name:'液态玻璃', palette: {
+    bg:'#08080c', bgDeep:'#040408', accent:'#5e9ef0', text:'#e8ecf2', text2:'#a0a8b8', text3:'#687080',
+    warm:'180,210,240', accentRgb:'94,158,240', bgRgb:'8,8,12', bgDeepRgb:'4,4,8',
+    surfaceRgb:'20,22,28', surface2Rgb:'16,18,22', errRgb:'255,90,90', glassBlur:'20px',
+    devPanelBg:'rgba(16,18,22,0.94)', heroLineColor:'rgba(160,200,240,0.18)', heroSubtitleColor:'rgba(160,200,240,0.3)', cornerLogoColor:'rgba(160,200,240,0.85)',
+    heroGradTop:'230,240,255', heroGradMid:'140,180,230', heroGradBot:'50,80,140',
+  }},
 ];
 
 // ── 生成完整 CSS（零 var() 依赖）──
@@ -276,7 +283,6 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .gallery__back{color:${p.text}}
 .gallery__back:hover{color:${p.accent}}
 .gallery__info{color:${p.text2}}
-.category-card::before,.gallery__item::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),var(--card-glass-bg-hover,rgba(${W},0.06)) 0%,rgba(${W},0.02) 40%,transparent 70%)}
 .density-sweep{background:linear-gradient(to right,transparent 0%,rgba(${A},0.1) 50%,rgba(${Bg},0.92) 100%)}
 .card--focused{outline:1.5px solid ${p.accent}}
 .load-more-btn{background:var(--card-glass-bg,rgba(${W},0.05));border:0.5px solid var(--card-glass-border,rgba(${W},0.10));color:rgba(${W},0.4)}
@@ -478,6 +484,65 @@ body,
 .dev-console,
 .dev-stat,.dev-state-row
 {font-family:${FM}!important;font-weight:${FWM}!important;letter-spacing:${LSM}!important;font-style:${FSM}!important;}
+${window.__lensLiquidGlass ? `
+/* ═══ 液态玻璃面板 — UI chrome 面板透明底板+backdrop-filter折射 ═══ */
+/* 参数通过 CSS 变量调节：--lg-panel-blur(16px) / --lg-panel-saturate(1.3) / --lg-panel-refraction(150) */
+.sidebar,.sidebar__add,.toolbar,.titlebar__controls,
+.settings-panel,.shortcuts-panel,.shortcuts-overlay,
+.dev-overlay,.dev-panel,.dev-gp-float,.dev-reset-overlay,.dev-reset-box,.dev-hints,.dev-preview__inner,
+.lightbox.active,.lightbox__close,.lightbox__prev,.lightbox__next,.lightbox__exif,
+.slideshow__controls,.gallery__nav,.hero__scroll,.back-to-top,[popover]
+{background:rgba(255,255,255,var(--lg-panel-bg-alpha,0))!important;
+backdrop-filter:blur(var(--lg-panel-blur,6px)) saturate(var(--lg-panel-saturate,1.3)) url(#lg-panel-refract)!important;
+-webkit-backdrop-filter:blur(var(--lg-panel-blur,6px)) saturate(var(--lg-panel-saturate,1.3)) url(#lg-panel-refract)!important;
+border:0.5px solid rgba(255,255,255,var(--lg-panel-border-alpha,0.12))!important;
+box-shadow:0 8px 32px rgba(0,0,0,var(--lg-panel-shadow-alpha,0.3)),inset 0 1px 0 rgba(255,255,255,var(--lg-panel-highlight,0.08))!important;}
+/* 子元素背景透明化 */
+.sidebar__item:hover{background:rgba(255,255,255,0.12)!important;box-shadow:0 0 12px rgba(255,255,255,0.06);}
+.sidebar__item--active{background:rgba(255,255,255,0.16)!important;box-shadow:0 0 16px rgba(255,255,255,0.1);}
+.sidebar__item-remove{background:rgba(255,255,255,0.08)!important;}
+.sidebar__item-remove:hover{background:rgba(255,255,255,0.2)!important;box-shadow:0 0 10px rgba(255,255,255,0.1);}
+.toolbar{text-shadow:none!important;box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08)!important;}
+.toolbar__btn:hover,.titlebar__btn:hover{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 12px rgba(255,255,255,0.08);}
+/* ═══ 设置面板 — 液态玻璃定制 ═══ */
+.settings-panel__item:hover{background:rgba(255,255,255,0.08)!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,0.06);}
+.settings-panel__label{color:rgba(255,255,255,0.85)!important;text-shadow:0 0 8px rgba(255,255,255,0.15);}
+.settings-panel__divider{background:rgba(255,255,255,0.08)!important;backdrop-filter:blur(4px);}
+.cache-dir-path{background:rgba(255,255,255,0.04)!important;border:0.5px solid rgba(255,255,255,0.08)!important;border-radius:8px;color:rgba(255,255,255,0.6)!important;}
+.cache-dir-btn{background:rgba(255,255,255,0.06)!important;border:0.5px solid rgba(255,255,255,0.1)!important;color:rgba(255,255,255,0.7)!important;border-radius:8px;}
+.cache-dir-btn:hover{background:rgba(255,255,255,0.12)!important;border-color:rgba(255,255,255,0.2)!important;color:rgba(255,255,255,0.9)!important;}
+/* 设置面板开关 — 玻璃药丸 */
+.toggle-switch{background:rgba(255,255,255,0.08)!important;border:0.5px solid rgba(255,255,255,0.12)!important;box-shadow:inset 0 1px 3px rgba(0,0,0,0.3);}
+.toggle-switch::after{background:rgba(255,255,255,0.7)!important;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+.toggle-switch--on{background:rgba(255,255,255,0.2)!important;border-color:rgba(255,255,255,0.25)!important;box-shadow:0 0 12px rgba(255,255,255,0.15),inset 0 1px 3px rgba(0,0,0,0.2);}
+.toggle-switch--on::after{background:rgba(255,255,255,0.95)!important;box-shadow:0 0 8px rgba(255,255,255,0.3);}
+/* 密度按钮 — 玻璃芯片 */
+.density-btns{background:rgba(255,255,255,0.04)!important;border:0.5px solid rgba(255,255,255,0.08)!important;border-radius:10px;}
+.density-btn{color:rgba(255,255,255,0.5)!important;border-radius:8px;}
+.density-btn:hover{background:rgba(255,255,255,0.12)!important;color:rgba(255,255,255,0.85)!important;box-shadow:0 0 10px rgba(255,255,255,0.08);}
+.density-btn--active{background:rgba(255,255,255,0.18)!important;color:rgba(255,255,255,0.95)!important;box-shadow:0 0 14px rgba(255,255,255,0.15);}
+.lightbox__exif{background:transparent!important;}
+.slideshow{background:transparent!important;}
+.slideshow__btn{background:rgba(255,255,255,0.04)!important;}
+.slideshow__btn:hover{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 12px rgba(255,255,255,0.08);}
+.shortcuts__row kbd{background:rgba(255,255,255,0.06)!important;}
+.shortcuts-panel{backdrop-filter:blur(var(--lg-panel-blur,6px)) saturate(var(--lg-panel-saturate,1.3)) url(#lg-panel-refract)!important;}
+.dev-nav{background:transparent!important;}
+.dev-preset-card{background:rgba(255,255,255,0.04)!important;}
+.dev-preset-card:hover{background:rgba(255,255,255,0.12)!important;box-shadow:0 0 16px rgba(255,255,255,0.08);}
+.dev-preset-card--active{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 20px rgba(255,255,255,0.12);}
+.dev-toggle{background:rgba(255,255,255,0.1)!important;}
+.dev-toggle--on{background:rgba(255,255,255,0.22)!important;box-shadow:0 0 10px rgba(255,255,255,0.12);}
+.dev-chip-toggle{background:rgba(255,255,255,0.06)!important;}
+.dev-chip-toggle--on{background:rgba(255,255,255,0.16)!important;box-shadow:0 0 10px rgba(255,255,255,0.1);}
+.dev-btn:hover{background:rgba(255,255,255,0.12)!important;box-shadow:0 0 10px rgba(255,255,255,0.08);}
+.density-btns{background:rgba(255,255,255,0.04)!important;}
+.density-btn:hover{background:rgba(255,255,255,0.06)!important;}
+.density-btn--active{background:rgba(255,255,255,0.1)!important;}
+.dev-gp-btn{background:rgba(255,255,255,0.04)!important;}
+.dev-gp-btn--on{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 12px rgba(255,255,255,0.1);}
+.hero__scroll:hover{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 16px rgba(255,255,255,0.08);}
+` : ''}
 `;
 }
 
@@ -551,18 +616,28 @@ function applyDirectStyles(p) {
   const cornerLogo = document.getElementById('corner-logo');
   if (cornerLogo) cornerLogo.style.color = p.cornerLogoColor || `rgba(${W},0.85)`;
   // 装饰线（伪元素无法用内联样式，保留 CSS 规则）
-  // 各面板背景 — 由 generateFullCSS !important 规则处理，不在元素上设置内联（避免覆盖CSS var()）
-  const devPanel = document.getElementById('dev-panel');
-  if (devPanel) devPanel.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
-  const devOverlay = document.getElementById('dev-overlay');
-  if (devOverlay) devOverlay.style.background = `rgba(${p.bgDeepRgb},0.55)`;
-  // 预览面板 / 手柄浮层 / 提示面板 — 与主面板相同背景
-  const devPreviewInner = document.querySelector('.dev-preview__inner');
-  if (devPreviewInner) devPreviewInner.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
-  const devGpFloat = document.querySelector('.dev-gp-float');
-  if (devGpFloat) devGpFloat.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
-  const devHints = document.querySelector('.dev-hints');
-  if (devHints) devHints.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
+  // 液态玻璃模式下跳过内联背景（由 generateFullCSS 中的玻璃 CSS 接管）
+  if (!window.__lensLiquidGlass) {
+    const devPanel = document.getElementById('dev-panel');
+    if (devPanel) devPanel.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
+    const devOverlay = document.getElementById('dev-overlay');
+    if (devOverlay) devOverlay.style.background = `rgba(${p.bgDeepRgb},0.55)`;
+    const devPreviewInner = document.querySelector('.dev-preview__inner');
+    if (devPreviewInner) devPreviewInner.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
+    const devGpFloat = document.querySelector('.dev-gp-float');
+    if (devGpFloat) devGpFloat.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
+    const devHints = document.querySelector('.dev-hints');
+    if (devHints) devHints.style.background = p.devPanelBg || `rgba(${p.bgRgb},0.94)`;
+  } else {
+    const devPanel = document.getElementById('dev-panel');
+    if (devPanel) devPanel.style.background = 'transparent';
+    const devOverlay = document.getElementById('dev-overlay');
+    if (devOverlay) devOverlay.style.background = 'transparent';
+    ['dev-preview__inner','dev-gp-float','dev-hints'].forEach(cls => {
+      const el = document.querySelector('.' + cls);
+      if (el) el.style.background = 'transparent';
+    });
+  }
 }
 
 // ── 注入 / 更新 ──
