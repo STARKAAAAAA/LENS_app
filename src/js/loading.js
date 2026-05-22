@@ -1,5 +1,7 @@
 // ========== 加载画面系统 ==========
 
+import { getAnimationType, createShaderBackground, startShaderAnimation, stopShaderAnimation, disposeShaderBackground, resizeShaderBackground } from './loading-shaders.js';
+
 export const PHOTO_QUOTES = [
   '摄影是光的诗歌，影是时间的印记',
   '每一帧光影，皆是时间的切片',
@@ -258,6 +260,7 @@ export function hideLoadingScreen() {
       if (loadingQuoteStartTimeout) { clearTimeout(loadingQuoteStartTimeout); loadingQuoteStartTimeout = null; }
       if (loadingQuoteInterval) { clearInterval(loadingQuoteInterval); loadingQuoteInterval = null; }
       if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
+      disposeShaderBackground();
     }, 400);
   }, delay);
   return new Promise(r => { loadingScreenDoneResolve = r; });
@@ -269,9 +272,28 @@ export function playStartupSequence({ onDone } = {}) {
   const title = document.querySelector('.hero__title');
   const subtitle = document.querySelector('.hero__subtitle');
   const scroll = document.querySelector('.hero__scroll');
+  const hero = document.querySelector('.hero');
 
   const start = performance.now();
   const DURATION = 2400;
+
+  // 着色器背景：插入 hero 内部，位于 reveal(z-index:1) 下方
+  // 同时隐藏 hero__slides 和 hero__overlay 防止叠层
+  let shaderWrap = null;
+  let _hiddenSlides = null, _hiddenOverlay = null;
+  const animType = getAnimationType();
+  if (animType === 'shader-waves' && hero) {
+    _hiddenSlides = hero.querySelector('.hero__slides');
+    _hiddenOverlay = hero.querySelector('.hero__overlay');
+    if (_hiddenSlides) _hiddenSlides.style.display = 'none';
+    if (_hiddenOverlay) _hiddenOverlay.style.display = 'none';
+    shaderWrap = document.createElement('div');
+    shaderWrap.id = 'hero-shader-bg';
+    shaderWrap.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none;';
+    hero.insertBefore(shaderWrap, hero.firstChild);
+    createShaderBackground(shaderWrap);
+    startShaderAnimation();
+  }
 
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
@@ -304,6 +326,17 @@ export function playStartupSequence({ onDone } = {}) {
     if (raw < 1) {
       requestAnimationFrame(tick);
     } else {
+      // 着色器渐隐后清理，恢复 slides/overlay
+      if (shaderWrap) {
+        shaderWrap.style.transition = 'opacity 0.6s ease';
+        shaderWrap.style.opacity = '0';
+        setTimeout(() => {
+          disposeShaderBackground();
+          if (shaderWrap.parentNode) shaderWrap.parentNode.removeChild(shaderWrap);
+          if (_hiddenSlides) _hiddenSlides.style.display = '';
+          if (_hiddenOverlay) _hiddenOverlay.style.display = '';
+        }, 600);
+      }
       moveTitleToCorner();
       if (onDone) onDone();
     }

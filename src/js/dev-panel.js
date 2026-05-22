@@ -3,6 +3,9 @@
 
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
+import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive } from './lg-panels.js';
+import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
+import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview } from './loading-shaders.js';
 
 const api = window.electronAPI;
 
@@ -549,6 +552,54 @@ const BUILTIN_PRESETS = [
       '--card-shadow':'0 6px 0 rgba(255,100,50,0.5)','--shadow-depth':'2.0',
     },
   },
+  {
+    id: '__liquid-glass__', name: '液态玻璃', builtin: true,
+    vars: {
+      '--accent':'#5e9ef0','--bg':'#08080c','--bg-deep':'#040408',
+      '--text':'#e8ecf2','--text-2':'#a0a8b8','--text-3':'#687080',
+      '--glass-bg':'rgba(160,200,240,0.08)','--glass-border':'rgba(160,200,240,0.14)',
+      '--glass-bg-hover':'rgba(160,200,240,0.15)','--glass-border-bright':'rgba(160,200,240,0.26)',
+      '--radius':'24px','--radius-sm':'16px','--radius-pill':'120px',
+      '--thumb-card-size':'300px','--font-scale':'1','--anim-speed':'1.4','--glass-blur':'20px',
+      '--font-display':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-body':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-weight-display':'500','--font-weight-body':'400',
+      '--letter-spacing-display':'-0.01em','--letter-spacing-body':'-0.01em',
+      '--font-style-display':'normal','--font-style-body':'normal','--text-transform':'none',
+      '--font-caption':"system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      '--font-mono':"'SF Mono', 'Consolas', ui-monospace, monospace",
+      '--font-weight-caption':'400','--font-weight-mono':'400',
+      '--letter-spacing-caption':'0','--letter-spacing-mono':'0',
+      '--font-style-caption':'normal','--font-style-mono':'normal',
+      '--loading-color':'rgba(100,160,240,0.55)','--loading-color-dim':'rgba(100,160,240,0.40)',
+      '--loading-color-soft':'rgba(100,160,240,0.45)','--loading-track-height':'3px',
+      '--ease-out':'cubic-bezier(0.22,1,0.36,1)','--ease-spring':'cubic-bezier(0.34,1.56,0.64,1)',
+      '--font-scale-heading':'1','--line-spacing':'1.6',
+      '--section-gap':'1.5rem','--gap-scale':'1',
+      '--card-bg':'rgba(160,200,240,0.03)','--card-hover-bg':'rgba(160,200,240,0.08)',
+      '--card-shadow':'0 8px 32px rgba(0,0,0,0.4)','--shadow-depth':'0.8',
+      '--hero-grad-top':'rgba(230,240,255,1)','--hero-grad-mid':'rgba(140,180,230,0.8)','--hero-grad-bot':'rgba(50,80,140,0.25)',
+      '--corner-logo-color':'rgba(160,200,240,0.85)','--hero-subtitle-color':'rgba(160,200,240,0.3)','--hero-line-color':'rgba(160,200,240,0.15)',
+      '--sidebar-glass-bg':'rgba(160,200,240,0.06)','--sidebar-glass-border':'rgba(160,200,240,0.12)',
+      '--sidebar-glass-bg-hover':'rgba(160,200,240,0.12)','--sidebar-glass-border-bright':'rgba(160,200,240,0.22)',
+      '--sidebar-glass-blur':'18px',
+      '--titlebar-glass-bg':'rgba(160,200,240,0.06)','--titlebar-glass-border':'rgba(160,200,240,0.12)',
+      '--titlebar-glass-bg-hover':'rgba(160,200,240,0.12)','--titlebar-btn-color':'rgba(190,220,250,0.9)',
+      '--titlebar-glass-blur':'18px',
+      '--toolbar-glass-bg':'rgba(160,200,240,0.06)','--toolbar-glass-border':'rgba(160,200,240,0.12)',
+      '--toolbar-glass-bg-hover':'rgba(160,200,240,0.12)','--toolbar-btn-color':'rgba(190,220,250,0.9)',
+      '--toolbar-glass-blur':'18px',
+      '--card-glass-bg':'rgba(160,200,240,0.04)','--card-glass-border':'rgba(160,200,240,0.10)',
+      '--card-glass-bg-hover':'rgba(160,200,240,0.10)','--card-glass-border-bright':'rgba(160,200,240,0.20)',
+      '--card-hover-blur':'16px','--gallery-nav-blur':'14px','--dropdown-blur':'16px',
+      '--panel-glass-bg':'rgba(160,200,240,0.08)','--panel-glass-border':'rgba(160,200,240,0.14)',
+      '--panel-glass-bg-hover':'rgba(160,200,240,0.14)','--panel-glass-blur':'20px','--shortcuts-blur':'18px',
+      '--lightbox-glass-bg':'rgba(160,200,240,0.06)','--lightbox-glass-border':'rgba(160,200,240,0.12)',
+      '--lightbox-glass-bg-hover':'rgba(160,200,240,0.12)','--lightbox-glass-blur':'18px',
+      '--lightbox-btn-blur':'12px','--lightbox-exif-blur':'14px','--slideshow-blur':'18px',
+      '--hero-scroll-blur':'12px','--back-to-top-blur':'14px','--dev-panel-blur':'20px',
+    },
+  },
 ];
 
 // ── 模块级 applyEffects 防抖（供所有标签页的 reset 按钮等使用）──
@@ -680,6 +731,8 @@ function closeDevPanel() {
     unlockBodyScroll();
     stopAllMonitors();
     stopPreviewAnimations();
+    // 清理着色器预览
+    if (_animPreviewHandle) { _animPreviewHandle.dispose(); _animPreviewHandle = null; }
     // 关闭后确保调试样式存在（双重保障）
     setTimeout(() => restoreDebugStyles(), 50);
   };
@@ -1060,6 +1113,7 @@ function renderVisualGroup() {
         <button class="dev-subnav__btn" data-subtab="color">色彩</button>
         <button class="dev-subnav__btn" data-subtab="glass">玻璃</button>
         <button class="dev-subnav__btn" data-subtab="capsule">胶囊</button>
+        <button class="dev-subnav__btn" data-subtab="startup">启动</button>
         <button class="dev-subnav__btn" data-subtab="layout">布局</button>
         <button class="dev-subnav__btn" data-subtab="font">字体</button>
         <button class="dev-subnav__btn" data-subtab="motion">动效</button>
@@ -1171,6 +1225,27 @@ function renderVisualGroup() {
       ${makeGlassColorRow('--loading-color', '加载主色', style, '进度文字和轨道颜色')}
       ${makeGlassColorRow('--loading-color-dim', '加载次色', style, '首次加载提示文字颜色')}
       ${makeGlassColorRow('--loading-color-soft', '加载柔色', style, '底部轮播金句颜色')}
+    </details>
+    <div class="dev-capsule-preview">
+      <div class="dev-capsule-mock">
+        <div class="dev-capsule-mock-bg"></div>
+        <div class="dev-capsule-mock-orbit">
+          ${renderOrbitPreviewSVG()}
+        </div>
+        <div class="dev-capsule-mock-text">正在生成缩略图... 12 / 48</div>
+        <div class="dev-capsule-mock-hint">首次加载，正在生成缩略图缓存…</div>
+        <div class="dev-capsule-mock-quote">摄影是光的诗歌，影是时间的印记</div>
+      </div>
+    </div>
+    </div>
+    <div class="dev-section" data-subtab="startup">
+      <details class="dev-zone" open>
+        <summary class="dev-zone__summary">启动动画</summary>
+      <div class="dev-section__desc">选择启动加载画面的背景动画效果。文字动画（标题入场/副标题/摄影金句）不受影响</div>
+      <div class="dev-anim-selector" id="dev-anim-selector">
+        ${renderAnimCards()}
+      </div>
+      <div class="dev-anim-preview-wrap" id="dev-anim-preview"></div>
     </details>
     </div>
     <div class="dev-section" data-subtab="layout">
@@ -1333,6 +1408,7 @@ function renderVisualGroup() {
   const lgToggle = el.querySelector('#dev-toggle-liquid-glass');
   if (lgToggle) {
     lgToggle.addEventListener('click', () => {
+      if (isLiquidGlassPanelsActive()) return; // 面板模式由预设控制，toggle 不干预
       const on = lgToggle.classList.toggle('dev-toggle--on');
       D.liquidGlassOn = on;
       if (on) { mountLiquidGlass(); setTimeout(applyLG, 50); setTimeout(applyLG, 300); }
@@ -1412,14 +1488,13 @@ function renderVisualGroup() {
 
 function makeColorRow(key, label, style, tip) {
   const val = style.getPropertyValue(key).trim();
-  // rgba 转 hex 供 <input type="color"> 显示（color input 不接受 rgba）
-  const isRgba = val.startsWith('rgba');
-  const hex = isRgba ? rgbaToHexAlpha(val).hex : val;
-  const tipAttr = tip ? ` title="${tip}"` : '';
+  const tipAttr = tip ? ` title="${escapeHtml(tip)}"` : '';
   return `<div class="dev-row">
     <span class="dev-row__label"${tipAttr}>${label}</span>
-    <input type="color" class="dev-color" data-css="${key}" value="${hex}">
-    <span class="dev-row__value">${val}</span>
+    <button class="dev-color-trigger" data-css="${key}" data-value="${escapeHtml(val)}" data-alpha="false">
+      <span class="dev-color-trigger__swatch" style="background:${escapeHtml(val)}"></span>
+      <span class="dev-color-trigger__value">${escapeHtml(val)}</span>
+    </button>
     <button class="dev-btn" data-reset="${key}" title="复位">↺</button>
   </div>`;
 }
@@ -1459,13 +1534,13 @@ function rgbaToHexAlpha(rgba) {
 
 function makeGlassColorRow(key, label, style, tip) {
   const val = style.getPropertyValue(key).trim();
-  const { hex, alpha } = rgbaToHexAlpha(val);
-  const tipAttr = tip ? ` title="${tip}"` : '';
+  const tipAttr = tip ? ` title="${escapeHtml(tip)}"` : '';
   return `<div class="dev-row">
     <span class="dev-row__label"${tipAttr}>${label}</span>
-    <input type="color" class="dev-glass-color" data-css="${key}" data-alpha="${alpha}" value="${hex}">
-    <input type="range" class="dev-glass-alpha" data-css="${key}" min="0" max="1" step="0.01" value="${alpha}">
-    <span class="dev-row__value" data-glass-val="${key}">${alpha.toFixed(2)}</span>
+    <button class="dev-color-trigger" data-css="${key}" data-value="${escapeHtml(val)}" data-alpha="true">
+      <span class="dev-color-trigger__swatch" style="background:${escapeHtml(val)}"></span>
+      <span class="dev-color-trigger__value">${escapeHtml(val)}</span>
+    </button>
     <button class="dev-btn" data-reset="${key}" title="重置">↺</button>
   </div>`;
 }
@@ -1510,6 +1585,70 @@ function makeFontFamilyRow(key, style, presets, tooltip) {
 
 function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+let _animPreviewHandle = null;
+
+function updateAnimPreview(el) {
+  const wrap = el.querySelector('#dev-anim-preview');
+  if (!wrap) return;
+  if (_animPreviewHandle) { _animPreviewHandle.dispose(); _animPreviewHandle = null; }
+  wrap.innerHTML = '';
+
+  const active = getAnimationType();
+  // 完整预览：背景动画 + 遮罩渐隐 + 标题文字入场 = 启动序列微缩版
+  wrap.innerHTML = `
+    <div class="dev-anim-full-preview">
+      <div class="dev-anim-full-bg" id="dev-anim-full-bg"></div>
+      <div class="dev-anim-full-reveal"></div>
+      <span class="dev-anim-full-label">LENS</span>
+      <span class="dev-anim-full-sub">Photography Portfolio</span>
+    </div>
+  `;
+
+  if (active === 'shader-waves') {
+    const bgEl = wrap.querySelector('#dev-anim-full-bg');
+    if (bgEl) _animPreviewHandle = createMiniShaderPreview(bgEl, 320);
+  }
+}
+
+function renderAnimCards() {
+  const active = getAnimationType();
+  return Object.entries(ANIMATION_TYPES).map(([id, info]) => `
+    <button class="dev-anim-card${id === active ? ' dev-anim-card--active' : ''}" data-anim="${id}">
+      <div class="dev-anim-card__preview">
+        ${id === 'shader-waves'
+          ? '<div class="dev-anim-card__shader-mini" data-anim-preview="shader-waves"></div>'
+          : `<div class="dev-anim-card__orbit-wrap">${renderOrbitPreviewSVG()}</div>`
+        }
+      </div>
+      <span class="dev-anim-card__name">${info.name}</span>
+      <span class="dev-anim-card__desc">${info.description}</span>
+    </button>
+  `).join('');
+}
+
+function renderOrbitPreviewSVG() {
+  // 微型 SVG 轨道胶囊，100% 复刻真实加载画面的光环动画
+  // 颜色使用 CSS currentColor 继承，由父容器设置 --loading-color 变量
+  return `
+    <svg class="dev-anim-orbit-svg" viewBox="0 0 208 44" width="160" height="34">
+      <defs>
+        <filter id="dev-orbit-glow">
+          <feGaussianBlur stdDeviation="1.2" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect x="16" y="11" width="176" height="22" rx="11" ry="11"
+            fill="none" stroke="var(--loading-color, rgba(220,200,180,0.55))" stroke-width="1" opacity="0.73"
+            style="rx:min(var(--radius-pill),11px);ry:min(var(--radius-pill),11px)"/>
+      <rect class="dev-anim-orbit-light" x="16" y="11" width="176" height="22" rx="11" ry="11"
+            fill="none" stroke="var(--loading-color, rgba(220,200,180,0.55))" stroke-width="1.5"
+            stroke-dasharray="28 430" stroke-dashoffset="0"
+            filter="url(#dev-orbit-glow)" stroke-linecap="round"
+            style="rx:min(var(--radius-pill),11px);ry:min(var(--radius-pill),11px)"/>
+    </svg>
+  `;
+}
+
 function bindVisualControls(el) {
   // 视觉面板左侧二级导航
   el.querySelectorAll('.dev-subnav [data-subtab]').forEach(btn => {
@@ -1520,18 +1659,6 @@ function bindVisualControls(el) {
       el.querySelectorAll('.dev-section[data-subtab]').forEach(sec => {
         sec.style.display = (subtab === 'all' || sec.dataset.subtab === subtab) ? '' : 'none';
       });
-    });
-  });
-  // 颜色
-  el.querySelectorAll('.dev-color').forEach(input => {
-    input.addEventListener('input', () => {
-      const key = input.dataset.css;
-      document.documentElement.style.setProperty(key, input.value);
-      const row = input.closest('.dev-row');
-      if (row) {
-        const valEl = row.querySelector('.dev-row__value');
-        if (valEl) valEl.textContent = input.value;
-      }
     });
   });
   // 滑块
@@ -1570,7 +1697,6 @@ function bindVisualControls(el) {
       }
       // 同步控件
       const slider = el.querySelector(`.dev-slider[data-css="${key}"]`);
-      const color = el.querySelector(`.dev-color[data-css="${key}"]`);
       if (slider) {
         const calcMatch = def.match(/^calc\(([\d.]+)px/);
         const num = calcMatch ? parseFloat(calcMatch[1]) : (parseFloat(def) || 0);
@@ -1582,21 +1708,14 @@ function bindVisualControls(el) {
           display.textContent = num.toFixed(d) + unit;
         }
       }
-      if (color) {
-        color.value = def;
-        const valEl = color.parentElement.querySelector('.dev-row__value');
+      // 内联取色器重置
+      const colorTrigger = el.querySelector(`.dev-color-trigger[data-css="${key}"]`);
+      if (colorTrigger) {
+        colorTrigger.dataset.value = def;
+        const swatch = colorTrigger.querySelector('.dev-color-trigger__swatch');
+        const valEl = colorTrigger.querySelector('.dev-color-trigger__value');
+        if (swatch) swatch.style.background = def;
         if (valEl) valEl.textContent = def;
-      }
-      // 毛玻璃颜色重置
-      const glassColor = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
-      if (glassColor) {
-        const { hex, alpha } = rgbaToHexAlpha(def);
-        glassColor.value = hex;
-        glassColor.dataset.alpha = alpha;
-        const alphaSlider = el.querySelector(`.dev-glass-alpha[data-css="${key}"]`);
-        if (alphaSlider) alphaSlider.value = alpha;
-        const valEl = el.querySelector(`[data-glass-val="${key}"]`);
-        if (valEl) valEl.textContent = alpha.toFixed(2);
       }
       // 文本输入重置
       const textInput = el.querySelector(`.dev-input--text[data-css-text="${key}"]`);
@@ -2088,34 +2207,10 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
   }
 
   // 毛玻璃颜色（rgba 颜色 + alpha 滑块联动）
-  el.querySelectorAll('.dev-glass-color').forEach(colorInput => {
-    const key = colorInput.dataset.css;
-    function updateGlassColor() {
-      const hex = colorInput.value;
-      const alpha = parseFloat(colorInput.dataset.alpha);
-      const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-      const rgba = `rgba(${r},${g},${b},${alpha})`;
-      document.documentElement.style.setProperty(key, rgba);
-      const valEl = el.querySelector(`[data-glass-val="${key}"]`);
-      if (valEl) valEl.textContent = alpha.toFixed(2);
-    }
-    colorInput.addEventListener('input', updateGlassColor);
-  });
-  el.querySelectorAll('.dev-glass-alpha').forEach(alphaInput => {
-    const key = alphaInput.dataset.css;
-    alphaInput.addEventListener('input', () => {
-      const alpha = parseFloat(alphaInput.value);
-      const colorInput = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
-      if (colorInput) {
-        colorInput.dataset.alpha = alpha;
-        const hex = colorInput.value;
-        const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-        document.documentElement.style.setProperty(key, `rgba(${r},${g},${b},${alpha})`);
-        const valEl = el.querySelector(`[data-glass-val="${key}"]`);
-        if (valEl) valEl.textContent = alpha.toFixed(2);
-      }
-    });
-  });
+
+  // 初始化内联取色器（替换原生 <input type="color">）
+  initColorPickers(el);
+
 
   // --gap-scale：注入 style 覆盖 .portfolio 和 .categories 间距
   const gapScaleSlider = el.querySelector('.dev-slider[data-css="--gap-scale"]');
@@ -2174,7 +2269,7 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
 
   // 全局委托：任何控件变动自动保存 + 更新直接样式
   el.addEventListener('input', (e) => {
-    if (e.target.closest('.dev-slider, .dev-color, .dev-glass-color, .dev-glass-alpha, .dev-input--text')) {
+    if (e.target.closest('.dev-slider, .dev-input--text')) {
       autoSaveSession();
       scheduleApplyEffects();
     }
@@ -2212,16 +2307,32 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
       const key = btn.dataset.cssBtn;
       const val = btn.dataset.value;
       document.documentElement.style.setProperty(key, val);
-      // Update button active state
       btn.parentElement.querySelectorAll('[data-css-btn]').forEach(b => b.classList.remove('dev-btn--active'));
       btn.classList.add('dev-btn--active');
       autoSaveSession();
       scheduleApplyEffects();
     }
+    // 启动动画选择
+    if (e.target.closest('[data-anim]')) {
+      const btn = e.target.closest('[data-anim]');
+      setAnimationType(btn.dataset.anim);
+      const selector = el.querySelector('#dev-anim-selector');
+      if (selector) selector.innerHTML = renderAnimCards();
+      updateAnimPreview(el);
+    }
   });
   el.addEventListener('change', (e) => {
-    if (e.target.closest('.dev-color, .dev-glass-color')) { autoSaveSession(); scheduleApplyEffects(); }
+    if (e.target.closest('.dev-color-trigger')) { autoSaveSession(); scheduleApplyEffects(); }
   });
+
+  // 内联取色器颜色变更 → 保存 + 刷新
+  window.addEventListener('lens-color-change', () => {
+    autoSaveSession();
+    scheduleApplyEffects();
+  });
+
+  // 初始渲染着色器预览
+  updateAnimPreview(el);
 
 }
 
@@ -2855,6 +2966,18 @@ function loadPreset(preset) {
   syncVisualControls();
   renderPresetsGroup();
   autoSaveSession();
+  // 液态玻璃预设：重写面板渲染为透明+backdrop-filter+SVG折射
+  if (preset.id === '__liquid-glass__') {
+    enableLiquidGlassPanels();
+    const lgToggle = document.getElementById('dev-toggle-liquid-glass');
+    if (lgToggle) lgToggle.classList.add('dev-toggle--on');
+  } else {
+    if (isLiquidGlassPanelsActive()) {
+      disableLiquidGlassPanels();
+      const lgToggle = document.getElementById('dev-toggle-liquid-glass');
+      if (lgToggle) lgToggle.classList.remove('dev-toggle--on');
+    }
+  }
 }
 
 function deletePreset(id) {
@@ -2922,11 +3045,7 @@ function syncVisualControls() {
   const el = document.getElementById('dev-group-visual');
   if (!el || !el.dataset.rendered) return;
   const style = getComputedStyle(document.documentElement);
-  el.querySelectorAll('.dev-color[data-css]').forEach(c => {
-    c.value = style.getPropertyValue(c.dataset.css).trim();
-    const valEl = c.parentElement.querySelector('.dev-row__value');
-    if (valEl) valEl.textContent = c.value;
-  });
+  syncAllColorTriggers(el);
   el.querySelectorAll('.dev-slider[data-css]').forEach(s => {
     const raw = style.getPropertyValue(s.dataset.css).trim();
     const calcMatch = raw.match(/^calc\(([\d.]+)px/);
@@ -2940,17 +3059,6 @@ function syncVisualControls() {
       const d = parseInt(display.dataset.decimals) || 0;
       display.textContent = num.toFixed(d) + unit;
     }
-  });
-  // 毛玻璃颜色同步
-  el.querySelectorAll('.dev-glass-color[data-css]').forEach(c => {
-    const val = style.getPropertyValue(c.dataset.css).trim();
-    const { hex, alpha } = rgbaToHexAlpha(val);
-    c.value = hex;
-    c.dataset.alpha = alpha;
-    const alphaSlider = el.querySelector(`.dev-glass-alpha[data-css="${c.dataset.css}"]`);
-    if (alphaSlider) alphaSlider.value = alpha;
-    const valEl = el.querySelector(`[data-glass-val="${c.dataset.css}"]`);
-    if (valEl) valEl.textContent = alpha.toFixed(2);
   });
   // 文本输入同步
   el.querySelectorAll('.dev-input--text[data-css-text]').forEach(input => {
@@ -2986,16 +3094,7 @@ function syncVisualControls() {
   });
   // 新控件同步：卡片毛玻璃颜色
   ['--card-bg','--card-hover-bg'].forEach(key => {
-    const gc = el.querySelector(`.dev-glass-color[data-css="${key}"]`);
-    if (gc) {
-      const val = style.getPropertyValue(key).trim();
-      const { hex, alpha } = rgbaToHexAlpha(val);
-      gc.value = hex; gc.dataset.alpha = alpha;
-      const as = el.querySelector(`.dev-glass-alpha[data-css="${key}"]`);
-      if (as) as.value = alpha;
-      const ve = el.querySelector(`[data-glass-val="${key}"]`);
-      if (ve) ve.textContent = alpha.toFixed(2);
-    }
+    syncColorTrigger(key);
   });
   // 新控件同步：间距/阴影/标题缩放/行高/区块间距滑块
   ['--gap-scale','--shadow-depth','--font-scale-heading','--line-spacing','--section-gap'].forEach(key => {
@@ -3016,17 +3115,10 @@ function syncVisualControls() {
   const heroEl = document.getElementById('dev-group-hero');
   if (heroEl && heroEl.dataset.rendered) {
     const hStyle = getComputedStyle(document.documentElement);
-    heroEl.querySelectorAll('.dev-glass-color[data-css]').forEach(c => {
-      const val = hStyle.getPropertyValue(c.dataset.css).trim();
-      const { hex, alpha } = rgbaToHexAlpha(val);
-      c.value = hex;
-      c.dataset.alpha = alpha;
-      const alphaSlider = heroEl.querySelector(`.dev-glass-alpha[data-css="${c.dataset.css}"]`);
-      if (alphaSlider) alphaSlider.value = alpha;
-      const valEl = heroEl.querySelector(`[data-glass-val="${c.dataset.css}"]`);
-      if (valEl) valEl.textContent = alpha.toFixed(2);
-    });
+    syncAllColorTriggers(heroEl);
   }
+  // 着色器预览跟随预设更新
+  updateAnimPreview(el);
 }
 
 function renderPresetsGroup() {
@@ -3429,7 +3521,11 @@ export function initDevPanel() {
   // 恢复会话变量的特殊副作用（注入样式等）—— 内部已包含 buildDevPreview + 动画启动
   applySpecialVarEffects();
 
-  // 暴露全局 toggle 供 gamepad.js 调用
+  // 如果是液态玻璃预设，启动面板渲染重写
+  if (localStorage.getItem(ACTIVE_PRESET_KEY) === '__liquid-glass__') {
+    enableLiquidGlassPanels();
+  }
+
   window.__lensToggleDev = toggleDevPanel;
   // 暴露 invoke 日志缓冲供 main.js 写入
   window.__lensInvokeLog = D.invokeLog;
