@@ -1,6 +1,6 @@
 // ========== 加载画面系统 ==========
 
-import { getAnimationType, createShaderBackground, startShaderAnimation, stopShaderAnimation, disposeShaderBackground, resizeShaderBackground } from './loading-shaders.js';
+import { getAnimationType, createShaderBackground, startShaderAnimation, stopShaderAnimation, disposeShaderBackground, resizeShaderBackground, createAuroraBackground, disposeAuroraBackground, createWebGLBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWaveGridBackground, createVolAuroraBackground, createDitherBackground } from './loading-shaders.js';
 
 export const PHOTO_QUOTES = [
   '摄影是光的诗歌，影是时间的印记',
@@ -277,22 +277,41 @@ export function playStartupSequence({ onDone } = {}) {
   const start = performance.now();
   const DURATION = 2400;
 
-  // 着色器背景：插入 hero 内部，位于 reveal(z-index:1) 下方
+  // 背景动画：插入 hero 内部，位于 reveal(z-index:1) 下方
   // 同时隐藏 hero__slides 和 hero__overlay 防止叠层
-  let shaderWrap = null;
+  let bgWrap = null, _bgHandle = null;
   let _hiddenSlides = null, _hiddenOverlay = null;
   const animType = getAnimationType();
-  if (animType === 'shader-waves' && hero) {
+  const isCustomBg = animType !== 'orbit-capsule';
+  if (isCustomBg && hero) {
     _hiddenSlides = hero.querySelector('.hero__slides');
     _hiddenOverlay = hero.querySelector('.hero__overlay');
     if (_hiddenSlides) _hiddenSlides.style.display = 'none';
     if (_hiddenOverlay) _hiddenOverlay.style.display = 'none';
-    shaderWrap = document.createElement('div');
-    shaderWrap.id = 'hero-shader-bg';
-    shaderWrap.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none;';
-    hero.insertBefore(shaderWrap, hero.firstChild);
-    createShaderBackground(shaderWrap);
-    startShaderAnimation();
+    bgWrap = document.createElement('div');
+    bgWrap.id = 'hero-bg-wrap';
+    bgWrap.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none;';
+    hero.insertBefore(bgWrap, hero.firstChild);
+
+    const webglTypes = ['shader-waves','shader-lines','paper-shaders','chroma-rgb'];
+    if (webglTypes.includes(animType)) {
+      createShaderBackground(bgWrap, animType);
+      startShaderAnimation();
+    } else if (animType === 'webgl-palette') {
+      _bgHandle = createWebGLBackground(bgWrap);
+    } else if (animType === 'vol-aurora') {
+      _bgHandle = createVolAuroraBackground(bgWrap);
+    } else if (animType === 'wave-grid') {
+      _bgHandle = createWaveGridBackground(bgWrap);
+    } else if (animType === 'aurora') {
+      createAuroraBackground(bgWrap);
+    } else if (animType === 'falling-pattern') {
+      createFallingBackground(bgWrap);
+    } else if (animType === 'gradient-bars') {
+      createGradientBarsBackground(bgWrap);
+    } else if (animType === 'dither-ripple') {
+      _bgHandle = createDitherBackground(bgWrap);
+    }
   }
 
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
@@ -326,13 +345,18 @@ export function playStartupSequence({ onDone } = {}) {
     if (raw < 1) {
       requestAnimationFrame(tick);
     } else {
-      // 着色器渐隐后清理，恢复 slides/overlay
-      if (shaderWrap) {
-        shaderWrap.style.transition = 'opacity 0.6s ease';
-        shaderWrap.style.opacity = '0';
+      // 背景动画渐隐后清理，恢复 slides/overlay
+      if (bgWrap) {
+        bgWrap.style.transition = 'opacity 0.6s ease';
+        bgWrap.style.opacity = '0';
         setTimeout(() => {
-          disposeShaderBackground();
-          if (shaderWrap.parentNode) shaderWrap.parentNode.removeChild(shaderWrap);
+          const webglTypes = ['shader-waves','shader-lines','paper-shaders','chroma-rgb'];
+          if (webglTypes.includes(animType)) disposeShaderBackground();
+          if (animType === 'webgl-palette' || animType === 'vol-aurora' || animType === 'wave-grid' || animType === 'dither-ripple') { if (_bgHandle) _bgHandle.dispose(); }
+          if (animType === 'aurora') disposeAuroraBackground(bgWrap);
+          if (animType === 'falling-pattern') disposeFallingBackground(bgWrap);
+          if (animType === 'gradient-bars') disposeGradientBarsBackground(bgWrap);
+          if (bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
           if (_hiddenSlides) _hiddenSlides.style.display = '';
           if (_hiddenOverlay) _hiddenOverlay.style.display = '';
         }, 600);

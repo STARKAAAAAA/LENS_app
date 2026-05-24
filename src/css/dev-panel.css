@@ -1078,15 +1078,17 @@
   /* ========== 启动动画选择器 ========== */
   .dev-anim-selector {
     display: flex;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
     padding: 0 0.6rem;
     margin-bottom: 8px;
   }
   .dev-anim-card {
-    flex: 1;
+    flex: 0 0 calc(33.33% - 4px);
+    min-width: 72px;
     display: flex; flex-direction: column;
-    align-items: center; gap: 4px;
-    padding: 8px;
+    align-items: center; gap: 3px;
+    padding: 6px;
     border: 0.5px solid var(--glass-border);
     border-radius: 8px;
     background: transparent;
@@ -1143,13 +1145,11 @@
     0%   { stroke-dashoffset: 0; }
     100% { stroke-dashoffset: -458; }
   }
-  /* 着色器预览容器 */
+  /* 着色器预览容器 — 真实渲染的微型容器 */
   .dev-anim-card__shader-mini {
     position: relative;
     width: 100%; height: 100%;
-    background: rgba(6,6,5,0.8);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
+    overflow: hidden;
   }
   /* ── 启动序列预览共用关键帧（与 playStartupSequence 时间线精确对齐）── */
   @keyframes dev-anim-reveal-fade {
@@ -1173,11 +1173,13 @@
   .dev-anim-preview-wrap {
     padding: 0 0.6rem;
     margin-bottom: 6px;
+    min-height: 180px;
   }
   /* 完整预览框：背景 + 遮罩渐隐 + 文字入场 = 启动序列微缩版 */
   .dev-anim-full-preview {
     position: relative;
     width: 100%; max-width: 320px;
+    min-height: 160px;
     aspect-ratio: 16 / 10;
     margin: 0 auto;
     border-radius: 10px;
@@ -1188,6 +1190,7 @@
   .dev-anim-full-bg {
     position: absolute; inset: 0;
     z-index: 1;
+    background: radial-gradient(ellipse at 50% 30%, rgba(var(--accent-rgb, 200,168,124), 0.2), rgba(6,6,5,0.92) 100%);
   }
   /* 胶囊微缩加载画面 */
   .dev-capsule-preview {
@@ -1241,15 +1244,11 @@
     color: var(--loading-color-soft, rgba(220,200,180,0.45));
     text-align: center; white-space: nowrap;
   }
-  /* 轨道胶囊：暗色背景 */
-  .dev-anim-card--active[data-anim="orbit-capsule"] ~ .dev-anim-preview-wrap .dev-anim-full-bg {
-    background: rgba(var(--bg-deep-rgb, 6,6,5), 0.85);
-  }
   .dev-anim-full-reveal {
     position: absolute; inset: 0;
     z-index: 2;
     background: rgba(var(--bg-deep-rgb, 6,6,5), 0.94);
-    animation: dev-anim-reveal-fade 3s ease-out infinite;
+    animation: dev-anim-reveal-fade 2.4s var(--ease-out, ease-out) infinite;
   }
   .dev-anim-full-label {
     position: absolute;
@@ -1269,7 +1268,7 @@
     filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
     pointer-events: none;
     opacity: 0;
-    animation: dev-anim-title-in 3s ease-out infinite;
+    animation: dev-anim-title-in 2.4s var(--ease-out, ease-out) infinite;
   }
   .dev-anim-full-sub {
     position: absolute;
@@ -1284,7 +1283,7 @@
     pointer-events: none;
     filter: drop-shadow(0 1px 4px rgba(0,0,0,0.5));
     opacity: 0;
-    animation: dev-anim-sub-in 3s ease-out infinite;
+    animation: dev-anim-sub-in 2.4s var(--ease-out, ease-out) infinite;
   }
 
   /* ========== 内联取色器弹窗 (挂载于 body，不受面板 scope 限制) ========== */
@@ -1443,5 +1442,6 @@
     color: var(--accent);
     border-color: var(--accent);
   }
+
 
 }

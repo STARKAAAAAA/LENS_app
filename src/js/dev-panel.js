@@ -5,7 +5,7 @@ import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } f
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
 import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction } from './lg-panels.js';
 import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
-import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview } from './loading-shaders.js';
+import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview, ensureAuroraCSS, updateAuroraColors, ensureFallingCSS, buildFallingVars, ensureGradientBarsCSS, createAuroraBackground, disposeAuroraBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWebGLBackground, disposeWebGLBackground, createVolAuroraBackground, createWaveGridBackground, createDitherBackground } from './loading-shaders.js';
 
 const api = window.electronAPI;
 
@@ -731,8 +731,9 @@ function closeDevPanel() {
     unlockBodyScroll();
     stopAllMonitors();
     stopPreviewAnimations();
-    // 清理着色器预览
+    // 清理着色器预览和卡片渲染器
     if (_animPreviewHandle) { _animPreviewHandle.dispose(); _animPreviewHandle = null; }
+    disposeCardPreviews();
     // 关闭后确保调试样式存在（双重保障）
     setTimeout(() => restoreDebugStyles(), 50);
   };
@@ -1012,7 +1013,7 @@ function startPreviewAnimations() {
     // 卡片循环：normal ↔ hover（sin 波，1.2s周期）
     if (card) {
       const raw = ((elapsed % 1200) / 1200);
-      const p = (Math.sin(raw * Math.PI * 2 - Math.PI/2) + 1) / 2; // 0→1→0 smooth
+      const p = (Math.sin(raw * Math.PI * 2 - Math.PI/2) + 1) / 2;
       const blurVal = (parseFloat(card.dataset.glassBlur) || 0) + p * 16;
       card.style.backdropFilter = `blur(${blurVal}px)`;
       card.style.webkitBackdropFilter = `blur(${blurVal}px)`;
@@ -1492,6 +1493,9 @@ function renderVisualGroup() {
       applyLG();
     });
   });
+
+  // 卡片真实渲染（初始渲染后执行一次）
+  requestAnimationFrame(() => initCardPreviews(el));
 }
 
 function makeColorRow(key, label, style, tip) {
@@ -1595,6 +1599,86 @@ function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;
 
 let _animPreviewHandle = null;
 
+function ensurePreviewFixCSS() {
+  if (document.getElementById('__lg_preview_fix')) return;
+  const style = document.createElement('style');
+  style.id = '__lg_preview_fix';
+  style.textContent = [
+    // ── 全屏预览覆盖 ──
+    '#dev-anim-full-bg .hero-aurora-layer{',
+    'inset:0!important;filter:blur(4px)!important;opacity:0.55!important;',
+    'mask-image:radial-gradient(ellipse at 50% 50%,black 20%,transparent 85%)!important;',
+    '-webkit-mask-image:radial-gradient(ellipse at 50% 50%,black 20%,transparent 85%)!important;}',
+    '#dev-anim-full-bg .hero-aurora-layer::after{background-attachment:scroll!important;}',
+    '#dev-anim-full-bg .hero-falling-layer{',
+    'mask-image:radial-gradient(ellipse at 50% 50%,black 25%,transparent 90%)!important;',
+    '-webkit-mask-image:radial-gradient(ellipse at 50% 50%,black 25%,transparent 90%)!important;}',
+    '#dev-anim-full-bg .hero-falling-blur{',
+    'backdrop-filter:blur(0.3em)!important;-webkit-backdrop-filter:blur(0.3em)!important;}',
+    '#dev-anim-full-bg .hero-gradbar-wrap{opacity:0.45!important;}',
+    '#dev-anim-full-bg .hero-gradbar-bar{max-height:100%!important;}',
+    '#dev-anim-full-bg canvas{max-width:100%!important;max-height:100%!important;}',
+    // ── 卡片覆盖 — 微型真实渲染 ──
+    '.dev-anim-card__preview .hero-aurora-layer{',
+    'inset:-4px!important;filter:blur(1px)!important;opacity:0.45!important;',
+    'mask-image:radial-gradient(ellipse at 50% 50%,black 30%,transparent 80%)!important;',
+    '-webkit-mask-image:radial-gradient(ellipse at 50% 50%,black 30%,transparent 80%)!important;}',
+    '.dev-anim-card__preview .hero-aurora-layer::after{background-attachment:scroll!important;}',
+    '.dev-anim-card__preview .hero-falling-layer{',
+    'mask-image:radial-gradient(ellipse at 50% 50%,black 35%,transparent 85%)!important;',
+    '-webkit-mask-image:radial-gradient(ellipse at 50% 50%,black 35%,transparent 85%)!important;}',
+    '.dev-anim-card__preview .hero-falling-blur{',
+    'backdrop-filter:blur(0.1em)!important;-webkit-backdrop-filter:blur(0.1em)!important;}',
+    '.dev-anim-card__preview .hero-gradbar-wrap{opacity:0.35!important;}',
+    '.dev-anim-card__preview .hero-gradbar-bar{max-height:100%!important;}',
+    '.dev-anim-card__preview canvas{max-width:100%!important;max-height:100%!important;}',
+  ].join('');
+  document.head.appendChild(style);
+}
+
+let _cardHandles = [];
+
+function disposeCardPreviews() {
+  _cardHandles.forEach(h => { try { h.dispose(); } catch(e) {} });
+  _cardHandles = [];
+}
+
+function initCardPreviews(el) {
+  disposeCardPreviews();
+  const threeJsTypes = ['shader-waves','shader-lines','paper-shaders','chroma-rgb'];
+
+  el.querySelectorAll('.dev-anim-card').forEach(card => {
+    const type = card.dataset.anim;
+    if (type === 'orbit-capsule') return; // 已有真实 SVG
+
+    const preview = card.querySelector('.dev-anim-card__shader-mini');
+    if (!preview) return;
+
+    try {
+      if (threeJsTypes.includes(type)) {
+        _cardHandles.push(createMiniShaderPreview(preview, 64, type));
+      } else if (type === 'aurora') {
+        createAuroraBackground(preview);
+        _cardHandles.push({ dispose: () => disposeAuroraBackground(preview) });
+      } else if (type === 'falling-pattern') {
+        createFallingBackground(preview);
+        _cardHandles.push({ dispose: () => disposeFallingBackground(preview) });
+      } else if (type === 'gradient-bars') {
+        createGradientBarsBackground(preview);
+        _cardHandles.push({ dispose: () => disposeGradientBarsBackground(preview) });
+      } else if (type === 'webgl-palette') {
+        _cardHandles.push(createWebGLBackground(preview));
+      } else if (type === 'vol-aurora') {
+        _cardHandles.push(createVolAuroraBackground(preview));
+      } else if (type === 'dither-ripple') {
+        _cardHandles.push(createDitherBackground(preview));
+      } else if (type === 'wave-grid') {
+        _cardHandles.push(createWaveGridBackground(preview));
+      }
+    } catch (e) { /* 跳过无法创建的 */ }
+  });
+}
+
 function updateAnimPreview(el) {
   const wrap = el.querySelector('#dev-anim-preview');
   if (!wrap) return;
@@ -1602,36 +1686,89 @@ function updateAnimPreview(el) {
   wrap.innerHTML = '';
 
   const active = getAnimationType();
-  // 完整预览：背景动画 + 遮罩渐隐 + 标题文字入场 = 启动序列微缩版
   wrap.innerHTML = `
     <div class="dev-anim-full-preview">
       <div class="dev-anim-full-bg" id="dev-anim-full-bg"></div>
       <div class="dev-anim-full-reveal"></div>
-      <span class="dev-anim-full-label">LENS</span>
-      <span class="dev-anim-full-sub">Photography Portfolio</span>
+      <div class="dev-anim-full-label">LENS</div>
+      <div class="dev-anim-full-sub">Photography Portfolio</div>
     </div>
   `;
 
-  if (active === 'shader-waves') {
+  ensurePreviewFixCSS();
+
+  requestAnimationFrame(() => {
     const bgEl = wrap.querySelector('#dev-anim-full-bg');
-    if (bgEl) _animPreviewHandle = createMiniShaderPreview(bgEl, 320);
-  }
+    if (!bgEl) return;
+    const s = getComputedStyle(document.documentElement);
+    const accentRgb = s.getPropertyValue('--accent-rgb').trim() || '200,168,124';
+
+    // Three.js WebGL — 真实着色器
+    const threeJsTypes = ['shader-waves','shader-lines','paper-shaders','chroma-rgb'];
+    if (threeJsTypes.includes(active)) {
+      _animPreviewHandle = createMiniShaderPreview(bgEl, 320, active);
+      return;
+    }
+
+    // 真实 create*Background（与启动画面完全相同）
+    if (active === 'aurora') {
+      createAuroraBackground(bgEl);
+      _animPreviewHandle = { dispose: () => disposeAuroraBackground(bgEl) };
+      return;
+    }
+    if (active === 'falling-pattern') {
+      createFallingBackground(bgEl);
+      _animPreviewHandle = { dispose: () => disposeFallingBackground(bgEl) };
+      return;
+    }
+    if (active === 'gradient-bars') {
+      createGradientBarsBackground(bgEl);
+      _animPreviewHandle = { dispose: () => disposeGradientBarsBackground(bgEl) };
+      return;
+    }
+
+    // orbit-capsule — 默认模式，无背景动画，保持暗色底色即可
+    if (active === 'orbit-capsule') {
+      bgEl.style.background = `rgba(${accentRgb},0.06)`;
+      _animPreviewHandle = { dispose: () => { bgEl.style.background = ''; } };
+      return;
+    }
+
+    // webgl-palette / vol-aurora / dither-ripple / wave-grid — 真实渲染
+    if (active === 'webgl-palette') {
+      _animPreviewHandle = createWebGLBackground(bgEl);
+      return;
+    }
+    if (active === 'vol-aurora') {
+      _animPreviewHandle = createVolAuroraBackground(bgEl);
+      return;
+    }
+    if (active === 'dither-ripple') {
+      _animPreviewHandle = createDitherBackground(bgEl);
+      return;
+    }
+    if (active === 'wave-grid') {
+      _animPreviewHandle = createWaveGridBackground(bgEl);
+      return;
+    }
+  });
 }
 
 function renderAnimCards() {
+  // 卡片只是选择器，真正预览在下方 updateAnimPreview() 中
   const active = getAnimationType();
-  return Object.entries(ANIMATION_TYPES).map(([id, info]) => `
-    <button class="dev-anim-card${id === active ? ' dev-anim-card--active' : ''}" data-anim="${id}">
-      <div class="dev-anim-card__preview">
-        ${id === 'shader-waves'
-          ? '<div class="dev-anim-card__shader-mini" data-anim-preview="shader-waves"></div>'
-          : `<div class="dev-anim-card__orbit-wrap">${renderOrbitPreviewSVG()}</div>`
-        }
-      </div>
-      <span class="dev-anim-card__name">${info.name}</span>
-      <span class="dev-anim-card__desc">${info.description}</span>
-    </button>
-  `).join('');
+  return Object.entries(ANIMATION_TYPES).map(([id, info]) => {
+    const previewHTML = id === 'orbit-capsule'
+      ? `<div class="dev-anim-card__orbit-wrap">${renderOrbitPreviewSVG()}</div>`
+      : '<div class="dev-anim-card__shader-mini"></div>';
+    return `
+      <button class="dev-anim-card${id === active ? ' dev-anim-card--active' : ''}" data-anim="${id}">
+        <div class="dev-anim-card__preview">${previewHTML}</div>
+        <span class="dev-anim-card__name">${info.name}</span>
+        <span class="dev-anim-card__desc">${info.description}</span>
+      </button>
+    `;
+  }).join('');
 }
 
 function renderOrbitPreviewSVG() {
@@ -2324,8 +2461,8 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
     if (e.target.closest('[data-anim]')) {
       const btn = e.target.closest('[data-anim]');
       setAnimationType(btn.dataset.anim);
-      const selector = el.querySelector('#dev-anim-selector');
-      if (selector) selector.innerHTML = renderAnimCards();
+      el.querySelectorAll('.dev-anim-card').forEach(c => c.classList.remove('dev-anim-card--active'));
+      btn.classList.add('dev-anim-card--active');
       updateAnimPreview(el);
     }
   });
@@ -2984,6 +3121,14 @@ function loadPreset(preset) {
   // 同步 toggle UI
   const lgToggle = document.getElementById('dev-toggle-liquid-glass');
   if (lgToggle) { lgToggle.classList.toggle('dev-toggle--on', window.__lensLiquidGlass); }
+
+  // 重建卡片真实渲染器（强调色已变更）
+  const visualEl = document.getElementById('dev-group-visual');
+  if (visualEl && visualEl.dataset.rendered) {
+    disposeCardPreviews();
+    updateAnimPreview(visualEl);
+    requestAnimationFrame(() => initCardPreviews(visualEl));
+  }
 }
 
 function deletePreset(id) {
@@ -3123,7 +3268,8 @@ function syncVisualControls() {
     const hStyle = getComputedStyle(document.documentElement);
     syncAllColorTriggers(heroEl);
   }
-  // 着色器预览跟随预设更新
+  // 着色器/极光预览跟随预设更新
+  updateAuroraColors();
   updateAnimPreview(el);
 }
 

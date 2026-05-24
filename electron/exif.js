@@ -51,27 +51,35 @@ export async function getExifInfo(filePath) {
     focal_length: '', date: '', width: 0, height: 0, filesize: 0,
   };
 
+  // 独立获取 filesize（不受 EXIF 解析影响）
+  let filesize = 0;
   try {
-    const [exifData, fsStat] = await Promise.all([
-      parse(filePath, EXIF_TAGS),
-      stat(filePath).catch(() => null),
-    ]);
+    const st = await stat(filePath);
+    filesize = st.size;
+  } catch {}
 
-    if (!exifData) return { ...empty, filesize: fsStat?.size || 0 };
+  // 独立解析 EXIF
+  let exif = null;
+  try {
+    exif = await parse(filePath, EXIF_TAGS);
+  } catch {}
 
+  if (!exif) return { ...empty, filesize };
+
+  try {
     return {
-      camera: formatCamera(exifData.Make, exifData.Model),
-      lens: exifData.LensModel || '',
-      aperture: formatAperture(exifData.FNumber),
-      shutter: formatShutter(exifData.ExposureTime),
-      iso: formatIso(exifData.ISO),
-      focal_length: formatFocalLength(exifData.FocalLength),
-      date: exifData.DateTimeOriginal || '',
-      width: exifData.ImageWidth || 0,
-      height: exifData.ImageHeight || 0,
-      filesize: fsStat?.size || 0,
+      camera: formatCamera(exif.Make, exif.Model),
+      lens: exif.LensModel || '',
+      aperture: formatAperture(exif.FNumber),
+      shutter: formatShutter(exif.ExposureTime),
+      iso: formatIso(exif.ISO),
+      focal_length: formatFocalLength(exif.FocalLength),
+      date: exif.DateTimeOriginal || '',
+      width: exif.ImageWidth || 0,
+      height: exif.ImageHeight || 0,
+      filesize,
     };
   } catch {
-    return empty;
+    return { ...empty, filesize };
   }
 }

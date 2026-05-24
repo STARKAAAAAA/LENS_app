@@ -110,30 +110,41 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
       exifPanel.classList.remove('exif--visible');
       return;
     }
+    // 重置所有标签为隐藏状态
+    Object.values(exifTags).forEach(el => {
+      if (el) { el.textContent = ''; el.classList.add('exif__tag--empty'); }
+    });
     try {
       const info = await invoke('get_exif_info', { path: filePath });
-      exifTags.camera.textContent = info.camera || '';
-      exifTags.camera.classList.toggle('exif__tag--empty', !info.camera);
-      exifTags.lens.textContent = info.lens || '';
-      exifTags.lens.classList.toggle('exif__tag--empty', !info.lens);
-      exifTags.aperture.textContent = info.aperture || '';
-      exifTags.aperture.classList.toggle('exif__tag--empty', !info.aperture);
-      exifTags.shutter.textContent = info.shutter || '';
-      exifTags.shutter.classList.toggle('exif__tag--empty', !info.shutter);
-      exifTags.iso.textContent = info.iso || '';
-      exifTags.iso.classList.toggle('exif__tag--empty', !info.iso);
-      exifTags.focal.textContent = info.focal_length || '';
-      exifTags.focal.classList.toggle('exif__tag--empty', !info.focal_length);
-      exifTags.date.textContent = info.date ? info.date.replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3') : '';
-      exifTags.date.classList.toggle('exif__tag--empty', !info.date);
-      exifTags.dims.textContent = (info.width && info.height) ? `${info.width} × ${info.height}` : '';
-      exifTags.dims.classList.toggle('exif__tag--empty', !info.width);
-      exifTags.size.textContent = info.filesize ? formatBytes(info.filesize) : '';
-      exifTags.size.classList.toggle('exif__tag--empty', !info.filesize);
-      exifPanel.classList.add('exif--visible');
+      const setTag = (el, val) => { if (el && val) { el.textContent = val; el.classList.remove('exif__tag--empty'); } };
+      setTag(exifTags.camera, info.camera);
+      setTag(exifTags.lens, info.lens);
+      setTag(exifTags.aperture, info.aperture);
+      setTag(exifTags.shutter, info.shutter);
+      setTag(exifTags.iso, info.iso);
+      setTag(exifTags.focal, info.focal_length);
+      let dateVal = '';
+      if (info.date) {
+        if (typeof info.date === 'string') {
+          dateVal = info.date.replace(/^(\d{4}):(\d{2}):(\d{2}).*/, '$1-$2-$3');
+        } else {
+          const d = new Date(info.date);
+          if (!isNaN(d.getTime())) dateVal = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+      }
+      setTag(exifTags.date, dateVal);
+      setTag(exifTags.dims, (info.width && info.height) ? `${info.width} × ${info.height}` : '');
+      if (exifTags.size) {
+        exifTags.size.textContent = info.filesize ? formatBytes(info.filesize) : '—';
+        exifTags.size.classList.remove('exif__tag--empty');
+      }
     } catch {
-      exifPanel.classList.remove('exif--visible');
+      if (exifTags.size) {
+        exifTags.size.textContent = '—';
+        exifTags.size.classList.remove('exif__tag--empty');
+      }
     }
+    exifPanel.classList.add('exif--visible');
   }
 
   function update() {

@@ -209,7 +209,7 @@ function generateFullCSS(p) {
 
   return `/* === LENS 颜色系统 — 零 var() 依赖 === */
 :root{
---danger:rgb(${E});--danger-rgb:${E};--warm-rgb:${W};--bg-deep-rgb:${BgD};--glass-blur:${p.glassBlur || '0px'};
+--danger:rgb(${E});--danger-rgb:${E};--accent-rgb:${A};--warm-rgb:${W};--bg-deep-rgb:${BgD};--glass-blur:${p.glassBlur || '0px'};
 --sidebar-glass-bg:rgba(${W},0.08);--sidebar-glass-border:rgba(${W},0.12);--sidebar-glass-bg-hover:rgba(${W},0.14);--sidebar-glass-border-bright:rgba(${W},0.22);--sidebar-glass-blur:calc(24px + var(--glass-blur,0px));
 --titlebar-glass-bg:rgba(${W},0.06);--titlebar-glass-border:rgba(${W},0.10);--titlebar-glass-bg-hover:rgba(${W},0.12);--titlebar-btn-color:rgba(${W},0.45);--titlebar-glass-blur:calc(12px + var(--glass-blur,0px));
 --toolbar-glass-bg:rgba(${W},0.06);--toolbar-glass-border:rgba(${W},0.10);--toolbar-glass-bg-hover:rgba(${W},0.10);--toolbar-btn-color:rgba(${W},0.45);--toolbar-glass-blur:calc(16px + var(--glass-blur,0px));
@@ -490,7 +490,7 @@ ${window.__lensLiquidGlass ? `
 .sidebar,.sidebar__add,.toolbar,.titlebar__controls,
 .settings-panel,.shortcuts-panel,.shortcuts-overlay,
 .dev-overlay,.dev-panel,.dev-gp-float,.dev-reset-overlay,.dev-reset-box,.dev-hints,.dev-preview__inner,
-.lightbox.active,.lightbox__close,.lightbox__prev,.lightbox__next,.lightbox__exif,
+.lightbox__close,.lightbox__prev,.lightbox__next,.lightbox__exif,
 .slideshow__controls,.gallery__nav,.hero__scroll,.back-to-top,[popover]
 {background:rgba(255,255,255,var(--lg-panel-bg-alpha,0))!important;
 backdrop-filter:blur(var(--lg-panel-blur,6px)) saturate(var(--lg-panel-saturate,1.3)) url(#lg-panel-refract)!important;
@@ -522,7 +522,7 @@ box-shadow:0 8px 32px rgba(0,0,0,var(--lg-panel-shadow-alpha,0.3)),inset 0 1px 0
 .density-btn:hover{background:rgba(255,255,255,0.12)!important;color:rgba(255,255,255,0.85)!important;box-shadow:0 0 10px rgba(255,255,255,0.08);}
 .density-btn--active{background:rgba(255,255,255,0.18)!important;color:rgba(255,255,255,0.95)!important;box-shadow:0 0 14px rgba(255,255,255,0.15);}
 .lightbox__exif{background:transparent!important;}
-.slideshow{background:transparent!important;}
+.slideshow{background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;}
 .slideshow__btn{background:rgba(255,255,255,0.04)!important;}
 .slideshow__btn:hover{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 12px rgba(255,255,255,0.08);}
 .shortcuts__row kbd{background:rgba(255,255,255,0.06)!important;}
@@ -684,6 +684,7 @@ function getPaletteByName(name) {
 function paletteToVars(palette) {
   return {
     '--accent': palette.accent,
+    '--accent-rgb': palette.accentRgb,
     '--bg': palette.bg,
     '--bg-deep': palette.bgDeep,
     '--text': palette.text,
