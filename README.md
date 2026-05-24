@@ -6,7 +6,7 @@
 
 ---
 
-当前版本 Current version: **v1.7.0 Beta**
+当前版本 Current version: **v1.7.1**
 
 ## 为什么选择 LENS / Why LENS
 
@@ -107,6 +107,7 @@
 
 | 版本 | 更新 |
 |------|------|
+| v1.7.1 | EXIF Date类型兼容(exifr返回Date对象修复崩溃)、液态玻璃预设lightbox/slideshow背景修复、6个动画着色器全局状态→实例化、7种启动动画参数调优(配色/速度/亮度/色散)、vol-aurora性能优化(32→16步)、DPR缩放(webgl-palette/dither-ripple)、动画卡片真实渲染系统、falling-pattern遮罩扩宽40%→60%、lightbox箭头垂直居中、EXIF面板filesize始终显示、Promise.allSettled后端防崩溃 |
 | v1.7.0 | 品牌预设系统(Apple×3/IBM×2/Bugatti×2严格按DESIGN.md)、四类字体引擎(Display/Body/Caption/Mono零var()硬编码)、字体选择按钮组(以自身字体渲染)、43项代码审查修复(lightbox空指针/unlisten泄漏/Promise悬挂/扫描容错)、Rust线程池限16+EXIF全类型支持、CSP修复localhost拒绝连接、deriveWarmTint背景分离(侧栏/工具栏不再蓝)、门控标题栏按钮强调色、portfolio装饰线移除、B按钮gallery退回 |
 | v1.6.2 | 焦点系统彻底重构（ensureFocus中央维护），修复多场景焦点框消失，CSS outline焦点指示器（不裁切），开发者面板手柄全功能操作（滑块/颜色/文本），侧边栏竞态修复+自动定位激活文件夹，_listeners空指针修复，毛玻璃颜色控件可导航 |
 | v1.6.1 | 灯箱/幻灯片摇杆缩放+平移+RS复位，LS暂停，D-pad翻页，Xbox风格图标（14个SVG），左下角提示栏，评分逐星加减，照片评分+收藏标显示，缩放统一重写+动画，Logo追踪重写，overflow裁切修复 |
