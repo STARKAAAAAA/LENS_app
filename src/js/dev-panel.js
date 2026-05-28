@@ -3,7 +3,7 @@
 
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
-import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction } from './lg-panels.js';
+import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction, togglePanelDebug } from './lg-panels.js';
 import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
 import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview, ensureAuroraCSS, updateAuroraColors, ensureFallingCSS, buildFallingVars, ensureGradientBarsCSS, createAuroraBackground, disposeAuroraBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWebGLBackground, disposeWebGLBackground, createVolAuroraBackground, createWaveGridBackground, createDitherBackground } from './loading-shaders.js';
 
@@ -1347,6 +1347,9 @@ function renderVisualGroup() {
       <div class="dev-row" style="margin-top:3px" title="鼠标/触摸点击位置显示波纹扩散动画，确认点击坐标和事件触发位置"><span class="dev-row__label">点击波纹</span><button class="dev-toggle" id="dev-toggle-click-ripple" data-key="click-ripple"></button></div>
       <div class="dev-row" style="margin-top:3px" title="始终高亮当前 focus 元素(蓝色发光边框)，方便键盘导航调试"><span class="dev-row__label">焦点追踪</span><button class="dev-toggle" id="dev-toggle-focus-track" data-key="focus-track"></button></div>
 
+      <div class="dev-section__subtitle" style="font-size:0.65rem;color:var(--text-3);margin:0.8rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase;">亮度分析</div>
+      <div class="dev-row" title="全屏采样亮度(每30px网格)→蓝(暗)到红(亮)热力图+百分比数字。模拟Apple lumaSubrect行为。"><span class="dev-row__label">亮度扫描</span><button class="dev-toggle" id="dev-toggle-luma-scan" data-key="luma-scan"></button></div>
+
     </details>
     </div>
     <div class="dev-section" data-subtab="lg">
@@ -1392,23 +1395,20 @@ function renderVisualGroup() {
     const g = document.getElementById('liquid-glass');
     if (!g) return;
     const rv = (n, fb) => { const e2 = el.querySelector('[data-lg="' + n + '"]'); if (!e2) return fb; const v = parseFloat(e2.value); return isNaN(v) ? fb : v; };
-    const bp = rv('blur', 6), sat = rv('saturate', 1.3), rf = rv('refraction', 0);
-    const w = rv('width', BASE_W), h = rv('height', BASE_H);
-    // 模糊度跟随尺寸等比缩放，保持视觉一致
-    const scale = Math.sqrt((w * h) / (BASE_W * BASE_H));
-    const effectiveBlur = bp * scale;
-    const effectiveRefraction = rf * scale;
-    g.style.width = w + 'px';
-    g.style.height = h + 'px';
-    g.style.borderRadius = rv('radius', 36) + 'px';
-    g.style.background = 'rgba(255,255,255,' + rv('bgOpacity', 0.06) + ')';
-    g.style.border = '1px solid rgba(255,255,255,' + rv('borderOpacity', 0.15) + ')';
-    g.style.boxShadow = '0 8px ' + rv('shadowBlur', 40) + 'px rgba(0,0,0,' + rv('shadowOpacity', 0.15) + '), inset 0 1px 0 rgba(255,255,255,0.2)';
-    const bf = 'blur(' + effectiveBlur.toFixed(1) + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
-    g.style.backdropFilter = bf;
-    g.style.WebkitBackdropFilter = bf;
-    const st = getStudio();
-    if (st) { st.setShape(w, h, rv('radius', 36)); st.setRefraction(effectiveRefraction); st.updateControls({ tension: rv('tension', 170), friction: rv('friction', 26) }); }
+	    const bp = rv('blur', 6), sat = rv('saturate', 1.3), rf = rv('refraction', 150);
+	    const depth = rv('depth', 10);
+	    const w = rv('width', BASE_W), h = rv('height', BASE_H);
+	    g.style.width = w + 'px';
+	    g.style.height = h + 'px';
+	    g.style.borderRadius = rv('radius', 36) + 'px';
+	    g.style.background = 'rgba(255,255,255,' + rv('bgOpacity', 0.06) + ')';
+	    g.style.border = '1px solid rgba(255,255,255,' + rv('borderOpacity', 0.15) + ')';
+	    g.style.boxShadow = '0 8px ' + rv('shadowBlur', 40) + 'px rgba(0,0,0,' + rv('shadowOpacity', 0.15) + '), inset 0 1px 0 rgba(255,255,255,0.2)';
+	    const bf = 'blur(' + bp.toFixed(1) + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
+	    g.style.backdropFilter = bf;
+	    g.style.WebkitBackdropFilter = bf;
+	    const st = getStudio();
+	    if (st) { st.setShape(w, h, rv('radius', 36)); st.setRefraction(rf); st.setDepth(depth); st.updateControls({ tension: rv('tension', 170), friction: rv('friction', 26) }); }
   };
 
   // 开关
@@ -1421,6 +1421,25 @@ function renderVisualGroup() {
       else { unmountLiquidGlass(); }
     });
   }
+
+  // 面板位移图调试开关
+  const lgPanelDebugBtn = document.createElement('button');
+  lgPanelDebugBtn.className = 'dev-toggle';
+  lgPanelDebugBtn.id = 'dev-toggle-lg-panel-debug';
+  lgPanelDebugBtn.title = '面板位移图调试';
+  const lgPanelDebugRow = document.createElement('div');
+  lgPanelDebugRow.className = 'dev-row';
+  lgPanelDebugRow.innerHTML = '<span class="dev-row__label">面板位移图调试</span>';
+  lgPanelDebugRow.appendChild(lgPanelDebugBtn);
+  const lgTestBgRow2 = el.querySelector('#dev-toggle-lg-test-bg');
+  if (lgTestBgRow2 && lgTestBgRow2.parentElement) {
+    lgTestBgRow2.parentElement.after(lgPanelDebugRow);
+  }
+  lgPanelDebugBtn.addEventListener('click', () => {
+    const on = lgPanelDebugBtn.classList.toggle('dev-toggle--on');
+    togglePanelDebug();
+    if (!on) lgPanelDebugBtn.classList.remove('dev-toggle--on');
+  });
 
   // 测试背景 — 单击轮播（liquid-glass-studio 案例图片）
   let _lgBgIdx = 0;
@@ -2347,6 +2366,75 @@ img[data-dev-wasted]:hover::after{content:attr(data-dev-wasted)!important;positi
         document.head.appendChild(s);
       } else {
         const s = document.getElementById('dev-focus-track-style'); if (s) s.remove();
+      }
+    });
+  }
+
+  // 亮度扫描 — 主进程 IPC 方案：screen:luma-grid 在主进程用 nativeImage.toBitmap()
+  // 计算 W3C 亮度后返回数组，彻底避免渲染进程 Canvas getImageData() 安全错误
+  const lumaScanToggle = el.querySelector('#dev-toggle-luma-scan');
+  if (lumaScanToggle) {
+    let lumaCanvas, lumaCtx, lumaAnim, lumaGridCache = null, lumaInterval = null;
+    lumaScanToggle.addEventListener('click', () => {
+      const on = lumaScanToggle.classList.toggle('dev-toggle--on');
+      if (on) {
+        lumaCanvas = document.createElement('canvas');
+        lumaCanvas.id = 'dev-luma-scan-canvas';
+        lumaCanvas.style.cssText = 'position:fixed;inset:0;z-index:99998;pointer-events:none;';
+        document.body.appendChild(lumaCanvas);
+        lumaCtx = lumaCanvas.getContext('2d');
+
+        let fetching = false;
+        const H = 15; // step/2 偏移，采样点与绘制点错开，彻底避免反馈循环
+        const fetchGrid = async () => {
+          if (fetching) return;
+          fetching = true;
+          try {
+            if (window.electronAPI) {
+              lumaGridCache = await window.electronAPI.invoke("screen:luma-grid", 30, H, H);
+            }
+          } catch (_) { lumaGridCache = null; }
+          fetching = false;
+        };
+        fetchGrid();
+        lumaInterval = setInterval(fetchGrid, 500);
+
+        const draw = () => {
+          if (!lumaCanvas) return;
+          lumaCanvas.width = window.innerWidth;
+          lumaCanvas.height = window.innerHeight;
+          lumaCtx.clearRect(0, 0, lumaCanvas.width, lumaCanvas.height);
+
+          if (lumaGridCache && lumaGridCache.data) {
+            const g = lumaGridCache;
+            const sx = lumaCanvas.width / g.width;
+            const sy = lumaCanvas.height / g.height;
+            for (let r = 0, i = 0; r < g.rows; r++) {
+              for (let c = 0; c < g.cols; c++, i++) {
+                const lum = g.data[i];
+                if (lum == null) continue;
+                const cx = (c * g.step + g.step / 2) * sx;
+                const cy = (r * g.step + g.step / 2) * sy;
+                const t = Math.max(0, Math.min(1, lum));
+                let cr, cg, cb;
+                if (t < 0.25) { cr = 0; cg = Math.round(t * 4 * 255); cb = 255; }
+                else if (t < 0.5) { cr = 0; cg = 255; cb = Math.round((0.5 - t) * 4 * 255); }
+                else if (t < 0.75) { cr = Math.round((t - 0.5) * 4 * 255); cg = 255; cb = 0; }
+                else { cr = 255; cg = Math.round((1 - t) * 4 * 255); cb = 0; }
+                lumaCtx.fillStyle = 'rgb(' + cr + ',' + cg + ',' + cb + ')';
+                lumaCtx.fillRect(cx - 4, cy - 4, 8, 8);
+                lumaCtx.fillStyle = lum > 0.5 ? '#000' : '#fff';
+                lumaCtx.font = '8px monospace';
+                lumaCtx.fillText((lum * 100).toFixed(0), cx + 5, cy + 4);
+              }
+            }
+          }
+          lumaAnim = requestAnimationFrame(draw);
+        };
+        draw();
+      } else {
+        if (lumaCanvas) { cancelAnimationFrame(lumaAnim); lumaCanvas.remove(); lumaCanvas = null; lumaCtx = null; lumaGridCache = null; }
+        if (lumaInterval) { clearInterval(lumaInterval); lumaInterval = null; }
       }
     });
   }

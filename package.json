@@ -13,7 +13,8 @@
     "tauri": "tauri",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:1420 && electron .\"",
     "electron:build": "vite build && electron-builder",
-    "start": "vite build && electron ."
+    "start": "vite build && electron .",
+    "test:lg": "electron electron/test-lg.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1",

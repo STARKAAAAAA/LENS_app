@@ -133,7 +133,6 @@
   /* ========== 快捷键面板（液态玻璃弹出） ========== */
   .shortcuts-overlay {
     position: fixed; inset: 0; z-index: 20001;
-    background: rgba(6,6,5,0.5);
     backdrop-filter: blur(var(--shortcuts-blur, calc(8px + var(--glass-blur, 0px))));
     -webkit-backdrop-filter: blur(var(--shortcuts-blur, calc(8px + var(--glass-blur, 0px))));
     opacity: 0; visibility: hidden;

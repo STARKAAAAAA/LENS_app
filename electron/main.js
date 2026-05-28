@@ -109,6 +109,47 @@ ipcMain.handle('screen:capture', async () => {
   return image.toDataURL();
 });
 
+// 全屏亮度采样: 返回 step×step 降采样网格的亮度值数组
+ipcMain.handle('screen:luma-grid', async (_, step = 30, offsetX = 0, offsetY = 0) => {
+  if (!mainWindow) return null;
+  try {
+    const image = await mainWindow.webContents.capturePage();
+    const size = image.getSize();
+    const bitmap = image.toBitmap();
+    const cols = Math.floor((size.width - offsetX) / step);
+    const rows = Math.floor((size.height - offsetY) / step);
+    const result = { width: size.width, height: size.height, step, cols, rows, offsetX, offsetY, data: new Array(rows * cols) };
+    let i = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = Math.min(size.width - 1, offsetX + c * step + Math.floor(step / 2));
+          const y = Math.min(size.height - 1, offsetY + r * step + Math.floor(step / 2));
+          const off = (y * size.width + x) * 4;
+          const b = bitmap[off], g = bitmap[off + 1], r2 = bitmap[off + 2];
+        result.data[i++] = 0.2126 * (r2 / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+      }
+    }
+    return result;
+  } catch (e) { return null; }
+});
+
+// 单点亮度采样: Apple lumaSubrect 风格，返回 (x,y) CSS 坐标处的 W3C 亮度
+ipcMain.handle('screen:luma-at', async (_, x, y, innerW, innerH) => {
+  if (!mainWindow) return null;
+  try {
+    const image = await mainWindow.webContents.capturePage();
+    const size = image.getSize();
+    const bitmap = image.toBitmap();
+    const sx = size.width / innerW;
+    const sy = size.height / innerH;
+    const px = Math.min(size.width - 1, Math.round(x * sx));
+    const py = Math.min(size.height - 1, Math.round(y * sy));
+    const off = (py * size.width + px) * 4;
+    const b = bitmap[off], g = bitmap[off + 1], r = bitmap[off + 2];
+    return 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+  } catch (e) { return null; }
+});
+
 ipcMain.handle('window:minimize', () => mainWindow?.minimize());
 ipcMain.handle('window:toggleMaximize', () => {
   if (mainWindow?.isMaximized()) {
