@@ -65,14 +65,18 @@ function _lookupLuminance(el) {
   const sx = g.width / window.innerWidth;
   const sy = g.height / window.innerHeight;
 
-  // 多样本点采样：大面板沿长轴采样多点取平均
+  // 多样本点采样：聚焦内容区（文字位置），避开面板边缘
+  const insetX = r.width * 0.15;   // 水平内缩 15%
+  const insetY = r.height * 0.08;  // 垂直内缩 8%
+  const cw = r.width - insetX * 2;
+  const ch = r.height - insetY * 2;
   const samples = [];
-  const hCount = Math.min(5, Math.max(1, Math.floor(r.width / 60)));   // 水平
-  const vCount = Math.min(5, Math.max(1, Math.floor(r.height / 80))); // 垂直
+  const hCount = Math.min(5, Math.max(1, Math.floor(cw / 60)));
+  const vCount = Math.min(5, Math.max(1, Math.floor(ch / 80)));
   for (let vi = 0; vi < vCount; vi++) {
     for (let hi = 0; hi < hCount; hi++) {
-      const px = r.left + r.width * (hi + 0.5) / hCount;
-      const py = r.top + r.height * (vi + 0.5) / vCount;
+      const px = r.left + insetX + cw * (hi + 0.5) / hCount;
+      const py = r.top + insetY + ch * (vi + 0.5) / vCount;
       const col = Math.floor((px * sx - g.offsetX) / g.step);
       const row = Math.floor((py * sy - g.offsetY) / g.step);
       if (col >= 0 && col < g.cols && row >= 0 && row < g.rows) {
