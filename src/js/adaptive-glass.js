@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════
-   液态玻璃逐面板自适应 — IPC 主进程亮度采样
-   架构与透镜一致: 2档/恒定brightness/frost opacity过渡/串行IPC
+   液态玻璃自适应 — 统一 CSS 变量枢纽
+   所有文字颜色通过 var(--text)/var(--text-2)/var(--text-3) 级联
+   IPC 主进程亮度采样, 2 档阈值, frost opacity 过渡
    ═══════════════════════════════════════════════════════ */
 
 import { PANEL_DEFS } from './lg-panels.js';
@@ -14,10 +15,15 @@ let _sampling = false;
 let _gridCache = null;
 let _textStyleEl = null;
 
-// 所有面板统一自适应采样
 const _forceDark = new Set();
 
-// 折叠/隐藏时不采样
+// ── 两档阈值 ──
+let _adThresh = 0.5;
+// 逐面板文字模式: 'white' | 'black' | 'adaptive'，默认 adaptive（自动跟随背景）
+const _panelTextModes = new Map();
+// 透镜文字模式 — 默认 adaptive
+let _lensTextMode = 'adaptive';
+
 function _isVisible(id, el) {
   if (id === 'sidebar') {
     const frame = document.querySelector('.sidebar-frame');
@@ -29,33 +35,14 @@ function _isVisible(id, el) {
   return true;
 }
 
-// 两档阈值（与透镜同步）
-let _adThresh = 0.5;
-// 逐面板文字模式: 'white' | 'black' | 'adaptive'，默认 white
-const _panelTextModes = new Map();
-// 透镜文字模式
-let _lensTextMode = 'white';
-
-// ── 根据模式 + 亮度计算全部可见颜色 ──
+// ── 根据模式 + 亮度计算文字色 ──
 function _textColors(mode, isDark) {
-  // 决定主色: white→白系, black→黑系, adaptive→跟随背景
   const light = mode === 'white' || (mode === 'adaptive' && isDark);
-  const alpha = light ? '255,255,255' : '18,18,18';
-  const borderAlpha = light ? '255,255,255' : '18,18,18';
+  const alpha = light ? '255,255,255' : '0,0,0';
   return {
     t1: `rgba(${alpha},0.94)`,
     t2: `rgba(${alpha},0.82)`,
     t3: `rgba(${alpha},0.64)`,
-    // accent → 跟随模式
-    accent: `rgba(${alpha},0.62)`,
-    accentRgb: light ? '255,255,255' : '18,18,18',
-    // 玻璃边框/背景 — 也跟随模式
-    glassBorder: `rgba(${borderAlpha},0.14)`,
-    glassBorderBright: `rgba(${borderAlpha},0.25)`,
-    glassBgHover: `rgba(${borderAlpha},0.10)`,
-    // text-shadow
-    shadow: light ? (isDark ? '0 1px 4px rgba(0,0,0,0.35)' : '0 1px 2px rgba(255,255,255,0.1)')
-                  : '0 1px 2px rgba(255,255,255,0.1)',
   };
 }
 
@@ -85,48 +72,176 @@ function _lookupLuminance(el) {
   return g.data[row * g.cols + col];
 }
 
-/* ── 注入面板文字过渡样式（一次性） ── */
+/* ── JS 驱动平滑过渡（零 CSS transition 注入，不干扰面板动画）── */
 function _ensureTextStyle() {
   if (_textStyleEl) return;
   _textStyleEl = document.createElement('style');
   _textStyleEl.id = '__lg_adaptive_text';
-  const sels = PANEL_DEFS.map(d => d.sel).join(',');
-  _textStyleEl.textContent = "";
+  _textStyleEl.textContent = ':root { --lg-text-speed: 1s; }';
+  document.head.appendChild(_textStyleEl);
+}
+
+function _parseRgba(str) {
+  const m = str && str.match(/rgba?\((\d+),(\d+),(\d+),?([\d.]+)?\)/);
+  return m ? [ +m[1], +m[2], +m[3], +(m[4] || 1) ] : null;
+}
+
+function _interpRgba(from, to, t) {
+  const a = _parseRgba(from), b = _parseRgba(to);
+  if (!a || !b) return to;
+  const r = Math.round(a[0] + (b[0] - a[0]) * t);
+  const g = Math.round(a[1] + (b[1] - a[1]) * t);
+  const bb = Math.round(a[2] + (b[2] - a[2]) * t);
+  const alpha = (a[3] + (b[3] - a[3]) * t).toFixed(3);
+  return `rgba(${r},${g},${bb},${alpha})`;
+}
+
+function _animateTextVars(el, tc, durationSec) {
+  const key = el;
+  const existing = _textAnims.get(key);
+  if (existing) cancelAnimationFrame(existing.rafId);
+
+  const props = ['--text', '--text-2', '--text-3'];
+  const targetVals = [tc.t1, tc.t2, tc.t3];
+  const startVals = props.map(p => el.style.getPropertyValue(p) || getComputedStyle(el).getPropertyValue(p));
+
+  // 如果所有值相同，跳过
+  if (startVals.every((s, i) => s === targetVals[i])) return;
+
+  const startTime = performance.now();
+  const duration = durationSec * 1000;
+
+  function step(now) {
+    const raw = Math.min(1, (now - startTime) / duration);
+    const t = raw * (2 - raw); // easeOut quad
+    props.forEach((prop, i) => {
+      el.style.setProperty(prop, _interpRgba(startVals[i], targetVals[i], t), 'important');
+    });
+    if (raw < 1) {
+      _textAnims.set(key, { rafId: requestAnimationFrame(step) });
+    } else {
+      _textAnims.delete(key);
+      props.forEach((prop, i) => {
+        el.style.setProperty(prop, targetVals[i], 'important');
+      });
+    }
+  }
+  _textAnims.set(key, { rafId: requestAnimationFrame(step) });
 }
 
 function _removeTextStyle() {
   if (_textStyleEl) { _textStyleEl.remove(); _textStyleEl = null; }
 }
 
-/* ── 应用 2 档自适应 ── */
+/* ── 应用 2 档自适应（含 JS 动画锁定 + rAF 插值）── */
+let _adSpeed = 1; // 过渡速度（秒）
+const _locks = new Map(); // panelId → { locked, pending, timer }
+
+function _currentBgAlpha(el) {
+  const v = el.style.getPropertyValue('--lg-bg-alpha');
+  return v ? parseFloat(v) : 0;
+}
+
+function _animateGlass(el, id, targetBgAlpha, tc, mode, speed) {
+  // 取消该面板旧动画
+  const old = _locks.get(id);
+  if (old && old._rafId) cancelAnimationFrame(old._rafId);
+
+  const startBg = _currentBgAlpha(el);
+  const props = ['--text', '--text-2', '--text-3'];
+  const targetT = [tc.t1, tc.t2, tc.t3];
+  const startT = props.map(p => el.style.getPropertyValue(p) || getComputedStyle(el).getPropertyValue(p));
+  const startTime = performance.now();
+  const duration = speed * 1000;
+
+  function step(now) {
+    const raw = Math.min(1, (now - startTime) / duration);
+    const t = raw * (2 - raw); // easeOut quad
+
+    // 玻璃背景
+    el.style.setProperty('--lg-bg-alpha', (startBg + (targetBgAlpha - startBg) * t).toFixed(3), 'important');
+    // 文字颜色
+    if (!window.__lensTextDirty && mode !== 'white') {
+      props.forEach((prop, i) => {
+        el.style.setProperty(prop, _interpRgba(startT[i], targetT[i], t), 'important');
+      });
+    }
+
+    if (raw < 1) {
+      const lock = _locks.get(id);
+      if (lock) lock._rafId = requestAnimationFrame(step);
+    } else {
+      // 动画完成：写入终值，解锁，处理排队
+      el.style.setProperty('--lg-bg-alpha', targetBgAlpha, 'important');
+      if (!window.__lensTextDirty && mode !== 'white') {
+        props.forEach((prop, i) => el.style.setProperty(prop, targetT[i], 'important'));
+      }
+      _finishAnim(id, el);
+    }
+  }
+
+  const lock = _locks.get(id) || {};
+  lock._rafId = requestAnimationFrame(step);
+  _locks.set(id, lock);
+}
+
+function _finishAnim(id, el) {
+  const lock = _locks.get(id);
+  if (!lock) return;
+  clearTimeout(lock._timer);
+  lock._locked = false;
+
+  const p = lock._pending;
+  if (p) {
+    lock._pending = null;
+    // 仅当目标值不同时排队播放
+    if (Math.abs(p.bgAlpha - _currentBgAlpha(el)) > 0.001 ||
+        (p.tc && p.mode !== 'white' && !window.__lensTextDirty)) {
+      lock._locked = true;
+      _animateGlass(el, id, p.bgAlpha, p.tc, p.mode, _adSpeed);
+    }
+  }
+}
+
 function _applyLuminance(id, lum) {
   if (lum === null || lum === undefined) return;
   const isDark = lum < _adThresh;
-  const brightness = 1.1;
-  const bgAlpha = isDark ? 0 : 0.18;
-  const mode = _panelTextModes.get(id) || 'white';
+  const targetBgAlpha = isDark ? 0 : 0.35;
+  const mode = _panelTextModes.get(id) || 'adaptive';
   const tc = _textColors(mode, isDark);
 
   const def = PANEL_DEFS.find(p => p.id === id);
   if (!def) return;
 
   document.querySelectorAll(def.sel).forEach(el => {
-    // 只设自适应背景变量，不改文字——文字由 :root / Dev 面板统一管控
-    el.style.setProperty('--lg-brightness', brightness, 'important');
-    el.style.setProperty('--lg-bg-alpha', bgAlpha, 'important');
-    // text-shadow 跟随背景亮度
-    el.style.setProperty('--lg-text-shadow', tc.shadow, 'important');
-    // 只有用户显式选了「黑」或「自适应」模式才覆盖文字和强调色
-    if (mode !== 'white') {
-      el.style.setProperty('--text', tc.t1, 'important');
-      el.style.setProperty('--text-2', tc.t2, 'important');
-      el.style.setProperty('--text-3', tc.t3, 'important');
-      el.style.setProperty('--accent', tc.accent, 'important');
-      el.style.setProperty('--accent-rgb', tc.accentRgb, 'important');
-      el.style.setProperty('--glass-border', tc.glassBorder, 'important');
-      el.style.setProperty('--glass-border-bright', tc.glassBorderBright, 'important');
-      el.style.setProperty('--glass-bg-hover', tc.glassBgHover, 'important');
+    el.style.setProperty('--lg-brightness', '1.1', 'important');
+
+
+    // 过渡锁定：如果该面板正在动画中，排队
+    let lock = _locks.get(id);
+    if (!lock) { lock = {}; _locks.set(id, lock); }
+
+    const shouldAnimate = Math.abs(targetBgAlpha - _currentBgAlpha(el)) > 0.001 ||
+      (mode !== 'white' && !window.__lensTextDirty);
+
+    if (!shouldAnimate) {
+      el.style.setProperty('--lg-bg-alpha', targetBgAlpha, 'important');
+      if (mode === 'white') {
+        el.style.removeProperty('--text');
+        el.style.removeProperty('--text-2');
+        el.style.removeProperty('--text-3');
+      }
+      return;
     }
+
+    if (lock._locked) {
+      lock._pending = { bgAlpha: targetBgAlpha, tc, mode };
+      return;
+    }
+
+    lock._locked = true;
+    lock._pending = null;
+    _animateGlass(el, id, targetBgAlpha, tc, mode, _adSpeed);
   });
 }
 
@@ -138,7 +253,7 @@ async function updateAllPanels() {
 
   try {
     const grid = await _sampleGrid();
-    if (!grid) { _sampling = false; return; }
+    // IPC 失败时使用兜底：假设所有面板在暗色背景上（lum=0.1 → isDark → white text + clear glass）
 
     for (const def of PANEL_DEFS) {
       const el = document.querySelector(def.sel);
@@ -147,9 +262,11 @@ async function updateAllPanels() {
       let lum;
       if (_forceDark.has(def.id)) {
         lum = 0.1;
-      } else {
+      } else if (grid) {
         lum = _lookupLuminance(el);
-        if (lum === null) lum = 0.5; // 未知→中位阈值
+        if (lum === null) lum = 0.1;
+      } else {
+        lum = 0.1; // IPC 不可用时兜底为暗色
       }
       _applyLuminance(def.id, lum);
     }
@@ -171,10 +288,11 @@ export function initAdaptiveGlass() {
   _active = true;
   _ensureTextStyle();
 
-  // 初始只设 shadow（文字由 :root 预设管控）
+  // 初始 frost 变量
   PANEL_DEFS.forEach(def => {
     document.querySelectorAll(def.sel).forEach(el => {
-      el.style.setProperty('--lg-text-shadow', '0 1px 4px rgba(0,0,0,0.35)', 'important');
+      el.style.setProperty('--lg-brightness', '1.1', 'important');
+      el.style.setProperty('--lg-bg-alpha', '0', 'important');
     });
   });
 
@@ -183,6 +301,9 @@ export function initAdaptiveGlass() {
 
   _domObserver = new MutationObserver(() => _scheduleUpdate());
   _domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+
+  // 初始化 dirty flag
+  if (window.__lensTextDirty === undefined) window.__lensTextDirty = false;
 
   updateAllPanels();
 }
@@ -199,52 +320,52 @@ export function stopAdaptiveGlass() {
 
   PANEL_DEFS.forEach(def => {
     document.querySelectorAll(def.sel).forEach(el => {
-      el.style.removeProperty('--lg-brightness');
-      el.style.removeProperty('--lg-bg-alpha');
-      const keys = ['--lg-brightness','--lg-bg-alpha','--lg-text-shadow',
-        '--text','--text-2','--text-3','--accent','--accent-rgb',
+      const keys = ['--lg-brightness','--lg-bg-alpha',
+        '--text','--text-2','--text-3',
         '--glass-border','--glass-border-bright','--glass-bg-hover'];
       keys.forEach(k => el.style.removeProperty(k));
     });
   });
 }
 
-/* ── 阈值同步 ── */
+/* ── 阈值 / 速度 ── */
 export function setAdaptiveThreshold(v) { _adThresh = v; }
+export function setTextTransitionSpeed(sec) {
+  _adSpeed = sec;
+  document.documentElement.style.setProperty('--lg-text-speed', sec + 's');
+}
 
 /* ── 逐面板 / 透镜文字模式 ── */
 export function setLensTextMode(mode) { _lensTextMode = mode; return mode; }
 export function getLensTextMode() { return _lensTextMode; }
 
 export function setPanelTextMode(id, mode) {
-  const prevMode = _panelTextModes.get(id) || 'white';
   _panelTextModes.set(id, mode);
   const def = PANEL_DEFS.find(p => p.id === id);
   if (!def) return;
   const el = document.querySelector(def.sel);
   if (!el || !_isVisible(id, el)) return;
 
-  // 切回白色 → 移除内联文字变量，让 :root / Dev 面板接管
+  // 白模式 → 清除面板级文字变量，回退 :root
   if (mode === 'white') {
-    ['--text','--text-2','--text-3','--accent','--accent-rgb','--glass-border','--glass-border-bright','--glass-bg-hover'].forEach(k => {
-      el.style.removeProperty(k);
-    });
-    // 仍然应用背景自适应
-    const lum = _forceDark.has(id) ? 0.1 : (_lookupLuminance(el) || 0.5);
-    _applyLuminance(id, lum);
-    return;
+    ['--text','--text-2','--text-3'].forEach(k => el.style.removeProperty(k));
   }
 
-  // 黑或自适应 → 写入内联变量
+  // 重新应用（dirty flag 检查在 _applyLuminance 内部）
   const lum = _forceDark.has(id) ? 0.1 : (_lookupLuminance(el) || 0.5);
   _applyLuminance(id, lum);
 }
-export function getPanelTextMode(id) { return _panelTextModes.get(id) || 'white'; }
+export function getPanelTextMode(id) { return _panelTextModes.get(id) || 'adaptive'; }
 
-/* ── 透镜文字颜色（被 lg-studio 的 _applyTarget 调用） ── */
+/* ── 透镜文字颜色（被 lg-studio 的 _applyTarget 调用）── */
 export function getLensTextColors(lum) {
   const isDark = lum < _adThresh;
   return _textColors(_lensTextMode, isDark);
 }
+
+/* ── 全局文字脏标记 — Dev Panel 调用 ── */
+export function markTextDirty() { window.__lensTextDirty = true; }
+export function clearTextDirty() { window.__lensTextDirty = false; updateAllPanels(); }
+export function isTextDirty() { return !!window.__lensTextDirty; }
 
 export { updateAllPanels };

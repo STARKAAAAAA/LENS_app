@@ -218,7 +218,7 @@ function generateFullCSS(p) {
 --lightbox-glass-bg:rgba(${W},0.12);--lightbox-glass-border:rgba(${W},0.20);--lightbox-glass-bg-hover:rgba(${W},0.18);--lightbox-glass-blur:calc(30px + var(--glass-blur,0px));--lightbox-btn-blur:calc(20px + var(--glass-blur,0px));--lightbox-exif-blur:calc(16px + var(--glass-blur,0px));--slideshow-blur:calc(20px + var(--glass-blur,0px));
 --hero-scroll-blur:calc(20px + var(--glass-blur,0px));--back-to-top-blur:calc(20px + var(--glass-blur,0px));--dev-panel-blur:calc(40px + var(--glass-blur,0px));--loading-track-height:4px;
 }
-body{background:${p.bg}!important;color:${p.text}!important;}
+body{background:${p.bg}!important;color:var(--text)!important;}
 
 /* ═══ Hero ═══ */
 .hero__overlay{background:radial-gradient(ellipse at 50% 35%,transparent 0%,rgba(${BgD},0.35) 55%,rgba(${BgD},0.82) 100%),linear-gradient(to bottom,rgba(${BgD},0.25) 0%,transparent 25%,transparent 65%,${p.bg} 100%)!important}
@@ -231,22 +231,21 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .hero__scroll-line{background:rgba(${W},0.4)!important}
 
 /* ═══ 侧边栏 ═══ */
-.sidebar-frame{text-shadow:0 0 8px rgba(${Bg},0.5)!important}
 .sidebar{background:var(--sidebar-glass-bg,rgba(${W},0.08))!important;border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.12))!important;backdrop-filter:blur(var(--sidebar-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--sidebar-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important}
-.sidebar__header{color:${p.text2}!important}
+.sidebar__header{color:var(--text-2)!important}
 .sidebar__header-icon{opacity:0.55}
-.sidebar__item{color:${p.text2}!important}
+.sidebar__item{color:var(--text-2)!important}
 .sidebar__item:hover{background:var(--sidebar-glass-bg,rgba(${W},0.08));border-color:var(--sidebar-glass-border,rgba(${W},0.12))}
 .sidebar__item--active{background:var(--sidebar-glass-bg-hover,rgba(${W},0.12));border-color:var(--sidebar-glass-border-bright,rgba(${W},0.22))}
-.sidebar__item-icon{color:${p.text3}!important}
-.sidebar__item:hover .sidebar__item-icon,.sidebar__item--active .sidebar__item-icon{color:${p.text2}}
-.sidebar__item-name{color:${p.text2}!important}
-.sidebar__item:hover .sidebar__item-name,.sidebar__item--active .sidebar__item-name{color:${p.text}}
-.sidebar__item-remove{color:${p.text}!important;background:var(--sidebar-glass-border,rgba(${W},0.10))}
+.sidebar__item-icon{color:var(--text-3)!important}
+.sidebar__item:hover .sidebar__item-icon,.sidebar__item--active .sidebar__item-icon{color:var(--text-2)}
+.sidebar__item-name{color:var(--text-2)!important}
+.sidebar__item:hover .sidebar__item-name,.sidebar__item--active .sidebar__item-name{color:var(--text)}
+.sidebar__item-remove{color:var(--text)!important;background:var(--sidebar-glass-border,rgba(${W},0.10))}
 .sidebar__item-remove:hover{background:var(--sidebar-glass-border-bright,rgba(${W},0.22))}
-.sidebar__empty{color:${p.text3}!important}
-.sidebar__add{color:${p.text2}!important;border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.12));background:var(--sidebar-glass-bg,rgba(${W},0.08))}
-.sidebar__add:hover{color:${p.text};border-color:var(--sidebar-glass-border-bright,rgba(${W},0.22));background:var(--sidebar-glass-bg-hover,rgba(${W},0.14))}
+.sidebar__empty{color:var(--text-3)!important}
+.sidebar__add{color:var(--text-2)!important;border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.12));background:var(--sidebar-glass-bg,rgba(${W},0.08))}
+.sidebar__add:hover{color:var(--text);border-color:var(--sidebar-glass-border-bright,rgba(${W},0.22));background:var(--sidebar-glass-bg-hover,rgba(${W},0.14))}
 #dir-label{color:rgba(${W},0.25);background:rgba(${Bg},0.3);border:0.5px solid var(--sidebar-glass-border,rgba(${W},0.06))}
 #corner-logo{color:${p.cornerLogoColor || 'rgba(' + W + ',0.85)'}!important}
 #corner-logo:hover{color:${p.accent}!important}
@@ -256,54 +255,53 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 
 /* ═══ 工具栏 ═══ */
 .toolbar{background:var(--toolbar-glass-bg,rgba(${W},0.06))!important;border:0.5px solid var(--toolbar-glass-border,rgba(${W},0.10))!important;box-shadow:0 4px 24px rgba(0,0,0,0.3);text-shadow:0 0 6px rgba(${Bg},0.5);backdrop-filter:blur(var(--toolbar-glass-blur,calc(16px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--toolbar-glass-blur,calc(16px + ${p.glassBlur || '0px'})))!important}
-.toolbar__btn{color:${p.text2}!important;}
-.toolbar__btn:hover{color:${p.text}!important;background:var(--toolbar-glass-bg-hover,rgba(${W},0.10))}
+.toolbar__btn{color:var(--text-2)!important;}
+.toolbar__btn:hover{color:var(--text)!important;background:var(--toolbar-glass-bg-hover,rgba(${W},0.10))}
 
 /* ═══ 标题栏 ═══ */
-.titlebar__btn{color:${p.text3}!important;}
+.titlebar__btn{color:var(--text-3)!important;}
 .titlebar__btn:hover{color:${p.accent};background:var(--titlebar-glass-bg-hover,rgba(${W},0.12))}
 .titlebar__btn--close:hover{color:var(--danger);background:rgba(${E},0.18)}
 .titlebar__controls{background:var(--titlebar-glass-bg,rgba(${W},0.06))!important;border:0.5px solid var(--titlebar-glass-border,rgba(${W},0.10))!important;backdrop-filter:blur(var(--titlebar-glass-blur,calc(12px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--titlebar-glass-blur,calc(12px + ${p.glassBlur || '0px'})))!important}
 
 /* ═══ Portfolio / 画廊 ═══ */
 .portfolio::before{background:rgba(${Bg},0.75);border:0.5px solid var(--card-glass-border,rgba(${W},0.06))}
-.portfolio__title{color:${p.text}}
-.portfolio__desc{color:${p.text3}}
+.portfolio__title{color:var(--text)}
+.portfolio__desc{color:var(--text-3)}
 .category-card{background:var(--card-glass-bg,rgba(${W},0.015));border:1px solid var(--card-glass-border,rgba(${W},0.05))}
 .category-card:hover{border-color:var(--card-glass-border-bright,rgba(${W},0.16))}
 .category-card__info{background:rgba(${S2},0.92);border:0.5px solid var(--card-glass-border,rgba(${W},0.08))}
-.category-card__name{color:${p.text}}
+.category-card__name{color:var(--text)}
 .category-card__count{color:rgba(${W},0.7);background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12))}
 .category-card__count:hover{background:var(--card-glass-bg-hover,rgba(${W},0.12));border-color:var(--card-glass-border-bright,rgba(${W},0.22))}
 .category-card__label{background:linear-gradient(to top,rgba(${BgD},0.85) 0%,rgba(${BgD},0.4) 60%,transparent 100%)}
-.category-card__label-count{color:${p.text2}}
+.category-card__label-count{color:var(--text-2)}
 .category-card__rating{color:${p.accent}}
 .gallery__nav{background:rgba(${Bg},0.55);border:0.5px solid var(--card-glass-border,rgba(${W},0.12))}
-.gallery__nav *{text-shadow:0 1px 4px rgba(0,0,0,0.5)}
-.gallery__back{color:${p.text}}
+.gallery__back{color:var(--text)}
 .gallery__back:hover{color:${p.accent}}
-.gallery__info{color:${p.text2}}
+.gallery__info{color:var(--text-2)}
 .density-sweep{background:linear-gradient(to right,transparent 0%,rgba(${A},0.1) 50%,rgba(${Bg},0.92) 100%)}
 .card--focused{outline:1.5px solid ${p.accent}}
 .load-more-btn{background:var(--card-glass-bg,rgba(${W},0.05));border:0.5px solid var(--card-glass-border,rgba(${W},0.10));color:rgba(${W},0.4)}
-.load-more-btn:hover{background:var(--card-glass-bg-hover,rgba(${W},0.10));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:${p.text};box-shadow:0 8px 24px rgba(0,0,0,0.4)}
-.custom-dropdown__trigger{background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12));color:${p.text2}}
-.custom-dropdown__trigger:hover{background:var(--card-glass-bg-hover,rgba(${W},0.14));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:${p.text}}
+.load-more-btn:hover{background:var(--card-glass-bg-hover,rgba(${W},0.10));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.custom-dropdown__trigger{background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12));color:var(--text-2)}
+.custom-dropdown__trigger:hover{background:var(--card-glass-bg-hover,rgba(${W},0.14));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:var(--text)}
 .custom-dropdown__trigger--open{background:rgba(${A},0.12);border-color:rgba(${A},0.30);color:${p.accent}}
 .custom-dropdown__menu{background:rgba(${S},0.95);border:0.5px solid rgba(${A},0.15);box-shadow:0 12px 40px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.04)}
-.custom-dropdown__option{color:${p.text2}}
-.custom-dropdown__option:hover{background:rgba(${A},0.08);color:${p.text}}
+.custom-dropdown__option{color:var(--text-2)}
+.custom-dropdown__option:hover{background:rgba(${A},0.08);color:var(--text)}
 .custom-dropdown__option--sel{background:rgba(${A},0.10);color:${p.accent}}
 
 /* ═══ 灯箱 ═══ */
 .lightbox{background:rgba(0,0,0,0)}
 .lightbox.active{background:rgba(0,0,0,0.85)!important;backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important}
-.lightbox__close{color:${p.text};background:var(--lightbox-glass-bg,rgba(${W},0.12));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.20))}
+.lightbox__close{color:var(--text);background:var(--lightbox-glass-bg,rgba(${W},0.12));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.20))}
 .lightbox__close:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.18));border-color:var(--lightbox-glass-border,rgba(${W},0.30))}
-.lightbox__prev,.lightbox__next{color:${p.text};background:var(--lightbox-glass-bg,rgba(${W},0.10));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.18))}
+.lightbox__prev,.lightbox__next{color:var(--text);background:var(--lightbox-glass-bg,rgba(${W},0.10));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.18))}
 .lightbox__prev:hover,.lightbox__next:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.16));border-color:var(--lightbox-glass-border,rgba(${W},0.28))}
-.lightbox__title{color:${p.text3}}
-.lightbox__counter{color:${p.text3}}
+.lightbox__title{color:var(--text-3)}
+.lightbox__counter{color:var(--text-3)}
 .rating__star{color:rgba(${W},0.2)}
 .rating__star:hover{color:${p.accent}}
 .rating__star--on{color:${p.accent}}
@@ -311,44 +309,44 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .rating__fav:hover{color:var(--danger)}
 .rating__fav--on{color:var(--danger)}
 .lightbox__exif{background:rgba(${Bg},0.78);border:0.5px solid rgba(${A},0.12)}
-.exif__tag{color:${p.text3}!important;}
-.exif__tag--camera{color:${p.text}!important}
-.exif__tag--lens{color:${p.text2}!important}
+.exif__tag{color:var(--text-3)!important;}
+.exif__tag--camera{color:var(--text)!important}
+.exif__tag--lens{color:var(--text-2)!important}
 
 /* ═══ 幻灯片 ═══ */
 .slideshow{background:${p.bg}}
-.slideshow__counter{color:${p.text3}}
+.slideshow__counter{color:var(--text-3)}
 .slideshow__controls{background:var(--lightbox-glass-bg,rgba(${W},0.06));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.08))}
 .slideshow__btn{color:var(--lightbox-glass-bg-hover,rgba(${W},0.5));background:var(--lightbox-glass-bg,rgba(${W},0.05));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.08))}
-.slideshow__btn:hover{color:${p.text};background:var(--lightbox-glass-bg-hover,rgba(${W},0.10));border-color:var(--lightbox-glass-border,rgba(${W},0.20))}
+.slideshow__btn:hover{color:var(--text);background:var(--lightbox-glass-bg-hover,rgba(${W},0.10));border-color:var(--lightbox-glass-border,rgba(${W},0.20))}
 #sl-exit{border-color:var(--lightbox-glass-border,rgba(${W},0.14));color:rgba(${W},0.6)}
 #sl-exit:hover{background:var(--lightbox-glass-bg,rgba(${W},0.12));border-color:var(--lightbox-glass-border,rgba(${W},0.3));color:${p.accent}}
 
 /* ═══ 设置面板 ═══ */
 .settings-panel{background:var(--panel-glass-bg,rgba(${S},0.92))!important;border:0.5px solid var(--panel-glass-border,rgba(${A},0.15))!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.04);backdrop-filter:blur(var(--panel-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--panel-glass-blur,calc(24px + ${p.glassBlur || '0px'})))!important}
-.settings-panel__label{color:${p.text2}}
+.settings-panel__label{color:var(--text-2)}
 .settings-panel__item:hover{background:var(--panel-glass-bg-hover,rgba(${A},0.06))}
 .settings-panel__divider{background:rgba(${A},0.08)}
-.cache-dir-path{color:${p.text3};background:rgba(0,0,0,0.2)}
-.cache-dir-btn{color:${p.text2};background:rgba(${A},0.08);border:0.5px solid rgba(${A},0.12)}
-.cache-dir-btn:hover{color:${p.text};background:rgba(${A},0.14);border-color:rgba(${A},0.22)}
+.cache-dir-path{color:var(--text-3);background:rgba(0,0,0,0.2)}
+.cache-dir-btn{color:var(--text-2);background:rgba(${A},0.08);border:0.5px solid rgba(${A},0.12)}
+.cache-dir-btn:hover{color:var(--text);background:rgba(${A},0.14);border-color:rgba(${A},0.22)}
 .toggle-switch{background:rgba(${A},0.12);border:0.5px solid rgba(${A},0.15)}
 .toggle-switch::after{background:rgba(${W},0.5)}
 .toggle-switch--on{background:rgba(${A},0.35);border-color:rgba(${A},0.4)}
 .toggle-switch--on::after{background:${p.accent};box-shadow:0 0 12px rgba(${A},0.5)}
 .density-btns{background:rgba(${A},0.06)}
-.density-btn{color:${p.text3}}
-.density-btn:hover{color:${p.text2};background:rgba(${A},0.08)}
+.density-btn{color:var(--text-3)}
+.density-btn:hover{color:var(--text-2);background:rgba(${A},0.08)}
 .density-btn--active{color:${p.accent};background:rgba(${A},0.14)}
 
 /* ═══ 快捷键面板 ═══ */
 .shortcuts-overlay{inset:0;background:transparent;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);pointer-events:none;-webkit-mask-image:linear-gradient(to right,transparent 55%,black 70%,black 100%);mask-image:linear-gradient(to right,transparent 55%,black 70%,black 100%)}
 .shortcuts-overlay--open{pointer-events:auto}
 .shortcuts-panel{background:rgba(${S},0.94);border:0.5px solid rgba(${A},0.18);box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.08)}
-.shortcuts__title{color:${p.text}}
+.shortcuts__title{color:var(--text)}
 .shortcuts__row kbd{color:${p.accent};background:rgba(${A},0.1);border:0.5px solid rgba(${A},0.2)}
-.shortcuts__row span{color:${p.text2}}
-.shortcuts__hint{color:${p.text3}}
+.shortcuts__row span{color:var(--text-2)}
+.shortcuts__hint{color:var(--text-3)}
 .shortcuts__divider{background:rgba(${A},0.25)}
 
 /* ═══ 开发者面板 ═══ */
@@ -359,36 +357,36 @@ body{background:${p.bg}!important;color:${p.text}!important;}
 .dev-preview__inner{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
 .dev-gp-float{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
 .dev-hints{background:${p.devPanelBg || 'rgba('+Bg+',0.94)'}}
-.dev-section__title{color:${p.text}}
-.dev-section__desc{color:${p.text3}}
-.dev-row__label{color:${p.text2}}
-.dev-row__value{color:${p.text3}}
-.dev-nav__tab{color:${p.text2}}
-.dev-nav__tab:hover{color:${p.text}}
+.dev-section__title{color:var(--text)}
+.dev-section__desc{color:var(--text-3)}
+.dev-row__label{color:var(--text-2)}
+.dev-row__value{color:var(--text-3)}
+.dev-nav__tab{color:var(--text-2)}
+.dev-nav__tab:hover{color:var(--text)}
 .dev-nav__tab--active{color:${p.accent}}
-.dev-btn{color:${p.text2}}
-.dev-btn:hover{color:${p.text};background:rgba(${W},0.08)}
+.dev-btn{color:var(--text-2)}
+.dev-btn:hover{color:var(--text);background:rgba(${W},0.08)}
 .dev-toggle{background:rgba(${A},0.12)}
 .dev-toggle--on{background:rgba(${A},0.35)}
-.dev-chip-toggle{color:${p.text2};background:rgba(${A},0.08)}
+.dev-chip-toggle{color:var(--text-2);background:rgba(${A},0.08)}
 .dev-chip-toggle--on{color:${p.accent};background:rgba(${A},0.18)}
 /* 手柄提示面板 */
 .dev-hints{border:0.5px solid rgba(${W},0.20);border-radius:var(--radius-sm);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
-.dev-hints__title{color:${p.text3};border-bottom:0.5px solid rgba(${W},0.10)}
-.dev-hints__desc{color:${p.text3}}
-.dev-hints__btn{color:${p.text3}}
+.dev-hints__title{color:var(--text-3);border-bottom:0.5px solid rgba(${W},0.10)}
+.dev-hints__desc{color:var(--text-3)}
+.dev-hints__btn{color:var(--text-3)}
 .dev-hints__icon,.gp-icon{color:${p.accent}}
 /* 手柄按钮可视化 */
-.dev-gp-btn{color:${p.text3};background:rgba(${W},0.06);border:0.5px solid rgba(${W},0.10)}
+.dev-gp-btn{color:var(--text-3);background:rgba(${W},0.06);border:0.5px solid rgba(${W},0.10)}
 .dev-gp-btn--on{color:${p.accent};background:rgba(${W},0.12);border-color:rgba(${W},0.20);box-shadow:0 0 12px rgba(${A},0.25)}
-.dev-reset-box__title{color:${p.text}}
-.dev-reset-box__desc{color:${p.text2}}
-.dev-reset-box__hint{color:${p.text3}}
+.dev-reset-box__title{color:var(--text)}
+.dev-reset-box__desc{color:var(--text-2)}
+.dev-reset-box__hint{color:var(--text-3)}
 .dev-preset-card{background:rgba(${W},0.04);border:0.5px solid rgba(${W},0.08)}
 .dev-preset-card:hover{background:rgba(${W},0.08);border-color:rgba(${W},0.16)}
 .dev-preset-card--active{border-color:${p.accent};background:rgba(${A},0.08)}
-.dev-preset-card__name{color:${p.text}}
-.dev-preset-card__tags{color:${p.text3}}
+.dev-preset-card__name{color:var(--text)}
+.dev-preset-card__tags{color:var(--text-3)}
 
 
 	/* ── 手柄焦点框（零 var()，硬编码值确保 WebView2 可见）── */
@@ -491,7 +489,9 @@ ${window.__lensLiquidGlass ? `
 .sidebar,.sidebar__add,.toolbar,.titlebar__controls,
 .settings-panel,.shortcuts-panel,
 .lightbox__close,.lightbox__prev,.lightbox__next,.lightbox__exif,
-.slideshow__controls,.gallery__nav,.hero__scroll,.back-to-top,[popover]
+.slideshow__controls,.gallery__nav,.hero__scroll,.back-to-top,[popover],
+.custom-dropdown__trigger,.custom-dropdown__menu,
+.load-more-btn
 {background:linear-gradient(var(--lg-tint-bg,transparent),var(--lg-tint-bg,transparent)),rgba(255,255,255,var(--lg-panel-bg-alpha,var(--lg-bg-alpha,0.02)))!important;
 backdrop-filter:blur(var(--lg-panel-blur,6px)) brightness(var(--lg-brightness,0.7)) saturate(var(--lg-panel-saturate,1.5)) url(#lg-panel-refract)!important;
 -webkit-backdrop-filter:blur(var(--lg-panel-blur,6px)) brightness(var(--lg-brightness,0.7)) saturate(var(--lg-panel-saturate,1.5)) url(#lg-panel-refract)!important;
@@ -500,18 +500,17 @@ box-shadow:0 8px 32px rgba(0,0,0,var(--lg-panel-shadow-alpha,0.3)),inset 0 1px 0
 /* 子元素背景透明化 */
 .sidebar__item:hover{background:rgba(255,255,255,0.12)!important;box-shadow:0 0 12px rgba(255,255,255,0.06);}
 .sidebar__item--active{background:rgba(255,255,255,0.16)!important;box-shadow:0 0 16px rgba(255,255,255,0.1);}
-.sidebar__item-name,.sidebar__header,.toolbar__btn{text-shadow:var(--lg-text-shadow,0 1px 3px rgba(0,0,0,0.22))!important;}
 .sidebar__item-remove{background:rgba(255,255,255,0.08)!important;}
 .sidebar__item-remove:hover{background:rgba(255,255,255,0.2)!important;box-shadow:0 0 10px rgba(255,255,255,0.1);}
-.toolbar{text-shadow:var(--lg-text-shadow,0 1px 3px rgba(0,0,0,0.22))!important;box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08)!important;}
+.toolbar{box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08)!important;}
 .toolbar__btn:hover,.titlebar__btn:hover{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 12px rgba(255,255,255,0.08);}
 /* ═══ 设置面板 — 液态玻璃定制 ═══ */
 .settings-panel__item:hover{background:rgba(255,255,255,0.08)!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,0.06);}
-.settings-panel__label{color:${p.text}!important;text-shadow:var(--lg-text-shadow,0 1px 3px rgba(0,0,0,0.22));}
+.settings-panel__label{color:var(--text)!important;}
 .settings-panel__divider{background:rgba(255,255,255,0.08)!important;backdrop-filter:blur(4px);}
-.cache-dir-path{background:rgba(255,255,255,0.04)!important;border:0.5px solid rgba(255,255,255,0.08)!important;border-radius:8px;color:${p.text}!important;opacity:0.7;}
-.cache-dir-btn{background:rgba(255,255,255,0.06)!important;border:0.5px solid rgba(255,255,255,0.1)!important;color:${p.text}!important;opacity:0.78;border-radius:8px;}
-.cache-dir-btn:hover{background:rgba(255,255,255,0.12)!important;border-color:rgba(255,255,255,0.2)!important;color:${p.text}!important;opacity:0.9;}
+.cache-dir-path{background:rgba(255,255,255,0.04)!important;border:0.5px solid rgba(255,255,255,0.08)!important;border-radius:8px;color:var(--text)!important;opacity:0.7;}
+.cache-dir-btn{background:rgba(255,255,255,0.06)!important;border:0.5px solid rgba(255,255,255,0.1)!important;color:var(--text)!important;opacity:0.78;border-radius:8px;}
+.cache-dir-btn:hover{background:rgba(255,255,255,0.12)!important;border-color:rgba(255,255,255,0.2)!important;color:var(--text)!important;opacity:0.9;}
 /* 设置面板开关 — 玻璃药丸 */
 .toggle-switch{background:rgba(255,255,255,0.08)!important;border:0.5px solid rgba(255,255,255,0.12)!important;box-shadow:inset 0 1px 3px rgba(0,0,0,0.3);}
 .toggle-switch::after{background:rgba(255,255,255,0.7)!important;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
@@ -519,10 +518,10 @@ box-shadow:0 8px 32px rgba(0,0,0,var(--lg-panel-shadow-alpha,0.3)),inset 0 1px 0
 .toggle-switch--on::after{background:rgba(255,255,255,0.95)!important;box-shadow:0 0 8px rgba(255,255,255,0.3);}
 /* 密度按钮 — 玻璃芯片 */
 .density-btns{background:rgba(255,255,255,0.04)!important;border:0.5px solid rgba(255,255,255,0.08)!important;border-radius:10px;}
-.density-btn{color:${p.text}!important;opacity:0.65;border-radius:8px;}
-.density-btn:hover{background:rgba(255,255,255,0.12)!important;color:${p.text}!important;opacity:0.85;box-shadow:0 0 10px rgba(255,255,255,0.08);}
-.density-btn--active{background:rgba(255,255,255,0.18)!important;color:${p.text}!important;opacity:0.95;box-shadow:0 0 14px rgba(255,255,255,0.15);}
-.lightbox__exif{background:transparent!important;color:${p.text}!important;text-shadow:var(--lg-text-shadow,0 1px 3px rgba(0,0,0,0.22))!important;}
+.density-btn{color:var(--text)!important;opacity:0.65;border-radius:8px;}
+.density-btn:hover{background:rgba(255,255,255,0.12)!important;color:var(--text)!important;opacity:0.85;box-shadow:0 0 10px rgba(255,255,255,0.08);}
+.density-btn--active{background:rgba(255,255,255,0.18)!important;color:var(--text)!important;opacity:0.95;box-shadow:0 0 14px rgba(255,255,255,0.15);}
+.lightbox__exif{background:transparent!important;color:var(--text)!important;}
 .slideshow{background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;}
 .slideshow__btn{background:rgba(255,255,255,0.04)!important;}
 .slideshow__btn:hover{background:rgba(255,255,255,0.14)!important;box-shadow:0 0 12px rgba(255,255,255,0.08);}

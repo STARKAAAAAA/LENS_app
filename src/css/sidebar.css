@@ -21,9 +21,6 @@
     pointer-events: none;
     transform: translateX(-100%);
     transition: transform calc(0.5s * var(--_anim-mult, 1)) var(--ease-out);
-    /* 毛玻璃补偿：暗色微光环确保文字在亮背景上可辨 */
-    text-shadow: 0 0 8px rgba(10,10,8,0.5);
-
     &.sidebar--peek {
       transform: translateX(calc(-100% + 14px));
     }

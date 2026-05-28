@@ -193,10 +193,6 @@
     border: 0.5px solid var(--glass-border);
     border-radius: var(--radius);
   }
-  .gallery__nav * {
-    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-  }
-
   .gallery__back {
     display: flex; align-items: center; gap: 0.5rem;
     font-family: var(--font-display);

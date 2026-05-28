@@ -6,7 +6,7 @@
    ═══════════════════════════════════════════════════════ */
 
 import { PANEL_DEFS, getPanelState, resetPanelState, setAllPanelParams, setPanelBlur, setPanelSaturate, setPanelBrightness, setPanelBgAlpha, setPanelBorderAlpha, setPanelHighlight, setPanelShadowAlpha, setPanelRefraction, setPanelDepth, applyAllPanelStyles, getPanelMapURL } from './lg-panels.js';
-import { updateAllPanels, setAdaptiveThreshold, setLensTextMode, getLensTextMode, setPanelTextMode, getPanelTextMode, getLensTextColors } from './adaptive-glass.js';
+import { updateAllPanels, setAdaptiveThreshold, setTextTransitionSpeed, setLensTextMode, getLensTextMode, setPanelTextMode, getPanelTextMode, getLensTextColors } from './adaptive-glass.js';
 
 function sdRoundedBox(px, py, hw, hh, r) {
   const dx = Math.abs(px) - hw + r;
@@ -136,7 +136,7 @@ export class LiquidGlassStudio {
     this._applyGlassStyle();
     // 透镜内文字
     this._glassText = document.createElement('span');
-    this._glassText.style.cssText = `position:relative;z-index:1;font-size:0.9rem;font-weight:500;pointer-events:none;text-align:center;line-height:1.2;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.3);opacity:0.85;user-select:none;transition:color ${this._adSpeed}s ease,text-shadow ${this._adSpeed}s ease;`;
+    this._glassText.style.cssText = `position:relative;z-index:1;font-size:0.9rem;font-weight:500;pointer-events:none;text-align:center;line-height:1.2;color:#fff;opacity:0.85;user-select:none;transition:color ${this._adSpeed}s ease;`;
     this._glassText.textContent = '液玻';
     this._glass.appendChild(this._glassText);
     // tint overlay
@@ -330,7 +330,7 @@ export class LiquidGlassStudio {
     if (lum === null) return;
     const isDark = lum < this._adThresh;
     const brightness = 1.1;
-    const bgAlpha = isDark ? 0 : 0.18;
+    const bgAlpha = isDark ? 0 : 0.35;
     this._adCur.lum = lum;
     this._adCur.brightness = brightness;
     this._adCur.bgAlpha = bgAlpha;
@@ -361,7 +361,6 @@ export class LiquidGlassStudio {
       this._glassText.textContent = isDark ? '暗色' : '亮色';
       const tc = getLensTextColors(lum);
       this._glassText.style.color = tc.t1;
-      this._glassText.style.textShadow = tc.shadow;
     }
     if (this._glassTint) {
       this._glassTint.style.background = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.35)';
@@ -597,7 +596,7 @@ export class LiquidGlassStudio {
          <button id="__lg_pnl_btn_shape" data-glass-only>圆形</button>
          <button id="__lg_pnl_btn_debug" data-glass-only>Debug</button>
          <button id="__lg_pnl_btn_ca" data-glass-only>色差OFF</button>
-         <div class="pnl-row" style="grid-template-columns:1fr 1fr 1fr;gap:3px;"><button id="__lg_pnl_btn_w" class="on">白</button><button id="__lg_pnl_btn_b">黑</button><button id="__lg_pnl_btn_ad">自适应</button></div>
+         <div class="pnl-row" style="grid-template-columns:1fr 1fr 1fr;gap:3px;"><button id="__lg_pnl_btn_w">白</button><button id="__lg_pnl_btn_b">黑</button><button id="__lg_pnl_btn_ad" class="on">自适应</button></div>
          <button id="__lg_pnl_btn_reset">复位</button>
        </div>`;
     this.container.appendChild(this._panel);
@@ -637,7 +636,7 @@ export class LiquidGlassStudio {
 
     // 圆形按钮(灯箱/返回顶部/滚动提示)使用真正的圆形 SDF，不是圆角矩形
     const isCircle = id === 'lightbox' || id === 'backtotop';
-    const isCapsule = id === 'toolbar' || id === 'heroscroll';
+    const isCapsule = id === 'toolbar' || id === 'heroscroll' || id === 'loadmore' || id === 'dropdown-trigger';
     this._isCircle = isGlass ? false : isCircle;
 
     if (isGlass) {
@@ -785,7 +784,8 @@ export class LiquidGlassStudio {
         const vl = document.getElementById('__lg_pnl_adsv');
         if (vl) vl.textContent = this._adSpeed.toFixed(1) + 's';
         if (this._frostOverlay) this._frostOverlay.style.transition = `opacity ${this._adSpeed}s ease`;
-        if (this._glassText) this._glassText.style.transition = `color ${this._adSpeed}s ease, text-shadow ${this._adSpeed}s ease`;
+        if (this._glassText) this._glassText.style.transition = `color ${this._adSpeed}s ease`;
+        setTextTransitionSpeed(this._adSpeed);
       });
     }
 
@@ -855,7 +855,6 @@ export class LiquidGlassStudio {
           const isDark = lum < this._adThresh;
           const tc = getLensTextColors(lum);
           this._glassText.style.color = tc.t1;
-          this._glassText.style.textShadow = tc.shadow;
         }
       });
     });

@@ -20,7 +20,9 @@ export const PANEL_DEFS = [
   { id: 'gallerynav',  label: '画廊导航',     sel: '.gallery__nav',                              refW: 800, refH: 50,  refR: 10 },
   { id: 'backtotop',   label: '返回顶部',     sel: '.back-to-top',                               refW: 42,  refH: 42,  refR: 21 },
   { id: 'heroscroll',  label: '滚动提示',     sel: '.hero__scroll',                              refW: 30,  refH: 52,  refR: 15 },
-  { id: 'devpanel',    label: '开发者面板',   sel: '.dev-panel',                                 refW: 380, refH: 600, refR: 14 },
+  { id: 'dropdown-trigger', label: '下拉按钮', sel: '.custom-dropdown__trigger', refW: 160, refH: 36, refR: 18 },
+  { id: 'dropdown-menu',  label: '下拉菜单', sel: '.custom-dropdown__menu',    refW: 160, refH: 160, refR: 6 },
+  { id: 'loadmore',    label: '加载更多',     sel: '.load-more-btn',                              refW: 200, refH: 44, refR: 22 },
 ];
 
 /* 逐面板默认参数 — 共用同一个位移图，只调 blur/saturate/refraction */
@@ -41,6 +43,9 @@ const _panelOverrides = {
   gallerynav:{ w: 800, h: 50, r: 10,  depth: 3,  blur: 3, saturate: 1.15, refraction: 100 },
   exif:      {                           depth: 4,  blur: 3, saturate: 1.15, refraction: 100 },
   devpanel:  { w: 380, h: 600, r: 14, depth: 5,  blur: 3, saturate: 1.15, refraction: 100 },
+  'dropdown-trigger': { w: 160, h: 36, r: 18, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
+  'dropdown-menu':    { w: 160, h: 160, r: 6, depth: 3, blur: 3, saturate: 1.15, refraction: 100 },
+  loadmore:           { w: 200, h: 44, r: 22, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
 };
 
 function _init() {
@@ -242,7 +247,7 @@ function _apply(id) {
 
   const ov = _panelOverrides[id] || {};
   const isCircle = id === 'lightbox' || id === 'backtotop';
-  const isCapsule = id === 'toolbar' || id === 'heroscroll';
+  const isCapsule = id === 'toolbar' || id === 'heroscroll' || id === 'loadmore' || id === 'dropdown-trigger';
 
   // 面板滤镜始终放在独立 SVG 中，不依赖透镜 SVG（透镜销毁时面板不受影响）
   let svg = document.getElementById('__lg_panel_svg');

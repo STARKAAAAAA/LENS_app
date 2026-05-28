@@ -4,6 +4,7 @@
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
 import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction, togglePanelDebug } from './lg-panels.js';
+import { markTextDirty, clearTextDirty } from './adaptive-glass.js';
 import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
 import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview, ensureAuroraCSS, updateAuroraColors, ensureFallingCSS, buildFallingVars, ensureGradientBarsCSS, createAuroraBackground, disposeAuroraBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWebGLBackground, disposeWebGLBackground, createVolAuroraBackground, createWaveGridBackground, createDitherBackground } from './loading-shaders.js';
 
@@ -605,6 +606,7 @@ const BUILTIN_PRESETS = [
 // ── 模块级 applyEffects 防抖（供所有标签页的 reset 按钮等使用）──
 let _applyEffectsTimer = null;
 function scheduleApplyEffects() {
+  markTextDirty(); // 用户手动调色 → 暂停自适应文字
   clearTimeout(_applyEffectsTimer);
   _applyEffectsTimer = setTimeout(() => applySpecialVarEffects(), 80);
 }
@@ -3201,6 +3203,8 @@ function loadPreset(preset) {
   } else if (isLiquidGlassPanelsActive()) {
     disableLiquidGlassPanels(); // 移除 SVG 滤镜
   }
+  // 预设加载 → 恢复自适应文字系统
+  clearTextDirty();
   // 更新颜色系统（零 var() CSS 注入）—— 内部检查 __lensLiquidGlass 决定面板样式
   applySpecialVarEffects();
   syncVisualControls();
