@@ -314,14 +314,20 @@ async function updateAllPanels() {
       });
     }
 
-    // 下拉面板跟随画廊导航的玻璃颜色
+    // 下拉面板跟随画廊导航的玻璃颜色和文字颜色
     const nav = document.querySelector('.gallery__nav');
     if (nav) {
       const bg = nav.style.getPropertyValue('--lg-bg-alpha') || '0';
       const br = nav.style.getPropertyValue('--lg-brightness') || '1.1';
+      const t1 = nav.style.getPropertyValue('--text') || '';
+      const t2 = nav.style.getPropertyValue('--text-2') || '';
+      const t3 = nav.style.getPropertyValue('--text-3') || '';
       document.querySelectorAll('.custom-dropdown__trigger,.custom-dropdown__menu').forEach(el => {
         el.style.setProperty('--lg-bg-alpha', bg, 'important');
         el.style.setProperty('--lg-brightness', br, 'important');
+        if (t1) el.style.setProperty('--text', t1, 'important');
+        if (t2) el.style.setProperty('--text-2', t2, 'important');
+        if (t3) el.style.setProperty('--text-3', t3, 'important');
       });
     }
   } catch (_) {}
