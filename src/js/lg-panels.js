@@ -33,7 +33,7 @@ const _panelState = {};
 // W/H/R/Depth 决定位移图生成，blur/saturate/refraction 决定 CSS
 const _panelOverrides = {
   toolbar:   { w: 800, h: 44, r: 10,  depth: 2,  blur: 3, saturate: 1.15, refraction: 150 },
-  sidebar:   { w: 240, h: 0, r: 18, depth: 5,  blur: 3, saturate: 1.15, refraction: 150 },
+  sidebar:   { w: 240, h: 0, r: 18, depth: 5,  blur: 12, saturate: 1.15, refraction: 150 },
   titlebar:  { w: 120, h: 32, r: 10,  depth: 2,  blur: 3, saturate: 1.15, refraction: 150 },
   settings:  { w: 500, h: 400, r: 10, depth: 7,  blur: 3, saturate: 1.15, refraction: 100 },
   shortcuts: { w: 450, h: 400, r: 10, depth: 7,  blur: 3, saturate: 1.15, refraction: 100 },
