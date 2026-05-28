@@ -281,8 +281,19 @@ async function updateAllPanels() {
       const els = document.querySelectorAll(def.sel);
       els.forEach(el => {
         if (!_isVisible(def.id, el)) {
-          // 面板不可见时清除旧内联颜色，回退到 :root 预设
-          ['--text','--text-2','--text-3','--lg-bg-alpha'].forEach(k => el.style.removeProperty(k));
+          // 面板不可见时平滑过渡到 :root 预设值，再清除内联
+          const curBg = _currentBgAlpha(el);
+          if (curBg > 0.001) {
+            const root = getComputedStyle(document.documentElement);
+            const rootT1 = root.getPropertyValue('--text').trim();
+            const rootT2 = root.getPropertyValue('--text-2').trim();
+            const rootT3 = root.getPropertyValue('--text-3').trim();
+            // 用 animateGlass 过渡到暗背景状态(0) + :root 文字色
+            const dummyTc = { t1: rootT1 || 'rgba(255,255,255,0.94)', t2: rootT2 || 'rgba(255,255,255,0.82)', t3: rootT3 || 'rgba(255,255,255,0.64)' };
+            _animateGlass(el, def.id, 0, dummyTc, 'white', _adSpeed);
+          } else {
+            ['--text','--text-2','--text-3','--lg-bg-alpha'].forEach(k => el.style.removeProperty(k));
+          }
           return;
         }
 
