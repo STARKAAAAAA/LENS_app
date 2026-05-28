@@ -61,15 +61,27 @@ async function _sampleGrid() {
 function _lookupLuminance(el) {
   if (!_gridCache || !_gridCache.data) return null;
   const r = el.getBoundingClientRect();
-  const cx = r.left + r.width / 2;
-  const cy = r.top + r.height / 2;
   const g = _gridCache;
   const sx = g.width / window.innerWidth;
   const sy = g.height / window.innerHeight;
-  const col = Math.floor((cx * sx - g.offsetX) / g.step);
-  const row = Math.floor((cy * sy - g.offsetY) / g.step);
-  if (col < 0 || col >= g.cols || row < 0 || row >= g.rows) return null;
-  return g.data[row * g.cols + col];
+
+  // 多样本点采样：大面板沿长轴采样多点取平均
+  const samples = [];
+  const hCount = Math.min(5, Math.max(1, Math.floor(r.width / 60)));   // 水平
+  const vCount = Math.min(5, Math.max(1, Math.floor(r.height / 80))); // 垂直
+  for (let vi = 0; vi < vCount; vi++) {
+    for (let hi = 0; hi < hCount; hi++) {
+      const px = r.left + r.width * (hi + 0.5) / hCount;
+      const py = r.top + r.height * (vi + 0.5) / vCount;
+      const col = Math.floor((px * sx - g.offsetX) / g.step);
+      const row = Math.floor((py * sy - g.offsetY) / g.step);
+      if (col >= 0 && col < g.cols && row >= 0 && row < g.rows) {
+        samples.push(g.data[row * g.cols + col]);
+      }
+    }
+  }
+  if (samples.length === 0) return null;
+  return samples.reduce((a, b) => a + b, 0) / samples.length;
 }
 
 /* ── JS 驱动平滑过渡（零 CSS transition 注入，不干扰面板动画）── */
