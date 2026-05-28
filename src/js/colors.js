@@ -285,12 +285,12 @@ body{background:${p.bg}!important;color:var(--text)!important;}
 .card--focused{outline:1.5px solid ${p.accent}}
 .load-more-btn{background:var(--card-glass-bg,rgba(${W},0.05));border:0.5px solid var(--card-glass-border,rgba(${W},0.10));color:rgba(${W},0.4)}
 .load-more-btn:hover{background:var(--card-glass-bg-hover,rgba(${W},0.10));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
-.custom-dropdown__trigger{background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12));color:var(--text-2)}
-.custom-dropdown__trigger:hover{background:var(--card-glass-bg-hover,rgba(${W},0.14));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:var(--text)}
+.custom-dropdown__trigger{background:var(--card-glass-bg,rgba(${W},0.08));border:0.5px solid var(--card-glass-border,rgba(${W},0.12));color:rgba(${W},0.7)}
+.custom-dropdown__trigger:hover{background:var(--card-glass-bg-hover,rgba(${W},0.14));border-color:var(--card-glass-border-bright,rgba(${W},0.22));color:rgba(${W},0.95)}
 .custom-dropdown__trigger--open{background:rgba(${A},0.12);border-color:rgba(${A},0.30);color:${p.accent}}
 .custom-dropdown__menu{background:rgba(${S},0.95);border:0.5px solid rgba(${A},0.15);box-shadow:0 12px 40px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(${A},0.04)}
-.custom-dropdown__option{color:var(--text-2)}
-.custom-dropdown__option:hover{background:rgba(${A},0.08);color:var(--text)}
+.custom-dropdown__option{color:rgba(${W},0.82)}
+.custom-dropdown__option:hover{background:rgba(${A},0.08);color:rgba(${W},0.95)}
 .custom-dropdown__option--sel{background:rgba(${A},0.10);color:${p.accent}}
 
 /* ═══ 灯箱 ═══ */
