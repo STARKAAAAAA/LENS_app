@@ -242,6 +242,8 @@ const _mapCache = {};
 function _apply(id) {
   const def = PANEL_DEFS.find(p => p.id === id);
   if (!def) return;
+  // noAdaptive 面板不设独立内联玻璃样式，直接用 CSS 规则
+  if (def.noAdaptive) return;
   const s = _panelState[id];
   if (!s) return;
 
