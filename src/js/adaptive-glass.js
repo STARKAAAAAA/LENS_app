@@ -81,7 +81,17 @@ function _lookupLuminance(el) {
     }
   }
   if (samples.length === 0) return null;
-  return samples.reduce((a, b) => a + b, 0) / samples.length;
+  // 多数投票：暗样本过半 → 暗背景，避免上下明暗不一被平均
+  const darkCount = samples.filter(v => v < _adThresh).length;
+  if (darkCount > samples.length / 2) {
+    // 暗背景：取暗样本的中位数（排除少数亮样本干扰）
+    const darks = samples.filter(v => v < _adThresh).sort((a,b)=>a-b);
+    return darks[Math.floor(darks.length / 2)];
+  } else {
+    // 亮背景：取亮样本的中位数
+    const lights = samples.filter(v => v >= _adThresh).sort((a,b)=>a-b);
+    return lights[Math.floor(lights.length / 2)];
+  }
 }
 
 /* ── JS 驱动平滑过渡（零 CSS transition 注入，不干扰面板动画）── */
