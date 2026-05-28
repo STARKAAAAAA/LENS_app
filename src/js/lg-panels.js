@@ -138,6 +138,12 @@ export function enableLiquidGlassPanels() {
   if (!root.getPropertyValue('--lg-panel-highlight')) root.setProperty('--lg-panel-highlight', '0.05');
   applyAllPanelStyles();
   initAdaptiveGlass();
+
+  // 强制下拉元素玻璃样式（优先级最高，确保与画廊导航一致）
+  const ddStyle = document.createElement('style');
+  ddStyle.id = '__lg_dropdown_glass';
+  ddStyle.textContent = `.custom-dropdown__trigger,.custom-dropdown__menu{background:rgba(255,255,255,0.04)!important;backdrop-filter:blur(6px) brightness(0.7) saturate(1.15)!important;-webkit-backdrop-filter:blur(6px) brightness(0.7) saturate(1.15)!important;border:0.5px solid rgba(255,255,255,0.12)!important;box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)!important;}`;
+  document.head.appendChild(ddStyle);
 }
 
 export function disableLiquidGlassPanels() {
@@ -147,6 +153,9 @@ export function disableLiquidGlassPanels() {
   clearTimeout(_resizeTimer);
   clearTimeout(_domObserverTimer);
   if (_domObserver) { _domObserver.disconnect(); _domObserver = null; }
+  // 清除下拉玻璃专用样式表
+  const ddStyle = document.getElementById('__lg_dropdown_glass');
+  if (ddStyle) ddStyle.remove();
   // 清除面板内联 backdrop-filter
   PANEL_DEFS.forEach(p => {
     document.querySelectorAll(p.sel).forEach(el => {
