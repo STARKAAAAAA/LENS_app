@@ -278,19 +278,25 @@ async function updateAllPanels() {
     // IPC 失败时使用兜底：假设所有面板在暗色背景上（lum=0.1 → isDark → white text + clear glass）
 
     for (const def of PANEL_DEFS) {
-      const el = document.querySelector(def.sel);
-      if (!el || !_isVisible(def.id, el)) continue;
+      const els = document.querySelectorAll(def.sel);
+      els.forEach(el => {
+        if (!_isVisible(def.id, el)) {
+          // 面板不可见时清除旧内联颜色，回退到 :root 预设
+          ['--text','--text-2','--text-3','--lg-bg-alpha'].forEach(k => el.style.removeProperty(k));
+          return;
+        }
 
-      let lum;
-      if (_forceDark.has(def.id)) {
-        lum = 0.1;
-      } else if (grid) {
-        lum = _lookupLuminance(el);
-        if (lum === null) lum = 0.1;
-      } else {
-        lum = 0.1; // IPC 不可用时兜底为暗色
-      }
-      _applyLuminance(def.id, lum);
+        let lum;
+        if (_forceDark.has(def.id)) {
+          lum = 0.1;
+        } else if (grid) {
+          lum = _lookupLuminance(el);
+          if (lum === null) lum = 0.1;
+        } else {
+          lum = 0.1;
+        }
+        _applyLuminance(def.id, lum);
+      });
     }
   } catch (_) {}
   _sampling = false;
