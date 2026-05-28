@@ -20,8 +20,8 @@ export const PANEL_DEFS = [
   { id: 'gallerynav',  label: '画廊导航',     sel: '.gallery__nav',                              refW: 800, refH: 50,  refR: 10 },
   { id: 'backtotop',   label: '返回顶部',     sel: '.back-to-top',                               refW: 42,  refH: 42,  refR: 21 },
   { id: 'heroscroll',  label: '滚动提示',     sel: '.hero__scroll',                              refW: 30,  refH: 52,  refR: 15 },
-  { id: 'dropdown-trigger', label: '下拉按钮', sel: '.custom-dropdown__trigger', refW: 130, refH: 34, refR: 17, noAdaptive: true },
-  { id: 'dropdown-menu',  label: '下拉菜单', sel: '.custom-dropdown__menu',    refW: 160, refH: 150, refR: 6, noAdaptive: true },
+  { id: 'dropdown-trigger', label: '下拉按钮', sel: '.custom-dropdown__trigger', refW: 130, refH: 34, refR: 17 },
+  { id: 'dropdown-menu',  label: '下拉菜单', sel: '.custom-dropdown__menu',    refW: 160, refH: 150, refR: 6 },
   { id: 'loadmore',    label: '加载更多',     sel: '.load-more-btn',                              refW: 200, refH: 44, refR: 22 },
 ];
 
@@ -242,8 +242,6 @@ const _mapCache = {};
 function _apply(id) {
   const def = PANEL_DEFS.find(p => p.id === id);
   if (!def) return;
-  // noAdaptive 面板不设独立内联玻璃样式，直接用 CSS 规则
-  if (def.noAdaptive) return;
   const s = _panelState[id];
   if (!s) return;
 

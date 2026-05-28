@@ -238,8 +238,6 @@ function _applyLuminance(id, lum) {
 
   const def = PANEL_DEFS.find(p => p.id === id);
   if (!def) return;
-  // noAdaptive 面板不设自适应变量，用 CSS 规则默认值（与 gallery nav 一致）
-  if (def.noAdaptive) return;
 
   document.querySelectorAll(def.sel).forEach(el => {
     el.style.setProperty('--lg-brightness', '1.1', 'important');
@@ -347,6 +345,9 @@ export function initAdaptiveGlass() {
   _domObserver = new MutationObserver(() => _scheduleUpdate());
   _domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
 
+  // 下拉元素固定暗背景（白字透明玻璃，与画廊导航一致）
+  _forceDark.add('dropdown-trigger');
+  _forceDark.add('dropdown-menu');
   // 初始化 dirty flag
   if (window.__lensTextDirty === undefined) window.__lensTextDirty = false;
 
