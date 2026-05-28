@@ -20,8 +20,8 @@ export const PANEL_DEFS = [
   { id: 'gallerynav',  label: '画廊导航',     sel: '.gallery__nav',                              refW: 800, refH: 50,  refR: 10 },
   { id: 'backtotop',   label: '返回顶部',     sel: '.back-to-top',                               refW: 42,  refH: 42,  refR: 21 },
   { id: 'heroscroll',  label: '滚动提示',     sel: '.hero__scroll',                              refW: 30,  refH: 52,  refR: 15 },
-  { id: 'dropdown-trigger', label: '下拉按钮', sel: '.custom-dropdown__trigger', refW: 160, refH: 36, refR: 18 },
-  { id: 'dropdown-menu',  label: '下拉菜单', sel: '.custom-dropdown__menu',    refW: 160, refH: 160, refR: 6 },
+  { id: 'dropdown-trigger', label: '下拉按钮', sel: '.custom-dropdown__trigger', refW: 130, refH: 34, refR: 17 },
+  { id: 'dropdown-menu',  label: '下拉菜单', sel: '.custom-dropdown__menu',    refW: 160, refH: 150, refR: 6 },
   { id: 'loadmore',    label: '加载更多',     sel: '.load-more-btn',                              refW: 200, refH: 44, refR: 22 },
 ];
 
@@ -43,8 +43,8 @@ const _panelOverrides = {
   gallerynav:{ w: 800, h: 50, r: 10,  depth: 3,  blur: 3, saturate: 1.15, refraction: 100 },
   exif:      {                           depth: 4,  blur: 3, saturate: 1.15, refraction: 100 },
   devpanel:  { w: 380, h: 600, r: 14, depth: 5,  blur: 3, saturate: 1.15, refraction: 100 },
-  'dropdown-trigger': { w: 160, h: 36, r: 18, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
-  'dropdown-menu':    { w: 160, h: 160, r: 6, depth: 3, blur: 3, saturate: 1.15, refraction: 100 },
+  'dropdown-trigger': { w: 130, h: 34, r: 17, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
+  'dropdown-menu':    { w: 160, h: 150, r: 6, depth: 3, blur: 3, saturate: 1.15, refraction: 100 },
   loadmore:           { w: 200, h: 44, r: 22, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
 };
 
@@ -249,7 +249,6 @@ function _apply(id) {
   const isCircle = id === 'lightbox' || id === 'backtotop';
   const isCapsule = id === 'toolbar' || id === 'heroscroll' || id === 'loadmore' || id === 'dropdown-trigger';
 
-  // 面板滤镜始终放在独立 SVG 中，不依赖透镜 SVG（透镜销毁时面板不受影响）
   let svg = document.getElementById('__lg_panel_svg');
   if (!svg) {
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -257,7 +256,6 @@ function _apply(id) {
     svg.id = '__lg_panel_svg';
     document.body.appendChild(svg);
   }
-  // 确保通用回退滤镜 #lg-panel-refract 存在（CSS 规则 refs#lg-panel-refract）
   if (!svg.querySelector('#lg-panel-refract')) {
     const fallbackMap = _genMap(400, 400, 18, 5, false);
     const fbFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -273,61 +271,69 @@ function _apply(id) {
     svg.appendChild(fbFilter);
   }
 
-  // 确定位移图尺寸：实测元素优先，override 作为回退
-  let mw = 0, mh = 0, mr = 0;
-  const el = document.querySelector(def.sel);
-  if (el && el.offsetWidth > 0) {
-    mw = el.offsetWidth; mh = el.offsetHeight;
-    if (isCircle) {
-      mr = Math.floor(Math.min(mw, mh) / 2);
-    } else if (isCapsule) {
-      mr = Math.floor(Math.min(mw, mh) / 2);
-    } else {
-      const br = getComputedStyle(el).borderRadius.match(/[\d.]+/);
-      if (br) mr = parseFloat(br[0]);
+  // 为每个匹配元素单独生成位移图（保证不同尺寸元素各有正确滤镜）
+  const els = document.querySelectorAll(def.sel);
+  els.forEach((el, idx) => {
+    // 隐藏元素临时显示以测量真实尺寸
+    const wasHidden = el.offsetWidth === 0 && el.offsetHeight === 0;
+    if (wasHidden) {
+      el.style.position = 'fixed'; el.style.left = '-9999px'; el.style.top = '-9999px';
+      el.style.display = 'block'; el.style.visibility = 'visible';
+      el.style.opacity = '1'; el.style.pointerEvents = 'auto';
+      void el.offsetHeight;
     }
-  }
-  if (!mw) { mw = ov.w || 240; mh = ov.h || 240; mr = ov.r || mr || 18; }
-  if (!mr) mr = ov.r || 18;
-  const md = s.depth || 5;
+    let mw = el.offsetWidth || ov.w || 240;
+    let mh = el.offsetHeight || ov.h || 240;
+    let mr;
+    if (isCircle) { mr = Math.floor(Math.min(mw, mh) / 2); }
+    else if (isCapsule) { mr = Math.floor(Math.min(mw, mh) / 2); }
+    else { mr = ov.r || 18; }
+    if (wasHidden) {
+      el.style.position = ''; el.style.left = ''; el.style.top = '';
+      el.style.display = ''; el.style.visibility = '';
+      el.style.opacity = ''; el.style.pointerEvents = '';
+    }
 
-  // 生成该面板的专属位移图（圆形按钮用真正的圆形 SDF）
-  const mapKey = `${mw}-${mh}-${mr}-${md}-${isCircle ? 'c' : 'r'}`;
-  if (!_mapCache[id] || _mapCache[id].key !== mapKey) {
-    _mapCache[id] = { key: mapKey, url: _genMap(mw, mh, mr, md, isCircle) };
-  }
-  const mapURL = _mapCache[id].url;
-  const m = Math.max(100, Math.ceil(s.refraction * 2));
-  let filter = svg.querySelector('#lg-panel-refract-' + id);
-  if (!filter) {
-    filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-    filter.id = 'lg-panel-refract-' + id;
-    filter.setAttribute('color-interpolation-filters', 'sRGB');
-    svg.appendChild(filter);
-  }
-  filter.setAttribute('x', '-' + m + '%');
-  filter.setAttribute('y', '-' + m + '%');
-  filter.setAttribute('width', (100 + m * 2) + '%');
-  filter.setAttribute('height', (100 + m * 2) + '%');
-  filter.innerHTML =
-    `<feImage x="0" y="0" width="${mw}" height="${mh}" href="${mapURL}" result="DMAP"/>` +
-    `<feGaussianBlur in="DMAP" stdDeviation="3" result="DMAP_SM"/>` +
-    `<feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="BG_BLUR"/>` +
-    `<feDisplacementMap in="BG_BLUR" in2="DMAP_SM" scale="${s.refraction}" xChannelSelector="R" yChannelSelector="G"/>`;
+    const md = s.depth || 5;
+    const filterId = els.length > 1 ? `lg-panel-refract-${id}-${idx}` : `lg-panel-refract-${id}`;
+    const mapKey = `${mw}-${mh}-${mr}-${md}-${isCircle ? 'c' : 'r'}`;
+    const cacheKey = filterId;
+    if (!_mapCache[cacheKey] || _mapCache[cacheKey].key !== mapKey) {
+      _mapCache[cacheKey] = { key: mapKey, url: _genMap(mw, mh, mr, md, isCircle) };
+    }
+    const mapURL = _mapCache[cacheKey].url;
+    const m = Math.max(100, Math.ceil(s.refraction * 2));
+    let filter = svg.querySelector('#' + filterId);
+    if (!filter) {
+      filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+      filter.id = filterId;
+      filter.setAttribute('color-interpolation-filters', 'sRGB');
+      svg.appendChild(filter);
+    }
+    filter.setAttribute('x', '-' + m + '%');
+    filter.setAttribute('y', '-' + m + '%');
+    filter.setAttribute('width', (100 + m * 2) + '%');
+    filter.setAttribute('height', (100 + m * 2) + '%');
+    filter.innerHTML =
+      `<feImage x="0" y="0" width="${mw}" height="${mh}" href="${mapURL}" result="DMAP"/>` +
+      `<feGaussianBlur in="DMAP" stdDeviation="3" result="DMAP_SM"/>` +
+      `<feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="BG_BLUR"/>` +
+      `<feDisplacementMap in="BG_BLUR" in2="DMAP_SM" scale="${s.refraction}" xChannelSelector="R" yChannelSelector="G"/>`;
 
-  _applyStyleOnly(id, def, s);
-}
-
-function _applyStyleOnly(id, def, s) {
-  const filterRef = `url(#lg-panel-refract-${id})`;
-  const bf = `blur(${(s.blur/2).toFixed(1)}px) ${filterRef} blur(${s.blur.toFixed(1)}px) brightness(var(--lg-brightness,${s.brightness})) saturate(${s.saturate})`;
-  document.querySelectorAll(def.sel).forEach(el => {
+    // 逐个元素应用独立滤镜
+    const filterRef = `url(#${filterId})`;
+    const bf = `blur(${(s.blur/2).toFixed(1)}px) ${filterRef} blur(${s.blur.toFixed(1)}px) brightness(var(--lg-brightness,${s.brightness})) saturate(${s.saturate})`;
     el.style.setProperty('backdrop-filter', bf, 'important');
     el.style.setProperty('-webkit-backdrop-filter', bf, 'important');
     el.style.setProperty('background', `rgba(255,255,255,var(--lg-bg-alpha,${s.bgAlpha}))`, 'important');
     el.style.setProperty('border', `1px solid rgba(255,255,255,${s.borderAlpha})`, 'important');
     el.style.setProperty('box-shadow', `0 8px 32px rgba(0,0,0,${s.shadowAlpha}), inset 0 1px 0 rgba(255,255,255,${s.highlight})`, 'important');
   });
+}
+
+function _applyStyleOnly(id, def, s) {
+  // 保留兼容：外部调用如 updatePanelBlur 时重新应用所有元素
+  _apply(id);
 }
 
 export function applyAllPanelStyles() {

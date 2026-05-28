@@ -650,13 +650,32 @@ export class LiquidGlassStudio {
       const realEl = document.querySelector(def.sel);
       let rw = def.refW, rh = def.refH, rr = def.refR;
       if (realEl) {
+        // 隐藏元素临时显示以测量真实尺寸
+        const wasHidden = realEl.offsetWidth === 0 && realEl.offsetHeight === 0;
+        if (wasHidden) {
+          realEl.style.position = 'fixed';
+          realEl.style.left = '-9999px';
+          realEl.style.top = '-9999px';
+          realEl.style.display = 'block';
+          realEl.style.visibility = 'visible';
+          realEl.style.opacity = '1';
+          realEl.style.pointerEvents = 'auto';
+          void realEl.offsetHeight; // force layout
+        }
         rw = realEl.offsetWidth || rw;
         rh = realEl.offsetHeight || rh;
+        if (wasHidden) {
+          realEl.style.position = '';
+          realEl.style.left = '';
+          realEl.style.top = '';
+          realEl.style.display = '';
+          realEl.style.visibility = '';
+          realEl.style.opacity = '';
+          realEl.style.pointerEvents = '';
+        }
         if (isCircle) {
-          // 圆形按钮：半径 = 内切圆，位移图用真正的圆形 SDF
           rr = Math.floor(Math.min(rw, rh) / 2);
         } else if (isCapsule) {
-          // 胶囊型：强制 r = min(W,H)/2，圆水平/垂直伸长
           rr = Math.floor(Math.min(rw, rh) / 2);
         } else {
           const br = getComputedStyle(realEl).borderRadius.match(/[\d.]+/);
