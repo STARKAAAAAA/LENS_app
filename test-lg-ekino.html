@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>液态玻璃 — 全方案对比测试</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a08; color: #ccc; font-family: system-ui, sans-serif; min-height: 100vh; padding: 16px; }
+  h1 { text-align: center; font-size: 1.2rem; color: #c8a87c; margin-bottom: 4px; }
+  .sub { text-align: center; opacity: 0.45; font-size: 0.75rem; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 12px; max-width: 1900px; margin: 0 auto; }
+  .box { background: #141412; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.05); }
+  .box h3 { font-size: 0.8rem; color: #c8a87c; margin-bottom: 2px; }
+  .box .desc { font-size: 0.65rem; opacity: 0.4; margin-bottom: 8px; line-height: 1.3; }
+  .stage { position: relative; width: 100%; height: 160px; border-radius: 10px; overflow: hidden; margin-bottom: 6px; }
+  .stage-bg {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.3) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.3) 1px, transparent 1px),
+      linear-gradient(45deg, #ff3366 25%, transparent 25%, transparent 75%, #ff3366 75%),
+      linear-gradient(45deg, #ff3366 25%, #00ccff 25%, #00ccff 75%, #ff3366 75%);
+    background-size: 20px 20px, 20px 20px, 40px 40px, 40px 40px;
+    background-position: 0 0, 0 0, 0 0, 20px 20px;
+  }
+  .lens {
+    position: absolute; width: 100px; height: 100px; border-radius: 24px;
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.03);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12);
+    cursor: grab; user-select: none;
+  }
+  .lens.wide { width: 85%; height: 85%; }
+  .thumb-row { display: flex; gap: 6px; align-items: center; }
+  .thumb-row canvas { border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); width: 48px; height: 48px; image-rendering: pixelated; }
+  .thumb-row span { font-size: 0.6rem; opacity: 0.35; }
+  .btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .btns button {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    color: #999; padding: 3px 8px; border-radius: 5px; cursor: pointer; font-size: 0.65rem;
+  }
+  .btns button:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .btns button.on { background: rgba(200,168,124,0.2); border-color: rgba(200,168,124,0.4); color: #c8a87c; }
+  .hidden-svg { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<h1>液态玻璃 — 全方案 A/B 对比</h1>
+<p class="sub">拖动透镜看折射 | <button id="luma-overlay-toggle" style="font-size:0.7rem;padding:2px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#c8a87c;border-radius:4px;cursor:pointer;">🔍 全屏亮度扫描 OFF</button></p>
+<div class="grid" id="grid"></div>
+<canvas id="luma-overlay" style="display:none;position:fixed;inset:0;z-index:99999;pointer-events:none;"></canvas>
+
+<script type="module">
+const MAP_SZ = 256;
+
+// ── 位移图生成 ──
+
+// 圆角矩形 SDF (Signed Distance Field)
+// 返回点到圆角矩形边缘的带符号距离: 内部负, 边缘零, 外部正
+function sdRoundedBox(px, py, hw, hh, r) {
+  const dx = Math.abs(px) - hw + r;
+  const dy = Math.abs(py) - hh + r;
+  return Math.sqrt(Math.max(dx, 0) ** 2 + Math.max(dy, 0) ** 2) + Math.min(Math.max(dx, dy), 0) - r;
+}
+
+function makeNeutralMap() {
+  const c = document.createElement('canvas'); c.width = c.height = MAP_SZ;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(MAP_SZ, MAP_SZ);
+  for (let i = 0; i < img.data.length; i += 4) {
+    img.data[i] = img.data[i+1] = img.data[i+2] = 128; img.data[i+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function makePowerMap(power = 3) {
+  const c = document.createElement('canvas'); c.width = c.height = MAP_SZ;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(MAP_SZ, MAP_SZ);
+  const d = img.data;
+  for (let y = 0; y < MAP_SZ; y++) {
+    for (let x = 0; x < MAP_SZ; x++) {
+      const nx = (x / MAP_SZ - 0.5) * 2, ny = (y / MAP_SZ - 0.5) * 2;
+      const dist = Math.sqrt(nx*nx + ny*ny);
+      const str = Math.pow(Math.min(1, dist), power);
+      const i = (y * MAP_SZ + x) * 4;
+      d[i]   = Math.max(0, Math.min(255, (nx / (dist||1) * str * 0.5 + 0.5) * 255));
+      d[i+1] = Math.max(0, Math.min(255, (ny / (dist||1) * str * 0.5 + 0.5) * 255));
+      d[i+2] = 128; d[i+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function makeSmoothstepRingMap(peak = 0.82, clearZone = 0.35) {
+  const c = document.createElement('canvas'); c.width = c.height = MAP_SZ;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(MAP_SZ, MAP_SZ);
+  const d = img.data;
+  const ss = t => t * t * (3 - 2 * t);
+  for (let y = 0; y < MAP_SZ; y++) {
+    for (let x = 0; x < MAP_SZ; x++) {
+      const nx = (x / MAP_SZ - 0.5) * 2, ny = (y / MAP_SZ - 0.5) * 2;
+      const dist = Math.sqrt(nx*nx + ny*ny);
+      const i = (y * MAP_SZ + x) * 4;
+      let str;
+      if (dist < clearZone) str = 0;
+      else if (dist <= peak) str = ss((dist - clearZone) / (peak - clearZone));
+      else if (dist < 1) str = 1 - ss((dist - peak) / (1 - peak));
+      else str = 0;
+      if (str < 0.002) { d[i]=d[i+1]=d[i+2]=128; d[i+3]=255; continue; }
+      d[i]   = Math.max(0, Math.min(255, (nx/dist * str * 0.5 + 0.5) * 255));
+      d[i+1] = Math.max(0, Math.min(255, (ny/dist * str * 0.5 + 0.5) * 255));
+      d[i+2] = 128; d[i+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+// ══ CodeSandbox / Ekino 原文位移图 ══
+// 核心: 全区域线性渐变 + 中性灰圆角矩形挖空 + 模糊
+// X渐变: #F00(full red) → #000(black), 左边缘R=255推右, 右边缘R=0推左
+// Y渐变: #0F0(full green) → #000(black), 上边缘G=255推下, 下边缘G=0推上
+// 挖空: 内缩depth像素的#808080圆角矩形 + blur(depth px) → 中心擦除,边缘环留
+// 与主程序 lg-studio.js _buildMap / lg-panels.js _genMap 完全一致
+function makeSDFMap(w, h, br, { depth = 10 } = {}) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const d = img.data;
+  const hw = w / 2, hh = h / 2;
+  const ss = t => t * t * (3 - 2 * t);
+
+  const gsx = Math.ceil((br / w) * 15) / 100, gex = 1 - gsx;
+  const gsy = Math.ceil((br / h) * 15) / 100, gey = 1 - gsy;
+
+  const cutW = w - 2 * depth, cutH = h - 2 * depth;
+  const cutHw = cutW / 2, cutHh = cutH / 2;
+  const cutR = Math.max(0, br - depth);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const ex = x - hw, ey = y - hh;
+      const i = (y * w + x) * 4;
+
+      const nx = (ex / hw) * 0.5 + 0.5;
+      const tx = Math.max(0, Math.min(1, (nx - gsx) / (gex - gsx || 0.01)));
+      const gradR = (1 - tx) * 255;
+      const ny = (ey / hh) * 0.5 + 0.5;
+      const ty = Math.max(0, Math.min(1, (ny - gsy) / (gey - gsy || 0.01)));
+      const gradG = (1 - ty) * 255;
+
+      const cutSdf = sdRoundedBox(ex, ey, cutHw, cutHh, cutR);
+      const inside = -cutSdf;
+      const cutMask = ss(Math.max(0, Math.min(1, (inside + depth) / (depth * 2 || 1))));
+
+      d[i]     = Math.max(0, Math.min(255, gradR * (1 - cutMask) + 128 * cutMask));
+      d[i + 1] = Math.max(0, Math.min(255, gradG * (1 - cutMask) + 128 * cutMask));
+      d[i + 2] = 128; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+// 圆形 SDF — 与主程序 lg-studio.js sdCircle + _buildMap(isCircle) 完全一致
+function sdCircleFn(px, py, radius) { return Math.sqrt(px*px+py*py) - radius; }
+function makeCircleMap(w, h, depth) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const d = img.data;
+  const hw = w/2, hh = h/2;
+  const ss = t => t*t*(3-2*t);
+  const r = Math.min(w, h) / 2;
+  const gsx = Math.ceil((r/w)*15)/100, gex = 1-gsx;
+  const gsy = Math.ceil((r/h)*15)/100, gey = 1-gsy;
+  const cutR = Math.max(0, Math.min(w,h)/2 - depth);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const ex = x - hw, ey = y - hh;
+      const i = (y*w+x)*4;
+      const nx = (ex/hw)*0.5+0.5;
+      const tx = Math.max(0,Math.min(1,(nx-gsx)/(gex-gsx||0.01)));
+      const gradR = (1-tx)*255;
+      const ny = (ey/hh)*0.5+0.5;
+      const ty = Math.max(0,Math.min(1,(ny-gsy)/(gey-gsy||0.01)));
+      const gradG = (1-ty)*255;
+      const cutSdf = sdCircleFn(ex, ey, cutR);
+      const inside = -cutSdf;
+      const cutMask = ss(Math.max(0,Math.min(1,(inside+depth)/(depth*2||1))));
+      d[i]=Math.max(0,Math.min(255,gradR*(1-cutMask)+128*cutMask));
+      d[i+1]=Math.max(0,Math.min(255,gradG*(1-cutMask)+128*cutMask));
+      d[i+2]=128;d[i+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  return c;
+}
+
+// 旧 makeSDFMap 别名 (depth 替代 blurWidth)
+function makeCodeSandboxMap(w, h, br, depth) { return makeSDFMap(w, h, br, { depth: depth || 10 }); }
+
+// ── 测试用例 ──
+const tests = [
+  {
+    id: 't0', title: 'A: 纯中性灰 (全128)', desc: 'CONTROL — 位移图全128=零位移。透镜应该完全透明，背景无任何变形。如果这个也有扭曲→滤镜链本身有问题。',
+    buildMap: makeNeutralMap, turbulence: false, srgb: true,
+  },
+  {
+    id: 't1', title: 'B: feTurbulence 基线', desc: '有机噪声位移。已知 Electron 中四边有效。用作基准对照。',
+    buildMap: null, turbulence: true, turbScale: 100, srgb: true,
+  },
+  {
+    id: 't2', title: 'C: 径向 power=3 + sRGB', desc: 'Canvas径向位移图(旧方案)。中心零→边缘强，单调递增。测试2中验证过的可行方案。',
+    buildMap: () => makePowerMap(3), turbulence: false, srgb: true,
+  },
+  {
+    id: 't3', title: 'D: 径向 power=3 + linearRGB', desc: '与C相同但故意不加sRGB。应该只有部分方向有折射(sRGB被linearRGB误读)。',
+    buildMap: () => makePowerMap(3), turbulence: false, srgb: false,
+  },
+  {
+    id: 't4', title: 'E: 径向 power=1 线性', desc: 'power=1 线性增加。比power=3中心扭曲更强。对比C看区别。',
+    buildMap: () => makePowerMap(1), turbulence: false, srgb: true,
+  },
+  {
+    id: 't5', title: 'F: 径向 power=5 高次', desc: 'power=5。比power=3中心更清晰(位移集中在边缘)。',
+    buildMap: () => makePowerMap(5), turbulence: false, srgb: true,
+  },
+  {
+    id: 't6', title: 'G: smoothstep 环状', desc: 'smoothstep环: 0-35%完全零位移→82%峰值→边缘零。理论中心最清晰。',
+    buildMap: () => makeSmoothstepRingMap(0.82, 0.35), turbulence: false, srgb: true,
+  },
+  {
+    id: 't7', title: 'H: 环状 + 有机湍流8%', desc: 'G的位移图+8% feTurbulence混合。如果中心扭曲不规则→湍流在中心也有值。',
+    buildMap: () => makeSmoothstepRingMap(0.82, 0.35), turbulence: true, turbScale: 8, srgb: true,
+  },
+  {
+    id: 't8', title: 'I: 环状 clearZone=60%', desc: '中心60%完全清零。极端测试：只有最外层40%有折射。验证clearZone是否真的生效。',
+    buildMap: () => makeSmoothstepRingMap(0.85, 0.60), turbulence: false, srgb: true,
+  },
+  {
+    id: 't9', title: 'J: 环状(无clear) peak=82%', desc: '确认环状公式本身正确：不加clearZone，直接用smoothstep从0开始。',
+    buildMap: () => makeSmoothstepRingMap(0.82, 0), turbulence: false, srgb: true,
+  },
+  // ── 网上方案 ──
+  {
+    id: 'w1', title: 'Web1: SVG渐变 dataURL + sRGB', desc: 'Ekino风格：SVG渐变位移图→data:image/svg+xml URL。纯矢量，避免Canvas色彩空间。R/X水平渐变+G/Y垂直渐变。',
+    buildMap: null, useSVGGrad: true, turbulence: false, srgb: true,
+  },
+  {
+    id: 'w2', title: 'Web2: feTurbulence(低强度)+径向混合', desc: 'UmarGit变体：feTurbulence baseFrequency=0.005极低频+大模糊，产生柔和有机折射。',
+    buildMap: null, turbulenceOnly: true, turbFreq: 0.005, turbBlur: 8, turbScale: 60, srgb: true,
+  },
+  {
+    id: 'w3', title: 'Web3: power2.5 + linearRGB对照', desc: '对照：power=2.5在linearRGB下表现。验证sRGB修复的通用性。',
+    buildMap: () => makePowerMap(2.5), turbulence: false, srgb: false,
+  },
+  // ── SDF 形状匹配 ──
+  {
+    id: 's1', title: 'SDF1: 100×100 r=24 (匹配透镜)', desc: 'SDF圆角矩形位移图。折射沿真实边缘法线方向，非圆形。透镜100×100 r=24。',
+    buildMap: () => makeSDFMap(100, 100, 24, { depth: 20 }), turbulence: false, srgb: true,
+  },
+  {
+    id: 's2', title: 'SDF2: 100×100 r=24 + 有机湍流', desc: 'SDF位移图+8% feTurbulence混合。形状匹配边缘折射+自然不规则感。',
+    buildMap: () => makeSDFMap(100, 100, 24, { depth: 20 }), turbulence: true, turbScale: 8, srgb: true,
+  },
+  {
+    id: 's3', title: 'SDF3: 100×100 r=8 小圆角', desc: 'SDF r=8近乎直角。对比r=24看圆角大小如何影响折射。',
+    buildMap: () => makeSDFMap(100, 100, 8, { depth: 20 }), turbulence: false, srgb: true,
+  },
+  {
+    id: 's4', title: 'SDF4: DEBUG — 位移图直接显示', desc: '不接滤镜，直接显示位移图作为透镜背景。看到什么颜色=位移图实际内容。中心灰、边缘彩色环才对。',
+    buildMap: () => makeSDFMap(100, 100, 24, { depth: 10 }), turbulence: false, srgb: true, debug: true,
+  },
+  {
+    id: 's5', title: '极简验证: 全R=255 纯红位移图', desc: '位移图全R=255, G=128 → 全部像素都向左推。如果这个也没效果→feImage加载Canvas dataURL有根本问题。',
+    buildMap: () => {
+      const c = document.createElement('canvas'); c.width = c.height = MAP_SZ;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(MAP_SZ, MAP_SZ);
+      for (let i = 0; i < img.data.length; i += 4) {
+        img.data[i] = 255; img.data[i+1] = 128; img.data[i+2] = 128; img.data[i+3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return c;
+    }, turbulence: false, srgb: true,
+  },
+  {
+    id: 's6', title: 'SVG版: CodeSandbox原文(内联style+CSS filter)', desc: '完全按CodeSandbox原文: <style>.mix{screen}</style> + filter="blur(2px)" CSS滤镜 + 挖空。',
+    useSVGDisplacementMap: true, turbulence: false, srgb: true,
+  },
+  {
+    id: 's7', title: 'SVG版 DEBUG: 位移图直接显示', desc: '同s6但不经滤镜，直接显示SVG位移图。确认CSS mix-blend-mode在feImage中是否工作。',
+    useSVGDisplacementMap: true, turbulence: false, srgb: true, debug: true,
+  },
+  {
+    id: 'cs2', title: '【CodeSandbox原版】三图形 + 可拖动 + 效果开关', desc: '完全照搬示例。Debug/色差开关 + 按住透镜深度变化 + 切换背景。',
+    codeSandboxBig: true,
+  },
+  // ══ 自适应玻璃颜色测试 ══
+  {
+    id: 'adaptive', title: '【自适应玻璃】逐面板背景亮度采样 + 颜色映射', desc: '模拟4种背景亮度(极暗/暗/亮/极亮)→自动调节玻璃brightness/bgAlpha/文字色。拖动透镜测试不同背景。',
+    adaptiveGlass: true,
+  },
+  {
+    id: 'lumasubrect', title: '【lumaSubrect】全屏幕亮度可视化 + 采样点测试', desc: '渐变背景上叠加亮度热力图(Canvas) + 可拖动采样点。模拟Apple单像素lumaSubrect行为。',
+    lumaSubrect: true,
+  },
+];
+
+// ── 渲染 ──
+const grid = document.getElementById('grid');
+
+tests.forEach(tc => {
+  // ── CodeSandbox 三图形完整复刻 ──
+  // ── CodeSandbox 三图形 + 背景切换 ──
+  if (tc.codeSandboxBig) {
+    const configs = [
+      { w:200, h:200, r:50, baseDepth:10, blur:2, ca:8, label:'正方形 r=50', id:'sq50' },
+      { w:200, h:200, r:100, baseDepth:10, blur:4, ca:0, label:'圆形 r=100', id:'cir100' },
+      { w:200, h:200, r:20, baseDepth:10, blur:1, ca:3, label:'正方形 r=20', id:'sq20' },
+    ];
+
+    const states = configs.map((c, i) => ({ debug: false, caOn: true, depthMul: 1,
+      w: c.w, h: c.h, r: c.r, depth: c.baseDepth, blur: c.blur, ca: c.ca, strength: 100 }));
+    let sharedStrength = 100;
+
+    // Canvas 生成位移图 (替代SVG, 避免CSS mix-blend-mode/filter在feImage中不可用)
+    const makeMapURL = (w, h, r, depth) => {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(w, h);
+      const d = img.data;
+      const hw = w/2, hh = h/2, br = r;
+      const gsx = Math.ceil((r/w)*15)/100, gex = 1 - gsx;
+      const gsy = Math.ceil((r/h)*15)/100, gey = 1 - gsy;
+      const cutW = w - 2*depth, cutH = h - 2*depth;
+      const cutHw = cutW/2, cutHh = cutH/2;
+      const cutR = Math.max(0, r - depth);
+      const ss = t => t*t*(3-2*t);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const ex = x - hw, ey = y - hh;
+          const i = (y*w + x)*4;
+
+          // X渐变: #F00→#000 → R=255(左)→0(右)
+          const nx = (ex/hw)*0.5+0.5;
+          const tx = Math.max(0, Math.min(1, (nx-gsx)/(gex-gsx||0.01)));
+          const gradR = (1-tx)*255;
+          // Y渐变: #0F0→#000 → G=255(上)→0(下)
+          const ny = (ey/hh)*0.5+0.5;
+          const ty = Math.max(0, Math.min(1, (ny-gsy)/(gey-gsy||0.01)));
+          const gradG = (1-ty)*255;
+
+          // 挖空蒙版
+          const cutSdf = (() => {
+            const dx = Math.abs(ex) - cutHw + cutR;
+            const dy = Math.abs(ey) - cutHh + cutR;
+            return Math.sqrt(Math.max(dx,0)**2 + Math.max(dy,0)**2) + Math.min(Math.max(dx,dy),0) - cutR;
+          })();
+          const inside = -cutSdf;
+          const cutMask = ss(Math.max(0, Math.min(1, (inside+depth)/(depth*2||1))));
+
+          d[i]   = Math.max(0, Math.min(255, gradR*(1-cutMask) + 128*cutMask));
+          d[i+1] = Math.max(0, Math.min(255, gradG*(1-cutMask) + 128*cutMask));
+          d[i+2] = 128; d[i+3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL();
+    };
+
+    const makeFilter = (id, mapURL, strength, ca, w, h) => {
+      const dims = `x="0" y="0" width="${w}" height="${h}"`;
+      if (ca <= 0) return `<filter id="f-csb-${id}" color-interpolation-filters="sRGB"><feImage ${dims} href="${mapURL}" result="dm"/><feDisplacementMap in="SourceGraphic" in2="dm" scale="${strength}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+      return `<filter id="f-csb-${id}" color-interpolation-filters="sRGB">` +
+        `<feImage ${dims} href="${mapURL}" result="dm"/>` +
+        `<feDisplacementMap in="SourceGraphic" in2="dm" scale="${strength + ca*2}" xChannelSelector="R" yChannelSelector="G"/>` +
+        `<feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dR"/>` +
+        `<feDisplacementMap in="SourceGraphic" in2="dm" scale="${strength + ca}" xChannelSelector="R" yChannelSelector="G"/>` +
+        `<feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="dG"/>` +
+        `<feDisplacementMap in="SourceGraphic" in2="dm" scale="${strength}" xChannelSelector="R" yChannelSelector="G"/>` +
+        `<feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="dB"/>` +
+        `<feBlend in="dR" in2="dG" mode="screen"/><feBlend in2="dB" mode="screen"/></filter>`;
+    };
+
+    const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgEl.classList.add('hidden-svg');
+    svgEl.id = 'csb-svg';
+    document.body.appendChild(svgEl);
+
+    const rebuildAllFilters = () => {
+      let html = '';
+      configs.forEach((_cfg, i) => {
+        const s = states[i];
+        const depth = Math.round(s.depth * s.depthMul);
+        const ca = s.caOn ? s.ca : 0;
+        const mapURL = makeMapURL(s.w, s.h, s.r, depth);
+        html += makeFilter(i, mapURL, s.debug ? 0 : s.strength, ca, s.w, s.h);
+      });
+      svgEl.innerHTML = `<defs>${html}</defs>`;
+    };
+    rebuildAllFilters();
+
+    const card = document.createElement('div');
+    card.style.cssText = 'grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);';
+
+    const bgDefs = [
+      { name:'文字测试', css:'#111 url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect fill="#111" width="300" height="300"/><text x="10" y="40" fill="#fff" font-size="18" font-family="Arial">Liquid Glass</text><text x="10" y="70" fill="#f00" font-size="24" font-weight="bold">RGB 色散文字</text><text x="10" y="100" fill="#0f0" font-size="14">Chromatic Aberration</text><text x="10" y="130" fill="#09f" font-size="14">feDisplacementMap</text><circle cx="80" cy="180" r="25" fill="#e94560"/><rect x="140" y="160" width="50" height="50" fill="#0f9"/><circle cx="220" cy="180" r="30" fill="none" stroke="#fff" stroke-width="1.5"/><line x1="10" y1="230" x2="290" y2="230" stroke="rgba(255,255,255,0.3)" stroke-width="1"/><line x1="10" y1="232" x2="290" y2="232" stroke="rgba(255,255,255,0.3)" stroke-width="1"/><line x1="150" y1="10" x2="150" y2="290" stroke="rgba(255,255,255,0.15)" stroke-width="1"/><text x="10" y="270" fill="rgba(255,255,255,0.4)" font-size="10">← 网格线 + 彩色圆圈 + 文字 →</text></svg>') + '") center/cover no-repeat' },
+      { name:'棋盘格', css:'linear-gradient(to right,rgba(255,255,255,0.3) 1px,transparent 1px) 0 0/20px 20px,linear-gradient(to bottom,rgba(255,255,255,0.3) 1px,transparent 1px) 0 0/20px 20px,linear-gradient(45deg,#ff3366 25%,transparent 25%,transparent 75%,#ff3366 75%) 0 0/40px 40px,linear-gradient(45deg,#ff3366 25%,#00ccff 25%,#00ccff 75%,#ff3366 75%) 20px 20px/40px 40px' },
+      { name:'放射线', css:'repeating-conic-gradient(#fff 0% 1%,#222 1% 2%) 50%/100px 100px' },
+      { name:'彩条', css:'linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)' },
+      { name:'纯白', css:'#fff' },
+    ];
+    let sharedBgIdx = 0;
+    const bgEls = [];
+
+    let stagesHTML = '';
+    configs.forEach((cfg, i) => {
+      const s = states[i];
+      const mapURL = makeMapURL(cfg.w, cfg.h, cfg.r, cfg.baseDepth);
+      let bfStyle = `backdrop-filter:blur(${cfg.blur/2}px) url(#f-csb-${i}) blur(${cfg.blur}px) brightness(1.1) saturate(1.5);`;
+      if (s.debug) bfStyle = 'background:url(' + mapURL + ') center/100% 100%;border:2px solid #c8a87c;';
+
+      stagesHTML += `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;" id="csb-wrap-${i}">` +
+        `<div style="font-size:0.7rem;color:#888;">${cfg.label} (${cfg.w}×${cfg.h} r=${cfg.r})</div>` +
+        `<div class="stage" id="csb-stage-${i}" style="width:300px;height:300px;">` +
+          `<div class="stage-bg" id="csb-bg-${i}"></div>` +
+          `<div class="lens" id="csb-lens-${i}" style="width:${cfg.w}px;height:${cfg.h}px;border-radius:${cfg.r}px;${bfStyle}${s.debug?'':' -webkit-'+bfStyle}"></div>` +
+        `</div>` +
+        `<div style="font-size:0.6rem;color:#888;display:grid;grid-template-columns:36px 1fr;gap:1px 4px;align-items:center;max-width:260px;">` +
+          `<span>宽</span><input type="range" id="csb-ctl-w-${i}" min="60" max="400" value="${cfg.w}" style="width:100%;">` +
+          `<span>高</span><input type="range" id="csb-ctl-h-${i}" min="60" max="400" value="${cfg.h}" style="width:100%;">` +
+          `<span>圆角</span><input type="range" id="csb-ctl-r-${i}" min="0" max="200" value="${cfg.r}" style="width:100%;">` +
+          `<span>深度</span><input type="range" id="csb-ctl-d-${i}" min="0" max="50" value="${cfg.baseDepth}" style="width:100%;">` +
+          `<span>模糊</span><input type="range" id="csb-ctl-b-${i}" min="0" max="10" value="${cfg.blur}" step="0.5" style="width:100%;">` +
+          `<span>色差</span><input type="range" id="csb-ctl-ca-${i}" min="0" max="20" value="${cfg.ca}" style="width:100%;">` +
+        `</div>` +
+        `<div class="btns" style="gap:3px;">` +
+          `<button id="csb-btn-debug-${i}" class="${s.debug?'on':''}">Debug</button>` +
+          `<button id="csb-btn-ca-${i}" class="${s.caOn?'on':''}">色差${s.caOn?'ON':'OFF'}</button>` +
+        `</div>` +
+        `<div style="font-size:0.6rem;color:#666;">位移图 (按住透镜: 深度÷0.7)</div>` +
+        `<div style="width:70px;height:70px;border-radius:${Math.round(cfg.r*70/cfg.w)}px;overflow:hidden;border:1px solid rgba(255,255,255,0.2);">` +
+          `<img src="${mapURL}" style="width:100%;height:100%;object-fit:cover;image-rendering:auto;">` +
+        `</div>` +
+      `</div>`;
+    });
+    card.innerHTML = `<h3 style="color:#c8a87c;margin-bottom:4px;">CodeSandbox 原版 — 全参数可调</h3>` +
+      `<p style="font-size:0.65rem;opacity:0.4;margin-bottom:4px;">Debug=显示位移图 | 色差=RGB三通道色散 | 按住透镜=深度÷0.7</p>` +
+      `<div class="btns" style="margin-bottom:8px;" id="csb-bg-bar">背景: ${bgDefs.map((b,j) => `<button class="${j===0?'on':''}" onclick="window['__csbApplycs2'](${j})">${b.name}</button>`).join(' ')}</div>` +
+      `<div style="margin-bottom:8px;font-size:0.65rem;color:#888;">全局折射: <input type="range" id="csb-global-strength" min="20" max="300" value="100" style="width:120px;vertical-align:middle;"> <span id="csb-gs-val">100</span></div>` +
+      `<div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">${stagesHTML}</div>`;
+    grid.appendChild(card);
+
+    // 背景切换 — 简单内联onclick
+    window['__csbBg' + tc.id] = bgDefs;
+    window['__csbApply' + tc.id] = (j) => {
+      const bg = bgDefs[j];
+      for (let i = 0; i < configs.length; i++) {
+        const el = document.getElementById('csb-bg-' + i);
+        if (el) el.setAttribute('style', 'position:absolute;inset:0;background:' + bg.css + ';');
+      }
+      document.querySelectorAll('#csb-bg-bar button').forEach((b, k) => b.className = k === j ? 'on' : '');
+    };
+
+    // 绑定交互
+    const updateLens = (i) => {
+      const s = states[i];
+      const lens = document.getElementById('csb-lens-' + i);
+      if (!lens) return;
+      lens.style.width = s.w + 'px'; lens.style.height = s.h + 'px';
+      lens.style.borderRadius = s.r + 'px';
+      // 同步更新 stage 大小
+      const stage2 = document.getElementById('csb-stage-' + i);
+      if (stage2) { stage2.style.width = (s.w + 40) + 'px'; stage2.style.height = (s.h + 40) + 'px'; }
+      const depth = Math.round(s.depth * s.depthMul);
+      const ca = s.caOn ? s.ca : 0;
+      const mapURL = makeMapURL(s.w, s.h, s.r, depth);
+      svgEl.innerHTML = `<defs>${configs.map((_c2, j) => {
+        const s2 = states[j]; const d2 = Math.round(s2.depth * s2.depthMul);
+        const ca2 = s2.caOn ? s2.ca : 0;
+        return makeFilter(j, makeMapURL(s2.w, s2.h, s2.r, d2), s2.debug ? 0 : s2.strength, ca2, s2.w, s2.h);
+      }).join('')}</defs>`;
+      if (s.debug) {
+        lens.style.background = `url(${mapURL}) center/100% 100%`;
+        lens.style.backdropFilter = 'none'; lens.style.WebkitBackdropFilter = 'none';
+        lens.style.border = '2px solid #c8a87c';
+      } else {
+        lens.style.background = ''; lens.style.border = '1px solid rgba(255,255,255,0.25)';
+        const bf = `blur(${s.blur/2}px) url(#f-csb-${i}) blur(${s.blur}px) brightness(1.1) saturate(1.5)`;
+        lens.style.backdropFilter = bf; lens.style.WebkitBackdropFilter = bf;
+      }
+      // 更新位移图缩略图 + 圆角边框跟随形状
+      const wrap = document.getElementById('csb-wrap-' + i);
+      if (wrap) {
+        const imgs = wrap.querySelectorAll('img');
+        if (imgs.length) imgs[imgs.length-1].src = mapURL;
+        const thumbDiv = imgs.length ? imgs[imgs.length-1].parentElement : null;
+        if (thumbDiv) {
+          const tw = Math.round(Math.min(80, s.w * 0.35));
+          const th = Math.round(Math.min(80, s.h * 0.35));
+          thumbDiv.style.width = tw + 'px';
+          thumbDiv.style.height = th + 'px';
+          thumbDiv.style.borderRadius = Math.round(s.r * Math.min(tw, th) / Math.max(s.w, s.h, 1)) + 'px';
+        }
+      }
+    };
+
+    // 全局折射滑块
+    const gsSlider = document.getElementById('csb-global-strength');
+    const gsVal = document.getElementById('csb-gs-val');
+    if (gsSlider) gsSlider.addEventListener('input', () => {
+      sharedStrength = parseInt(gsSlider.value);
+      gsVal.textContent = sharedStrength;
+      configs.forEach((_, j) => { states[j].strength = sharedStrength; });
+      rebuildAllFilters();
+    });
+
+    configs.forEach((cfg, i) => {
+      const lens = document.getElementById('csb-lens-' + i);
+      const stage = document.getElementById('csb-stage-' + i);
+      if (!lens || !stage) return;
+
+      // 参数滑块监听
+      ['w','h','r','d','b','ca'].forEach(key => {
+        const slider = document.getElementById('csb-ctl-' + key + '-' + i);
+        if (!slider) return;
+        slider.addEventListener('input', () => {
+          const v = parseFloat(slider.value);
+          if (key === 'w') states[i].w = v;
+          else if (key === 'h') states[i].h = v;
+          else if (key === 'r') states[i].r = v;
+          else if (key === 'd') states[i].depth = v;
+          else if (key === 'b') states[i].blur = v;
+          else if (key === 'ca') states[i].ca = v;
+          updateLens(i);
+        });
+      });
+
+      // Debug 按钮
+      const btnD = document.getElementById('csb-btn-debug-' + i);
+      if (btnD) btnD.addEventListener('click', () => {
+        states[i].debug = !states[i].debug;
+        btnD.classList.toggle('on', states[i].debug);
+        updateLens(i);
+      });
+
+      // 色差按钮
+      const btnC = document.getElementById('csb-btn-ca-' + i);
+      if (btnC) btnC.addEventListener('click', () => {
+        states[i].caOn = !states[i].caOn;
+        btnC.classList.toggle('on', states[i].caOn);
+        btnC.textContent = '色差' + (states[i].caOn ? 'ON' : 'OFF');
+        updateLens(i);
+      });
+
+      // 拖动
+      let dragging = false, sx, sy, ol, ot, dragged = false;
+      lens.addEventListener('pointerdown', e => {
+        dragging = true; lens.setPointerCapture(e.pointerId);
+        states[i].depthMul = 1 / 0.7; updateLens(i); // 点击深度变化
+        sx = e.clientX; sy = e.clientY;
+        if (!dragged) {
+          const lr = lens.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+          ol = lr.left - sr.left; ot = lr.top - sr.top;
+          lens.style.left = ol + 'px'; lens.style.top = ot + 'px';
+          lens.style.transform = 'none';
+          dragged = true;
+        } else {
+          ol = parseFloat(lens.style.left)||0; ot = parseFloat(lens.style.top)||0;
+        }
+      });
+      lens.addEventListener('pointermove', e => {
+        if (!dragging) return;
+        lens.style.left = (ol + e.clientX - sx) + 'px';
+        lens.style.top = (ot + e.clientY - sy) + 'px';
+      });
+      lens.addEventListener('pointerup', () => {
+        dragging = false;
+        states[i].depthMul = 1; updateLens(i); // 松开恢复
+      });
+      lens.addEventListener('pointerleave', () => {
+        if (dragging) { dragging = false; states[i].depthMul = 1; updateLens(i); }
+      });
+    });
+    return;
+  }
+
+  // ══ 自适应玻璃颜色测试 ══
+  if (tc.adaptiveGlass) {
+    const bgSamples = [
+      { name:'极暗(夜景/深色UI)', lum:0.12, css:'#0a0a08' },
+      { name:'暗色(深色照片)', lum:0.40, css:'#2a2822' },
+      { name:'亮色(浅色照片)', lum:0.65, css:'#c8c0b4' },
+      { name:'极亮(雪景/白墙)', lum:0.88, css:'#eee8dc' },
+    ];
+
+    // 4档可调参数 (Apple风格默认值)
+    const adTiers = [
+      { name:'极暗 <0.25', lumRef:0.12, brightness:1.15, bgAlpha:0.01, tintOpacity:0.08, tc:'#fff' },
+      { name:'暗色 0.25-0.5', lumRef:0.40, brightness:1.0, bgAlpha:0.06, tintOpacity:0.25, tc:'#fff' },
+      { name:'亮色 0.5-0.75', lumRef:0.65, brightness:1.0, bgAlpha:0.12, tintOpacity:0.30, tc:'#fff' },
+      { name:'极亮 >0.75', lumRef:0.88, brightness:1.05, bgAlpha:0.18, tintOpacity:0.35, tc:'#1a1a1a' },
+    ];
+    const applyAdaptive = (lum) => {
+      const t = adTiers[lum < 0.25 ? 0 : lum < 0.5 ? 1 : lum < 0.75 ? 2 : 3];
+      const to = t.tintOpacity;
+      return { brightness:t.brightness, bgAlpha:t.bgAlpha, tc:t.tc,
+        tshadow:t.tc === '#fff' ? `0 1px 3px rgba(0,0,0,${(0.25-to*0.4).toFixed(2)})` : '0 1px 2px rgba(255,255,255,0.1)',
+        tintBg:`rgba(255,255,255,${to})`, tintBlend:'overlay' };
+    };
+
+    const gridBg = 'linear-gradient(to right,rgba(255,255,255,0.25) 1px,transparent 1px) 0 0/16px 16px,' +
+      'linear-gradient(to bottom,rgba(255,255,255,0.25) 1px,transparent 1px) 0 0/16px 16px,' +
+      'radial-gradient(circle at 20% 30%,rgba(255,80,80,0.35),transparent 50%),' +
+      'radial-gradient(circle at 75% 65%,rgba(80,180,255,0.3),transparent 50%),' +
+      'linear-gradient(135deg,rgba(255,200,50,0.15) 0%,transparent 40%,rgba(200,50,255,0.15) 100%)';
+
+    // 用于 stage 底层的丰富内容（文字+图形），让透镜 blur/折射效果更明显
+    const richBgHTML = '' +
+      '<div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">' +
+        // 彩色方块群
+        '<div style="position:absolute;left:10%;top:15%;width:28px;height:28px;background:#e94560;border-radius:4px;"></div>' +
+        '<div style="position:absolute;left:22%;top:55%;width:22px;height:22px;background:#0f9;border-radius:2px;"></div>' +
+        '<div style="position:absolute;left:65%;top:25%;width:32px;height:32px;background:#ffb700;border-radius:6px;"></div>' +
+        '<div style="position:absolute;left:78%;top:60%;width:18px;height:18px;background:#09f;border-radius:50%;"></div>' +
+        '<div style="position:absolute;left:40%;top:70%;width:24px;height:24px;background:#f0f;border-radius:3px;"></div>' +
+        '<div style="position:absolute;left:55%;top:10%;width:16px;height:16px;background:#fff;border-radius:50%;opacity:0.6;"></div>' +
+        '<div style="position:absolute;left:85%;top:40%;width:20px;height:20px;background:#0ff;border-radius:2px;"></div>' +
+        // 圆形/环形
+        '<div style="position:absolute;left:12%;top:72%;width:40px;height:40px;border:2px solid rgba(255,255,255,0.5);border-radius:50%;"></div>' +
+        '<div style="position:absolute;left:70%;top:12%;width:36px;height:36px;border:3px solid rgba(255,150,50,0.6);border-radius:50%;"></div>' +
+        // 文字
+        '<div style="position:absolute;left:8%;top:8%;font-size:11px;font-weight:700;color:rgba(255,255,255,0.8);font-family:Arial;">ABCDEFG</div>' +
+        '<div style="position:absolute;left:50%;top:42%;font-size:13px;font-weight:900;color:rgba(255,255,255,0.65);font-family:Georgia;letter-spacing:2px;">LIQUID</div>' +
+        '<div style="position:absolute;left:30%;top:78%;font-size:9px;font-weight:600;color:rgba(255,200,100,0.7);font-family:monospace;">0123456789</div>' +
+        '<div style="position:absolute;left:60%;top:82%;font-size:8px;color:rgba(255,255,255,0.5);font-family:Arial;">テスト文字</div>' +
+        '<div style="position:absolute;right:6%;bottom:12%;font-size:10px;font-weight:700;color:rgba(200,220,255,0.65);font-family:Impact;">GLASS</div>' +
+        '<div style="position:absolute;left:15%;top:38%;font-size:7px;color:rgba(255,255,255,0.4);font-family:serif;font-style:italic;">typography · 排版</div>' +
+        // 斜线/对角线
+        '<div style="position:absolute;left:0;top:0;width:100%;height:100%;background:repeating-linear-gradient(45deg,transparent,transparent 39px,rgba(255,255,255,0.06) 39px,rgba(255,255,255,0.06) 40px);"></div>' +
+        // 短线
+        '<div style="position:absolute;left:20%;top:20%;width:50px;height:2px;background:rgba(255,255,255,0.3);"></div>' +
+        '<div style="position:absolute;right:15%;top:50%;width:40px;height:2px;background:rgba(255,255,255,0.25);"></div>' +
+      '</div>';
+
+    // ══ 共享状态 (与主程序 lg-studio.js/lg-panels.js 参数一致) ══
+    let adW = 100, adH = 100, adR = 24, adDepth = 8, adRefraction = 80, adBlur = 3, adSaturate = 1.2;
+    let adShape = 'rect'; // 'rect' | 'circle' | 'capsule'
+    const isAdCircle = () => adShape === 'circle';
+    const isAdCapsule = () => adShape === 'capsule';
+
+    // SDF 位移图生成 — 与主程序完全一致
+    const genAdMap = () => {
+      if (adShape === 'circle') return makeCircleMap(adW, adH, adDepth);
+      if (adShape === 'capsule') { const rr = Math.floor(Math.min(adW, adH) / 2); return makeSDFMap(adW, adH, rr, { depth: adDepth }); }
+      return makeSDFMap(adW, adH, adR, { depth: adDepth });
+    };
+    let adMapCanvas = genAdMap();
+
+    // SVG 滤镜
+    const adSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    adSvg.classList.add('hidden-svg');
+    adSvg.id = 'ad-filter-svg';
+    document.body.appendChild(adSvg);
+
+    const rebuildAdFilter = () => {
+      const mapURL = adMapCanvas.toDataURL();
+      const m = Math.max(100, Math.ceil(adRefraction * 2));
+      adSvg.innerHTML = `<defs><filter id="f-ad-refract" color-interpolation-filters="sRGB" x="-${m}%" y="-${m}%" width="${100+m*2}%" height="${100+m*2}%">` +
+        `<feImage x="0" y="0" width="${adW}" height="${adH}" href="${mapURL}" result="DMAP"/>` +
+        `<feGaussianBlur in="DMAP" stdDeviation="3" result="DMAP_SM"/>` +
+        `<feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="BG_BLUR"/>` +
+        `<feDisplacementMap in="BG_BLUR" in2="DMAP_SM" scale="${adRefraction}" xChannelSelector="R" yChannelSelector="G"/>` +
+      `</filter></defs>`;
+    };
+    rebuildAdFilter();
+
+    const makeLensBF = (av) =>
+      'blur(' + (adBlur/2).toFixed(1) + 'px) url(#f-ad-refract) blur(' + adBlur.toFixed(1) + 'px) brightness(' + av.brightness + ') saturate(' + adSaturate + ')';
+
+    // ══ 控件栏 ══
+    const card = document.createElement('div');
+    card.style.cssText = 'grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);';
+    card.innerHTML = '<h3 style="color:#c8a87c;margin-bottom:2px;">自适应玻璃 — 与主程序完全相同算法</h3>' +
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:6px;">SDF/genMap 100%同主程序 | 渐变方向(1-tx)/挖空cutR=max(0,r-depth) | 支持矩形/圆形/胶囊三种SDF</p>' +
+      '<div style="display:flex;gap:4px;margin-bottom:6px;" id="ad-shape-btns">' +
+        '<button data-shape="rect" class="on" style="font-size:0.6rem;padding:2px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:4px;cursor:pointer;">矩形</button>' +
+        '<button data-shape="circle" style="font-size:0.6rem;padding:2px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:4px;cursor:pointer;">圆形SDF</button>' +
+        '<button data-shape="capsule" style="font-size:0.6rem;padding:2px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:4px;cursor:pointer;">胶囊</button>' +
+      '</div>' +
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:10px;">W3C亮度采样 → 4档自动映射 | 可调透镜形状/折射/深度/模糊 | 底层4种背景亮度对比</p>' +
+      '<div id="ad-controls" style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:10px;font-size:0.65rem;color:#888;">' +
+        makeAdSlider('W', 40, 300, adW, 1) +
+        makeAdSlider('H', 40, 300, adH, 1) +
+        makeAdSlider('R', 0, 150, adR, 1) +
+        makeAdSlider('深度', 1, 40, adDepth, 1) +
+        makeAdSlider('折射', 20, 250, adRefraction, 1) +
+        makeAdSlider('模糊', 0, 10, adBlur, 0.5) +
+        makeAdSlider('饱和', 0.5, 2.5, adSaturate, 0.05) +
+      '</div>' +
+      '<div id="ad-lum-test" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:0.65rem;color:#888;justify-content:center;">' +
+        '<span>手动亮度:</span><input type="range" id="ad-lum-slider" min="1" max="100" value="50" style="width:180px;">' +
+        '<b style="color:#c8a87c;" id="ad-lum-val">0.50</b>' +
+        '<span style="margin-left:12px;">blur:</span><b style="color:#c8a87c;" id="ad-lum-blur">-</b>' +
+        '<span>bg:</span><b style="color:#c8a87c;" id="ad-lum-bga">-</b>' +
+        '<span>文字:</span><span id="ad-lum-tc" style="display:inline-block;width:20px;height:12px;border-radius:2px;border:1px solid rgba(255,255,255,0.2);vertical-align:middle;"></span>' +
+        '<span style="margin-left:12px;color:' + (applyAdaptive(0.5)).tc + ';text-shadow:' + (applyAdaptive(0.5)).tshadow + ';" id="ad-lum-text">Sample</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;" id="adaptive-cols"></div>';
+    grid.appendChild(card);
+    const cols = card.querySelector('#adaptive-cols');
+
+    // 辅助：生成滑块 HTML
+    function makeAdSlider(label, min, max, val, step) {
+      const s = Number(step || 1);
+      return '<span>' + label + '</span><input type="range" id="ad-ctl-' + label.toLowerCase() + '" min="' + min + '" max="' + max + '" value="' + val + '" step="' + s + '" style="width:80px;"><b style="color:#c8a87c;min-width:28px;display:inline-block;" id="ad-v-' + label.toLowerCase() + '">' + (s < 1 ? val.toFixed(2) : Math.round(val)) + '</b>';
+    }
+
+    // ══ 4列透镜 ══
+    const allLens = [];
+
+    bgSamples.forEach((bg, bi) => {
+      const av = applyAdaptive(bg.lum);
+      const bf = makeLensBF(av);
+      const col = document.createElement('div');
+      col.style.cssText = 'flex:1;min-width:200px;max-width:280px;display:flex;flex-direction:column;align-items:center;gap:4px;';
+      col.innerHTML =
+        '<div style="font-size:0.7rem;color:#888;">' + bg.name + ' <span style="color:#c8a87c">lum=' + bg.lum + '</span></div>' +
+        '<canvas id="ad-thumb-' + bi + '" width="' + adW + '" height="' + adH + '" style="width:36px;height:36px;border-radius:6px;border:1px solid rgba(255,255,255,0.12);image-rendering:pixelated;"></canvas>' +
+        '<div class="stage" id="ad-stage-' + bi + '" style="width:100%;height:160px;background:' + bg.css + ';border-radius:10px;overflow:hidden;position:relative;">' +
+          '<div style="position:absolute;inset:0;background:' + gridBg + ';opacity:0.9;"></div>' + richBgHTML +
+          '<div class="lens" id="ad-lens-' + bi + '" style="width:' + adW + 'px;height:' + adH + 'px;border-radius:' + adR + 'px;' +
+            'background:rgba(255,255,255,' + av.bgAlpha + ');border:1px solid rgba(255,255,255,0.25);' +
+            'box-shadow:0 6px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08);' +
+            'display:flex;align-items:center;justify-content:center;' +
+            '-webkit-backdrop-filter:' + bf + ';backdrop-filter:' + bf + ';transition:backdrop-filter 0.5s ease,background 0.5s ease,box-shadow 0.5s ease;">' +
+            '<div style="position:absolute;inset:0;border-radius:inherit;background:' + av.tintBg + ';mix-blend-mode:' + av.tintBlend + ';pointer-events:none;"></div>' +
+            '<span style="position:relative;z-index:1;color:' + av.tc + ';font-size:0.55rem;font-weight:500;text-shadow:' + av.tshadow + ';pointer-events:none;text-align:center;line-height:1.2;transition:color 0.5s ease,text-shadow 0.5s ease;">Liquid<br>Glass</span>' +
+          '</div>' +
+        '</div>' +
+        '<div style="font-size:0.6rem;color:#666;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px 4px;text-align:center;">' +
+          '<span>br <b style="color:#c8a87c">' + av.brightness.toFixed(2) + '</b></span>' +
+          '<span>bg <b style="color:#c8a87c">' + av.bgAlpha.toFixed(2) + '</b></span>' +
+          '<span style="background:' + av.tc + ';border-radius:2px;height:12px;margin-top:2px;" title="' + av.tc + '"></span>' +
+        '</div>';
+      cols.appendChild(col);
+
+      const lens = col.querySelector('.lens'), stage = col.querySelector('.stage');
+      allLens.push({ lens, stage, bi, col });
+      const thumb = col.querySelector('canvas');
+      thumb.getContext('2d').drawImage(adMapCanvas, 0, 0);
+
+      let dragging = false, sx, sy, ol, ot, dragged = false;
+      lens.addEventListener('pointerdown', e => {
+        dragging = true; lens.setPointerCapture(e.pointerId);
+        sx = e.clientX; sy = e.clientY;
+        if (!dragged) { const lr = lens.getBoundingClientRect(), sr = stage.getBoundingClientRect(); ol = lr.left - sr.left; ot = lr.top - sr.top; lens.style.left = ol + 'px'; lens.style.top = ot + 'px'; lens.style.transform = 'none'; dragged = true; }
+        else { ol = parseFloat(lens.style.left)||0; ot = parseFloat(lens.style.top)||0; }
+      });
+      lens.addEventListener('pointermove', e => { if (!dragging) return; lens.style.left = (ol + e.clientX - sx) + 'px'; lens.style.top = (ot + e.clientY - sy) + 'px'; });
+      lens.addEventListener('pointerup', () => { dragging = false; });
+    });
+
+    // ══ 更新所有透镜 ══
+    let dynLensRef = null, dynTextRef = null, dynStageRef = null;
+
+    let refreshAllLens = () => {
+      adMapCanvas = genAdMap();
+      rebuildAdFilter();
+      const displayR = adShape === 'circle' ? Math.floor(Math.min(adW, adH) / 2) : adShape === 'capsule' ? Math.floor(Math.min(adW, adH) / 2) : adR;
+      allLens.forEach(({ lens, stage, bi }) => {
+        const av = applyAdaptive(bgSamples[bi].lum);
+        const bf = makeLensBF(av);
+        lens.style.width = adW + 'px'; lens.style.height = adH + 'px';
+        lens.style.borderRadius = displayR + 'px';
+        lens.style.background = 'rgba(255,255,255,' + av.bgAlpha + ')';
+        lens.style.backdropFilter = bf; lens.style.WebkitBackdropFilter = bf;
+        lens.style.left = '50%'; lens.style.top = '50%';
+        lens.style.transform = 'translate(-50%,-50%)';
+        lens.querySelector('span').style.color = av.tc;
+        lens.querySelector('span').style.textShadow = av.tshadow;
+        const tintDiv = lens.querySelector('div:first-child');
+        if (tintDiv && av.tintBg) { tintDiv.style.background = av.tintBg; tintDiv.style.mixBlendMode = av.tintBlend; }
+        const thumb = lens.parentElement.parentElement.querySelector('canvas');
+        if (thumb) { const ctx2 = thumb.getContext('2d'); ctx2.clearRect(0,0,thumb.width,thumb.height); thumb.width = adW; thumb.height = adH; ctx2.drawImage(adMapCanvas,0,0); }
+        const rows = lens.parentElement.parentElement.querySelectorAll('b');
+        if (rows.length >= 2) { rows[0].textContent = av.brightness.toFixed(2); rows[1].textContent = av.bgAlpha.toFixed(2); }
+        const swatch = lens.parentElement.parentElement.querySelector('[title]');
+        if (swatch) { swatch.style.background = av.tc; swatch.title = av.tc; }
+      });
+      // 同步更新动态块透镜
+      if (dynLensRef) {
+        dynLensRef.style.width = adW + 'px'; dynLensRef.style.height = adH + 'px';
+        dynLensRef.style.borderRadius = displayR + 'px';
+        dynLensRef.style.left = '50%'; dynLensRef.style.top = '50%';
+        dynLensRef.style.transform = 'translate(-50%,-50%)';
+        if (dynStageRef) {
+          const lum = parseFloat(document.getElementById('ad-dyn-lum').value) / 100;
+          dynTarget.bgGray = lum * 255;
+          dynTarget.lum = lum;
+          if (!dynAnimId) dynAnimId = requestAnimationFrame(dynTick);
+        }
+      }
+    };
+
+    // ══ 形状按钮 + 控件事件 ══
+    card.querySelectorAll('#ad-shape-btns button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        card.querySelectorAll('#ad-shape-btns button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        adShape = btn.dataset.shape;
+        if (adShape === 'circle') { adR = Math.floor(Math.min(adW, adH) / 2); }
+        if (adShape === 'capsule') { adR = Math.floor(Math.min(adW, adH) / 2); }
+        document.getElementById('ad-ctl-r').value = adR;
+        document.getElementById('ad-v-r').textContent = Math.round(adR);
+        refreshAllLens();
+      });
+    });
+
+    // ══ 控件事件 ══
+    const bindAdSlider = (id, prop, fmt) => {
+      const sl = document.getElementById('ad-ctl-' + id);
+      const vl = document.getElementById('ad-v-' + id);
+      if (!sl || !vl) return;
+      sl.addEventListener('input', () => {
+        const v = parseFloat(sl.value);
+        if (prop === 'adW') adW = v;
+        else if (prop === 'adH') adH = v;
+        else if (prop === 'adR') adR = v;
+        else if (prop === 'adDepth') adDepth = v;
+        else if (prop === 'adRefraction') adRefraction = v;
+        else if (prop === 'adBlur') adBlur = v;
+        else if (prop === 'adSaturate') adSaturate = v;
+        vl.textContent = fmt(v);
+        refreshAllLens();
+      });
+    };
+    bindAdSlider('w', 'adW', v => Math.round(v));
+    bindAdSlider('h', 'adH', v => Math.round(v));
+    bindAdSlider('r', 'adR', v => Math.round(v));
+    bindAdSlider('深度', 'adDepth', v => Math.round(v));
+    bindAdSlider('折射', 'adRefraction', v => Math.round(v));
+    bindAdSlider('模糊', 'adBlur', v => v.toFixed(1));
+    bindAdSlider('饱和', 'adSaturate', v => v.toFixed(2));
+
+    // 手动亮度滑块
+    document.getElementById('ad-lum-slider').addEventListener('input', () => {
+      const lum = parseFloat(document.getElementById('ad-lum-slider').value) / 100;
+      document.getElementById('ad-lum-val').textContent = lum.toFixed(2);
+      const av = applyAdaptive(lum);
+      document.getElementById('ad-lum-blur').textContent = av.brightness.toFixed(2);
+      document.getElementById('ad-lum-bga').textContent = av.bgAlpha.toFixed(2);
+      document.getElementById('ad-lum-tc').style.background = av.tc;
+      const txt = document.getElementById('ad-lum-text');
+      txt.style.color = av.tc; txt.style.textShadow = av.tshadow;
+    });
+    // 初始化手动亮度行
+    (() => {
+      const av = applyAdaptive(0.5);
+      document.getElementById('ad-lum-blur').textContent = av.brightness.toFixed(2);
+      document.getElementById('ad-lum-bga').textContent = av.bgAlpha.toFixed(2);
+      document.getElementById('ad-lum-tc').style.background = av.tc;
+      const txt = document.getElementById('ad-lum-text');
+      txt.style.color = av.tc; txt.style.textShadow = av.tshadow;
+    })();
+
+    // ══ 动态背景亮度测试 ══
+    const dynCard = document.createElement('div');
+    dynCard.style.cssText = 'grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-top:12px;';
+    dynCard.innerHTML = '<h3 style="color:#c8a87c;margin-bottom:4px;">动态背景亮度 — 滑块驱动背景 + 自适应玻璃实时响应</h3>' +
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:8px;">拖动滑块改变背景亮度(0→1)，玻璃brightness/bgAlpha/文字色自动跟随adaptive-glass.js的四档映射</p>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;justify-content:center;font-size:0.65rem;color:#888;flex-wrap:wrap;">' +
+        '<span>背景亮度:</span><input type="range" id="ad-dyn-lum" min="0" max="100" value="50" style="width:240px;">' +
+        '<b style="color:#c8a87c;min-width:32px;" id="ad-dyn-lum-val">0.50</b>' +
+        '<span>档位:</span><b style="color:#c8a87c;" id="ad-dyn-tier">暗色</b>' +
+        '<span>br:</span><b style="color:#c8a87c;" id="ad-dyn-br">0.85</b>' +
+        '<span>bg:</span><b style="color:#c8a87c;" id="ad-dyn-bg">0.08</b>' +
+        '<span>文字:</span><span id="ad-dyn-tc" style="display:inline-block;width:20px;height:12px;border-radius:2px;border:1px solid rgba(255,255,255,0.2);vertical-align:middle;"></span>' +
+      '</div>' +
+      '<div class="stage" id="ad-dyn-stage" style="width:100%;max-width:500px;height:220px;margin:0 auto;border-radius:12px;overflow:hidden;position:relative;background:#888;">' +
+        '<div style="position:absolute;inset:0;background:' + gridBg + ';opacity:0.9;" id="ad-dyn-bg-layer"></div>' + richBgHTML +
+        '<div class="lens" id="ad-dyn-lens" style="width:' + adW + 'px;height:' + adH + 'px;border-radius:' + adR + 'px;' +
+          'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);' +
+          'box-shadow:0 6px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08);' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'backdrop-filter:brightness(0.85) blur(1.5px) url(#f-ad-refract) blur(3px) saturate(1.2);transition:backdrop-filter 0.5s ease,background 0.5s ease,box-shadow 0.5s ease;">' +
+          '<div id="ad-dyn-tint" style="position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.18);mix-blend-mode:overlay;pointer-events:none;"></div>' +
+          '<span style="position:relative;z-index:1;color:#fff;font-size:0.55rem;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,0.22);pointer-events:none;text-align:center;line-height:1.2;transition:color 0.5s ease,text-shadow 0.5s ease;" id="ad-dyn-text">Dynamic<br>Glass</span>' +
+        '</div>' +
+      '</div>';
+    grid.appendChild(dynCard);
+
+    const tierNames = ['极暗', '暗色', '亮色', '极亮'];
+    const dynStage = dynCard.querySelector('#ad-dyn-stage');
+    const dynLens = dynCard.querySelector('#ad-dyn-lens');
+    const dynText = dynCard.querySelector('#ad-dyn-text');
+    dynLensRef = dynLens; dynTextRef = dynText; dynStageRef = dynStage;
+
+    // JS 插值状态（backdrop-filter 不支持 CSS transition，用 JS lerp）
+    let dynCur = { lum: 0.5, brightness: 0.85, bgAlpha: 0.08, bgGray: 128, tcR: 255, tcG: 255, tcB: 255, tsA: 0.22 };
+    let dynTarget = { ...dynCur };
+    let dynAnimId = 0;
+    const dynLerp = (a, b, t) => a + (b - a) * t;
+
+    const dynTick = () => {
+      const t = 0.12; // 每帧12%逼近
+      dynCur.lum = dynLerp(dynCur.lum, dynTarget.lum, t);
+      dynCur.brightness = dynLerp(dynCur.brightness, dynTarget.brightness, t);
+      dynCur.bgAlpha = dynLerp(dynCur.bgAlpha, dynTarget.bgAlpha, t);
+      dynCur.bgGray = dynLerp(dynCur.bgGray, dynTarget.bgGray, t);
+      dynCur.tcR = dynLerp(dynCur.tcR, dynTarget.tcR, t);
+      dynCur.tcG = dynLerp(dynCur.tcG, dynTarget.tcG, t);
+      dynCur.tcB = dynLerp(dynCur.tcB, dynTarget.tcB, t);
+      dynCur.tsA = dynLerp(dynCur.tsA, dynTarget.tsA, t);
+
+      const bg = Math.round(dynCur.bgGray);
+      dynStage.style.background = 'rgb(' + bg + ',' + bg + ',' + bg + ')';
+      const bf = 'blur(' + (adBlur/2).toFixed(1) + 'px) url(#f-ad-refract) blur(' + adBlur.toFixed(1) + 'px) brightness(' + dynCur.brightness.toFixed(3) + ') saturate(' + adSaturate + ')';
+      dynLens.style.backdropFilter = bf;
+      dynLens.style.WebkitBackdropFilter = bf;
+      dynLens.style.background = 'rgba(255,255,255,' + dynCur.bgAlpha.toFixed(3) + ')';
+      const r = Math.round(dynCur.tcR), g = Math.round(dynCur.tcG), b2 = Math.round(dynCur.tcB);
+      dynText.style.color = 'rgb(' + r + ',' + g + ',' + b2 + ')';
+      dynText.style.textShadow = '0 1px 3px rgba(0,0,0,' + dynCur.tsA.toFixed(3) + ')';
+      const avNow = applyAdaptive(dynCur.lum);
+      const tintEl = document.getElementById('ad-dyn-tint');
+      if (tintEl) { tintEl.style.background = avNow.tintBg; tintEl.style.mixBlendMode = avNow.tintBlend; }
+      document.getElementById('ad-dyn-tc').style.background = 'rgb(' + r + ',' + g + ',' + b2 + ')';
+      document.getElementById('ad-dyn-br').textContent = dynCur.brightness.toFixed(2);
+      document.getElementById('ad-dyn-bg').textContent = dynCur.bgAlpha.toFixed(2);
+
+      if (Math.abs(dynTarget.lum - dynCur.lum) > 0.001) { dynAnimId = requestAnimationFrame(dynTick); }
+      else { dynAnimId = 0; }
+    };
+
+    const setDynTarget = (lum) => {
+      const av = applyAdaptive(lum);
+      dynTarget.lum = lum;
+      dynTarget.bgGray = lum * 255;
+      dynTarget.brightness = av.brightness;
+      dynTarget.bgAlpha = av.bgAlpha;
+      let _m = av.tc.match(/#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+      if (!_m) { const _s = av.tc.match(/#([0-9a-f])([0-9a-f])([0-9a-f])/i); _m = _s ? ['', _s[1]+_s[1], _s[2]+_s[2], _s[3]+_s[3]] : ['','ff','ff','ff']; }
+      const m = _m;
+      dynTarget.tcR = parseInt(m[1], 16);
+      dynTarget.tcG = parseInt(m[2], 16);
+      dynTarget.tcB = parseInt(m[3], 16);
+      dynTarget.tsA = av.tshadow.includes('0.22') ? 0.22 : av.tshadow.includes('0.12') ? 0.12 : 0.18;
+
+      document.getElementById('ad-dyn-lum-val').textContent = lum.toFixed(2);
+      document.getElementById('ad-dyn-tier').textContent = tierNames[lum < 0.25 ? 0 : lum < 0.5 ? 1 : lum < 0.75 ? 2 : 3];
+      if (lum < 0.25) dynText.textContent = '极暗\n夜景';
+      else if (lum < 0.5) dynText.textContent = '暗色\n照片';
+      else if (lum < 0.75) dynText.textContent = '亮色\n照片';
+      else dynText.textContent = '极亮\n雪景';
+
+      if (!dynAnimId) dynAnimId = requestAnimationFrame(dynTick);
+    };
+
+    document.getElementById('ad-dyn-lum').addEventListener('input', () => {
+      setDynTarget(parseFloat(document.getElementById('ad-dyn-lum').value) / 100);
+    });
+    setDynTarget(0.5);
+    // 首次立即渲染到位，不等动画
+    const initAv = applyAdaptive(0.5);
+    dynCur = { lum:0.5, brightness:initAv.brightness, bgAlpha:initAv.bgAlpha, bgGray:128, tcR:255, tcG:255, tcB:255, tsA:0.22 };
+    dynStage.style.background = 'rgb(128,128,128)';
+    dynLens.style.backdropFilter = 'blur(1.5px) url(#f-ad-refract) blur(3px) brightness(0.85) saturate(1.2)';
+    dynLens.style.WebkitBackdropFilter = dynLens.style.backdropFilter;
+
+    let dynDragging = false, dynSX, dynSY, dynOL, dynOT, dynDragged = false;
+    dynLens.addEventListener('pointerdown', e => {
+      dynDragging = true; dynLens.setPointerCapture(e.pointerId);
+      dynSX = e.clientX; dynSY = e.clientY;
+      if (!dynDragged) { const lr = dynLens.getBoundingClientRect(), sr = dynStage.getBoundingClientRect(); dynOL = lr.left - sr.left; dynOT = lr.top - sr.top; dynLens.style.left = dynOL + 'px'; dynLens.style.top = dynOT + 'px'; dynLens.style.transform = 'none'; dynDragged = true; }
+      else { dynOL = parseFloat(dynLens.style.left)||0; dynOT = parseFloat(dynLens.style.top)||0; }
+    });
+    dynLens.addEventListener('pointermove', e => { if (!dynDragging) return; dynLens.style.left = (dynOL + e.clientX - dynSX) + 'px'; dynLens.style.top = (dynOT + e.clientY - dynSY) + 'px'; });
+    dynLens.addEventListener('pointerup', () => { dynDragging = false; });
+
+    // ══ 区域亮度感知测试: 拖透镜到不同区域自动变色 ══
+    const trackCard = document.createElement('div');
+    trackCard.style.cssText = 'grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-top:12px;';
+    const trackBgGradient = 'linear-gradient(to right,#000 0%,#222 20%,#555 40%,#999 55%,#ccc 70%,#eee 85%,#fff 100%)';
+    trackCard.innerHTML = '<h3 style="color:#c8a87c;margin-bottom:4px;">亮度感知(tracksLuma) — 拖动透镜到不同亮度区域，玻璃自动变色</h3>' +
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:6px;">背景从左(黑)到右(白)渐变。拖动透镜实时采样位置背后的颜色→计算亮度→applyAdaptive()。模拟Apple的tracksLuma行为。</p>' +
+      '<div style="font-size:0.6rem;color:#888;margin-bottom:4px;text-align:center;">采样色: <span id="ad-track-color" style="display:inline-block;width:16px;height:12px;border-radius:2px;vertical-align:middle;border:1px solid rgba(255,255,255,0.2);background:#888;"></span> | 亮度: <b style="color:#c8a87c;" id="ad-track-lum">-</b> | 档位: <b style="color:#c8a87c;" id="ad-track-tier">-</b> | br: <b style="color:#c8a87c;" id="ad-track-br">-</b> | bg: <b style="color:#c8a87c;" id="ad-track-bg">-</b> | tint: <b style="color:#c8a87c;" id="ad-track-tint">-</b></div>' +
+      '<div class="stage" id="ad-track-stage" style="width:100%;max-width:600px;height:200px;margin:0 auto;border-radius:12px;overflow:hidden;background:' + trackBgGradient + ';">' +
+        '<div style="position:absolute;inset:0;background:' + gridBg + ';opacity:0.5;"></div>' + richBgHTML +
+        '<div class="lens" id="ad-track-lens" style="cursor:grab;width:' + adW + 'px;height:' + adH + 'px;border-radius:' + adR + 'px;' +
+          'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.25);' +
+          'box-shadow:0 6px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08);' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'backdrop-filter:brightness(1.0) blur(1.5px) url(#f-ad-refract) blur(3px) saturate(1.2);transition:backdrop-filter 0.3s ease,background 0.3s ease;">' +
+          '<div id="ad-track-tint-div" style="position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.2);mix-blend-mode:overlay;pointer-events:none;"></div>' +
+          '<span style="position:relative;z-index:1;color:#fff;font-size:0.55rem;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,0.25);pointer-events:none;text-align:center;line-height:1.2;" id="ad-track-text">拖动<br>测试</span>' +
+        '</div>' +
+      '</div>';
+    grid.appendChild(trackCard);
+
+    const trackStage = trackCard.querySelector('#ad-track-stage');
+    const trackLens = trackCard.querySelector('#ad-track-lens');
+    const trackTint = trackCard.querySelector('#ad-track-tint-div');
+    const trackText = trackCard.querySelector('#ad-track-text');
+
+    // JS 插值动画（backdrop-filter 不支持 CSS transition）
+    let trackCur = { lum:0.5, brightness:1.0, bgAlpha:0.06, tOpacity:0.25, tGray:128, tcR:255, tcG:255, tcB:255, tsA:0.25 };
+    let trackTarget = { ...trackCur };
+    let trackAnimId = 0;
+    const trackLerp = (a,b,t) => a + (b - a) * t;
+
+    const trackTick = () => {
+      const _t = 0.15;
+      trackCur.lum = trackLerp(trackCur.lum, trackTarget.lum, _t);
+      trackCur.brightness = trackLerp(trackCur.brightness, trackTarget.brightness, _t);
+      trackCur.bgAlpha = trackLerp(trackCur.bgAlpha, trackTarget.bgAlpha, _t);
+      trackCur.tOpacity = trackLerp(trackCur.tOpacity, trackTarget.tOpacity, _t);
+      trackCur.tGray = trackLerp(trackCur.tGray, trackTarget.tGray, _t);
+      trackCur.tcR = trackLerp(trackCur.tcR, trackTarget.tcR, _t);
+      trackCur.tcG = trackLerp(trackCur.tcG, trackTarget.tcG, _t);
+      trackCur.tcB = trackLerp(trackCur.tcB, trackTarget.tcB, _t);
+      trackCur.tsA = trackLerp(trackCur.tsA, trackTarget.tsA, _t);
+
+      const bf = 'blur(' + (adBlur/2).toFixed(1) + 'px) url(#f-ad-refract) blur(' + adBlur.toFixed(1) + 'px) brightness(' + trackCur.brightness.toFixed(3) + ') saturate(' + adSaturate + ')';
+      trackLens.style.backdropFilter = bf;
+      trackLens.style.WebkitBackdropFilter = bf;
+      trackLens.style.background = 'rgba(255,255,255,' + trackCur.bgAlpha.toFixed(3) + ')';
+      trackTint.style.background = 'rgba(255,255,255,' + trackCur.tOpacity.toFixed(3) + ')';
+      const gr = Math.round(trackCur.tGray);
+      document.getElementById('ad-track-color').style.background = 'rgb(' + gr + ',' + gr + ',' + gr + ')';
+      document.getElementById('ad-track-lum').textContent = trackCur.lum.toFixed(3);
+      document.getElementById('ad-track-tier').textContent = ['极暗','暗色','亮色','极亮'][trackCur.lum < 0.25 ? 0 : trackCur.lum < 0.5 ? 1 : trackCur.lum < 0.75 ? 2 : 3];
+      document.getElementById('ad-track-br').textContent = trackCur.brightness.toFixed(2);
+      document.getElementById('ad-track-bg').textContent = trackCur.bgAlpha.toFixed(2);
+      document.getElementById('ad-track-tint').textContent = trackCur.tOpacity.toFixed(3);
+      // 文字颜色插值 → 平滑过渡
+      const r = Math.round(trackCur.tcR), g = Math.round(trackCur.tcG), b2 = Math.round(trackCur.tcB);
+      trackText.style.color = 'rgb(' + r + ',' + g + ',' + b2 + ')';
+      trackText.style.textShadow = '0 1px 3px rgba(0,0,0,' + trackCur.tsA.toFixed(3) + ')';
+      const lum2 = trackCur.lum;
+      if (lum2 < 0.25) trackText.innerHTML = '极暗<br>夜景';
+      else if (lum2 < 0.5) trackText.innerHTML = '暗色<br>照片';
+      else if (lum2 < 0.75) trackText.innerHTML = '亮色<br>照片';
+      else trackText.innerHTML = '极亮<br>雪景';
+
+      if (Math.abs(trackTarget.lum - trackCur.lum) > 0.001) { trackAnimId = requestAnimationFrame(trackTick); }
+      else { trackAnimId = 0; }
+    };
+
+    const setTrackTarget = () => {
+      const lr = trackLens.getBoundingClientRect(), sr = trackStage.getBoundingClientRect();
+      const relX = Math.max(0, Math.min(1, (lr.left + lr.width/2 - sr.left) / sr.width));
+      const lum = relX * 0.9 + 0.05;
+      const av = applyAdaptive(lum);
+      trackTarget.lum = lum;
+      trackTarget.brightness = av.brightness;
+      trackTarget.bgAlpha = av.bgAlpha;
+      const _mm = av.tintBg.match(/[\d.]+/g);
+      trackTarget.tOpacity = _mm ? parseFloat(_mm[_mm.length-1]) : 0.2;
+      trackTarget.tGray = lum * 255;
+      // 文字颜色插值目标
+      let _hm = av.tc.match(/#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+      if (!_hm) { const _hs = av.tc.match(/#([0-9a-f])([0-9a-f])([0-9a-f])/i); _hm = _hs ? ['', _hs[1]+_hs[1], _hs[2]+_hs[2], _hs[3]+_hs[3]] : ['','ff','ff','ff']; }
+      trackTarget.tcR = parseInt(_hm[1], 16); trackTarget.tcG = parseInt(_hm[2], 16); trackTarget.tcB = parseInt(_hm[3], 16);
+      trackTarget.tsA = av.tc === '#fff' ? 0.25 : 0.1;
+      if (!trackAnimId) trackAnimId = requestAnimationFrame(trackTick);
+    };
+
+    let tDragging = false, tSX, tSY, tOL, tOT, tDragged = false;
+    trackLens.addEventListener('pointerdown', e => {
+      tDragging = true; trackLens.setPointerCapture(e.pointerId); trackLens.style.cursor = 'grabbing';
+      tSX = e.clientX; tSY = e.clientY;
+      if (!tDragged) { const lr = trackLens.getBoundingClientRect(), sr = trackStage.getBoundingClientRect(); tOL = lr.left - sr.left; tOT = lr.top - sr.top; trackLens.style.left = tOL + 'px'; trackLens.style.top = tOT + 'px'; trackLens.style.transform = 'none'; tDragged = true; }
+      else { tOL = parseFloat(trackLens.style.left)||0; tOT = parseFloat(trackLens.style.top)||0; }
+      setTrackTarget();
+    });
+    trackLens.addEventListener('pointermove', e => {
+      if (!tDragging) return;
+      trackLens.style.left = (tOL + e.clientX - tSX) + 'px';
+      trackLens.style.top = (tOT + e.clientY - tSY) + 'px';
+      setTrackTarget();
+    });
+    trackLens.addEventListener('pointerup', () => { tDragging = false; trackLens.style.cursor = 'grab'; });
+    // 初始位置在中间
+    trackLens.style.left = '50%'; trackLens.style.top = '50%'; trackLens.style.transform = 'translate(-50%,-50%)';
+    setTrackTarget();
+
+    // ══ 两极对比: 单渐变背景+单透镜 ══
+    const extCard = document.createElement('div');
+    extCard.style.cssText = 'grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-top:12px;';
+    // 独立控件参数
+    let eW = adW, eH = adH, eR = adR, eDepth = adDepth, eRefraction = adRefraction, eBlur = adBlur, eSaturate = adSaturate, eShape = adShape;
+    const eGenMap = () => {
+      if (eShape === 'circle') return makeCircleMap(eW, eH, eDepth);
+      if (eShape === 'capsule') { const rr = Math.floor(Math.min(eW, eH) / 2); return makeSDFMap(eW, eH, rr, { depth: eDepth }); }
+      return makeSDFMap(eW, eH, eR, { depth: eDepth });
+    };
+    let eMapCanvas = eGenMap();
+    const eSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    eSvg.classList.add('hidden-svg'); eSvg.id = 'ext-filter-svg';
+    document.body.appendChild(eSvg);
+    const eRebuildFilter = () => {
+      const url = eMapCanvas.toDataURL();
+      const m = Math.max(100, Math.ceil(eRefraction * 2));
+      eSvg.innerHTML = `<defs><filter id="f-ext-refract" color-interpolation-filters="sRGB" x="-${m}%" y="-${m}%" width="${100+m*2}%" height="${100+m*2}%">` +
+        `<feImage x="0" y="0" width="${eW}" height="${eH}" href="${url}" result="DMAP"/>` +
+        `<feGaussianBlur in="DMAP" stdDeviation="3" result="DMAP_SM"/>` +
+        `<feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="BG_BLUR"/>` +
+        `<feDisplacementMap in="BG_BLUR" in2="DMAP_SM" scale="${eRefraction}" xChannelSelector="R" yChannelSelector="G"/>` +
+      `</filter></defs>`;
+    };
+    eRebuildFilter();
+    const eMakeLensBF = () => 'blur(' + (eBlur/2).toFixed(1) + 'px) url(#f-ext-refract) blur(' + eBlur.toFixed(1) + 'px) brightness(%BR%) saturate(' + eSaturate + ')';
+    const eRefresh = () => {
+      eMapCanvas = eGenMap(); eRebuildFilter();
+      const dR = eShape==='circle'?Math.floor(Math.min(eW,eH)/2):eShape==='capsule'?Math.floor(Math.min(eW,eH)/2):eR;
+      extLens.style.width = eW+'px'; extLens.style.height = eH+'px'; extLens.style.borderRadius = dR+'px';
+      setExtTarget();
+    };
+    const eSliderHTML = (l, mn, mx, v, s, id, fmt) =>
+      '<span style="min-width:28px;font-size:0.55rem;">'+l+'</span><input type="range" id="ext-'+id+'" min="'+mn+'" max="'+mx+'" value="'+v+'" step="'+s+'" style="width:55px;"><b style="color:#c8a87c;min-width:24px;font-size:0.55rem;" id="ext-v-'+id+'">'+(fmt?fmt(v):(s<1?v.toFixed(2):Math.round(v)))+'</b>';
+    const extLumRange = [0.02, 0.98];
+    const extGradBG = 'linear-gradient(to right,#000 0%,#111 15%,#333 30%,#555 45%,#999 60%,#ccc 75%,#eee 88%,#fff 100%)';
+
+    extCard.innerHTML = '<h3 style="color:#c8a87c;margin-bottom:4px;">两极对比 — 独立控件 + 全亮度渐变</h3>' +
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:4px;">完全独立参数，不受顶部全局控件影响。拖透镜采样背景→applyAdaptive()→玻璃实时变色。</p>' +
+      '<div style="font-size:0.55rem;color:#666;margin-bottom:2px;">形状参数</div>' +
+      '<div id="ext-ctrls-shape" style="display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;margin-bottom:4px;font-size:0.55rem;color:#888;">' +
+        eSliderHTML('宽度',40,300,eW,1,'w') + eSliderHTML('高度',40,300,eH,1,'h') + eSliderHTML('圆角',0,150,eR,1,'r') +
+        '<button data-shape="rect" class="on" style="font-size:0.52rem;padding:1px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:3px;cursor:pointer;">矩形</button>' +
+        '<button data-shape="circle" style="font-size:0.52rem;padding:1px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:3px;cursor:pointer;">圆形</button>' +
+        '<button data-shape="capsule" style="font-size:0.52rem;padding:1px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:3px;cursor:pointer;">胶囊</button>' +
+      '</div>' +
+      '<div style="font-size:0.55rem;color:#666;margin-bottom:2px;">滤镜参数</div>' +
+      '<div id="ext-ctrls-filter" style="display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;margin-bottom:4px;font-size:0.55rem;color:#888;">' +
+        eSliderHTML('深度',1,40,eDepth,1,'d') + eSliderHTML('折射',20,250,eRefraction,1,'rf') +
+        eSliderHTML('模糊',0,10,eBlur,0.5,'b') + eSliderHTML('饱和',0.5,2.5,eSaturate,0.05,'s') +
+      '</div>' +
+      '<div style="font-size:0.55rem;color:#666;margin-bottom:2px;">自适应颜色 (四档)</div>' +
+      '<div id="ext-ctrls-adaptive" style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-bottom:4px;font-size:0.52rem;color:#888;">' +
+        adTiers.map((t,ti) => '<span style="color:#c8a87c;">' + t.name.split(' ')[0] + '</span>' +
+          eSliderHTML('亮度',0.3,1.5,t.brightness,0.01,'t'+ti+'br') +
+          eSliderHTML('底透',0,0.4,t.bgAlpha,0.005,'t'+ti+'bg') +
+          eSliderHTML('透明',0,0.6,t.tintOpacity,0.005,'t'+ti+'ti')
+        ).join('') +
+      '</div>' +
+      '<div style="font-size:0.6rem;color:#888;margin-bottom:4px;text-align:center;">亮度: <b style="color:#c8a87c;" id="ext-lum">-</b> | 档位: <b style="color:#c8a87c;" id="ext-tier">-</b> | 亮度值: <b style="color:#c8a87c;" id="ext-br">-</b> | 底透: <b style="color:#c8a87c;" id="ext-bg">-</b> | 透明: <b style="color:#c8a87c;" id="ext-tint">-</b></div>' +
+      '<div class="stage" id="ext-stage" style="width:100%;max-width:600px;height:200px;margin:0 auto;border-radius:12px;overflow:hidden;background:' + extGradBG + ';">' +
+        '<div style="position:absolute;inset:0;background:' + gridBg + ';opacity:0.5;"></div>' + richBgHTML +
+        '<div class="lens" id="ext-lens" style="cursor:grab;width:' + eW + 'px;height:' + eH + 'px;border-radius:' + eR + 'px;' +
+          'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.25);' +
+          'box-shadow:0 6px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08);' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'backdrop-filter:brightness(1.0) blur(1.5px) url(#f-ext-refract) blur(3px) saturate(1.2);">' +
+          '<div id="ext-tint" style="position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.2);mix-blend-mode:overlay;pointer-events:none;"></div>' +
+          '<span style="position:relative;z-index:1;color:#fff;font-size:0.55rem;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,0.25);pointer-events:none;text-align:center;line-height:1.2;" id="ext-text">拖动<br>测试</span>' +
+        '</div>' +
+      '</div>';
+    grid.appendChild(extCard);
+
+    const extStage = extCard.querySelector('#ext-stage');
+    const extLens = extCard.querySelector('#ext-lens');
+    const extTint = extCard.querySelector('#ext-tint');
+    const extText = extCard.querySelector('#ext-text');
+    const [lumMin, lumMax] = extLumRange;
+
+    // JS lerp 插值状态
+    let eCur = { lum:0.5, brightness:1.0, bgAlpha:0.06, tOpacity:0.25 };
+    let eTgt = { ...eCur };
+    let eAnimId = 0;
+    const eLerp = (a,b,t) => a + (b - a) * t;
+
+    const eTick = () => {
+      const _t = 0.15;
+      eCur.lum = eLerp(eCur.lum, eTgt.lum, _t);
+      eCur.brightness = eLerp(eCur.brightness, eTgt.brightness, _t);
+      eCur.bgAlpha = eLerp(eCur.bgAlpha, eTgt.bgAlpha, _t);
+      eCur.tOpacity = eLerp(eCur.tOpacity, eTgt.tOpacity, _t);
+      const bf = 'blur(' + (eBlur/2).toFixed(1) + 'px) url(#f-ext-refract) blur(' + eBlur.toFixed(1) + 'px) brightness(' + eCur.brightness.toFixed(3) + ') saturate(' + eSaturate + ')';
+      extLens.style.backdropFilter = bf; extLens.style.WebkitBackdropFilter = bf;
+      extLens.style.background = 'rgba(255,255,255,' + eCur.bgAlpha.toFixed(3) + ')';
+      extTint.style.background = 'rgba(255,255,255,' + eCur.tOpacity.toFixed(3) + ')';
+      const _av = applyAdaptive(eCur.lum);
+      extText.style.color = _av.tc; extText.style.textShadow = _av.tshadow;
+      document.getElementById('ext-lum').textContent = eCur.lum.toFixed(3);
+      document.getElementById('ext-tier').textContent = ['极暗','暗色','亮色','极亮'][eCur.lum < 0.25 ? 0 : eCur.lum < 0.5 ? 1 : eCur.lum < 0.75 ? 2 : 3];
+      document.getElementById('ext-br').textContent = eCur.brightness.toFixed(2);
+      document.getElementById('ext-bg').textContent = eCur.bgAlpha.toFixed(2);
+      document.getElementById('ext-tint').textContent = eCur.tOpacity.toFixed(3);
+      if (Math.abs(eTgt.lum - eCur.lum) > 0.001) { eAnimId = requestAnimationFrame(eTick); }
+      else { eAnimId = 0; }
+    };
+
+    const setExtTarget = () => {
+      const lr = extLens.getBoundingClientRect(), sr = extStage.getBoundingClientRect();
+      const relX = Math.max(0, Math.min(1, (lr.left + lr.width/2 - sr.left) / sr.width));
+      const lum = lumMin + relX * (lumMax - lumMin);
+      const av = applyAdaptive(lum);
+      eTgt.lum = lum; eTgt.brightness = av.brightness; eTgt.bgAlpha = av.bgAlpha;
+      eTgt.tOpacity = parseFloat((av.tintBg.match(/[\d.]+/g)||['0.2']).pop());
+      if (!eAnimId) eAnimId = requestAnimationFrame(eTick);
+    };
+
+    let eDragging = false, eSX, eSY, eOL, eOT, eDragged = false;
+    extLens.addEventListener('pointerdown', e => {
+      eDragging = true; extLens.setPointerCapture(e.pointerId); extLens.style.cursor = 'grabbing';
+      eSX = e.clientX; eSY = e.clientY;
+      if (!eDragged) { const lr = extLens.getBoundingClientRect(), sr = extStage.getBoundingClientRect(); eOL = lr.left - sr.left; eOT = lr.top - sr.top; extLens.style.left = eOL + 'px'; extLens.style.top = eOT + 'px'; extLens.style.transform = 'none'; eDragged = true; }
+      else { eOL = parseFloat(extLens.style.left)||0; eOT = parseFloat(extLens.style.top)||0; }
+      setExtTarget();
+    });
+    extLens.addEventListener('pointermove', e => {
+      if (!eDragging) return;
+      extLens.style.left = (eOL + e.clientX - eSX) + 'px';
+      extLens.style.top = (eOT + e.clientY - eSY) + 'px';
+      setExtTarget();
+    });
+    extLens.addEventListener('pointerup', () => { eDragging = false; extLens.style.cursor = 'grab'; });
+    extLens.style.left = '50%'; extLens.style.top = '50%'; extLens.style.transform = 'translate(-50%,-50%)';
+    setExtTarget();
+
+    // 独立控件事件绑定
+    const bindExtSlider = (id, setter, fmt) => {
+      const sl = extCard.querySelector('#ext-' + id);
+      const vl = extCard.querySelector('#ext-v-' + id);
+      if (!sl || !vl) return;
+      sl.addEventListener('input', () => { const v=parseFloat(sl.value); setter(v); vl.textContent=fmt?fmt(v):Math.round(v); eRefresh(); });
+    };
+    bindExtSlider('w', (v) => { eW=v; });
+    bindExtSlider('h', (v) => { eH=v; });
+    bindExtSlider('r', (v) => { eR=v; });
+    bindExtSlider('d', (v) => { eDepth=v; });
+    bindExtSlider('rf',(v) => { eRefraction=v; });
+    bindExtSlider('b', (v) => { eBlur=v; }, v=>v.toFixed(1));
+    bindExtSlider('s', (v) => { eSaturate=v; }, v=>v.toFixed(2));
+    // 自适应参数联动
+    adTiers.forEach((t,ti) => {
+      ['br','bg','ti'].forEach(key => {
+        const sl = extCard.querySelector('#ext-t'+ti+key);
+        const vl = extCard.querySelector('#ext-v-t'+ti+key);
+        if (!sl || !vl) return;
+        const prop = key==='br'?'brightness':key==='bg'?'bgAlpha':'tintOpacity';
+        sl.addEventListener('input', () => {
+          const v = parseFloat(sl.value);
+          t[prop] = v; vl.textContent = v.toFixed(prop==='bgAlpha'||prop==='tintOpacity'?3:2);
+          eRefresh(); refreshAllLens();
+          document.getElementById('ext-tier').textContent = ['极暗','暗色','亮色','极亮'][eCur.lum < 0.25 ? 0 : eCur.lum < 0.5 ? 1 : eCur.lum < 0.75 ? 2 : 3];
+        });
+      });
+    });
+    let ePrevR = eR;
+    extCard.querySelectorAll('#ext-ctrls-shape button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        extCard.querySelectorAll('#ext-ctrls-shape button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on'); eShape = btn.dataset.shape;
+        if (eShape === 'circle' || eShape === 'capsule') { ePrevR = eR; eR = Math.floor(Math.min(eW, eH) / 2); }
+        else { eR = ePrevR; }
+        extCard.querySelector('#ext-r').value = eR; extCard.querySelector('#ext-v-r').textContent = Math.round(eR);
+        eRefresh();
+      });
+    });
+    // ══ 逐档参数调节面板 ══
+    // ══ 逐档参数调节面板 ══
+    const tierCard = document.createElement('div');
+    tierCard.style.cssText = 'grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-top:12px;';
+    tierCard.innerHTML = '<h3 style="color:#c8a87c;margin-bottom:2px;">逐档参数调节 — 4档独立调试</h3>' +
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:8px;">每个亮度档位的 brightness / bgAlpha / tintOpacity 独立可调。改动立即刷新所有透镜。</p>' +
+      '<div id="ad-tier-controls" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;"></div>';
+    grid.appendChild(tierCard);
+    const tierCtrl = tierCard.querySelector('#ad-tier-controls');
+
+    const refreshFromTiers = () => {
+      // 重新构建 applyAdaptive 使用的数据已在 adTiers 中，直接刷新所有透镜
+      const lum = parseFloat(document.getElementById('ad-dyn-lum').value) / 100;
+      setDynTarget(lum);
+      refreshAllLens();
+      // 更新手动亮度行的显示
+      const av = applyAdaptive(parseFloat(document.getElementById('ad-lum-slider').value) / 100);
+      document.getElementById('ad-lum-blur').textContent = av.brightness.toFixed(2);
+      document.getElementById('ad-lum-bga').textContent = av.bgAlpha.toFixed(2);
+      document.getElementById('ad-lum-tc').style.background = av.tc;
+    };
+
+    adTiers.forEach((tier, ti) => {
+      const col = document.createElement('div');
+      col.style.cssText = 'flex:1;min-width:170px;max-width:240px;display:flex;flex-direction:column;gap:4px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.05);';
+      col.innerHTML = '<div style="font-size:0.7rem;color:#c8a87c;text-align:center;margin-bottom:2px;">' + tier.name + '</div>' +
+        makeTierSlider('br', 'brightness', tier.brightness, 0.3, 1.5, 0.01, ti) +
+        makeTierSlider('bg', 'bgAlpha', tier.bgAlpha, 0, 0.4, 0.005, ti) +
+        makeTierSlider('tint', 'tintOpacity', tier.tintOpacity, 0, 0.6, 0.005, ti);
+      tierCtrl.appendChild(col);
+    });
+
+    function makeTierSlider(label, prop, val, min, max, step, ti) {
+      const id = 'ad-tier-' + ti + '-' + label;
+      const fmt = step < 0.01 ? 3 : 2;
+      return '<div style="display:flex;align-items:center;gap:4px;font-size:0.58rem;color:#888;">' +
+        '<span style="min-width:24px;">' + label + '</span>' +
+        '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" value="' + val + '" step="' + step + '" style="flex:1;">' +
+        '<b style="color:#c8a87c;min-width:34px;text-align:right;font-size:0.58rem;" id="' + id + '-v">' + val.toFixed(fmt) + '</b>' +
+      '</div>';
+    }
+
+    // 绑定每个滑块
+    adTiers.forEach((tier, ti) => {
+      ['br','bg','tint'].forEach(key => {
+        const sl = document.getElementById('ad-tier-' + ti + '-' + key);
+        const vl = document.getElementById('ad-tier-' + ti + '-' + key + '-v');
+        if (!sl || !vl) return;
+        const prop = key === 'br' ? 'brightness' : key === 'bg' ? 'bgAlpha' : 'tintOpacity';
+        const fmt = prop === 'brightness' || prop === 'tintOpacity' ? 2 : 3;
+        sl.addEventListener('input', () => {
+          const v = parseFloat(sl.value);
+          tier[prop] = v;
+          vl.textContent = v.toFixed(fmt);
+          refreshFromTiers();
+        });
+      });
+    });
+
+    return;
+  }
+
+  // 生成位移图
+  let mapCanvas, mapURL;
+
+  if (tc.useSVGDisplacementMap) {
+    // CodeSandbox 原文: SVG位移图 (mix-blend-mode:screen + blur挖空)
+    const w = 100, h = 100, r = 24, depth = 10;
+    const gsy = Math.ceil((r/h)*15);
+    const gey = Math.floor(100-(r/h)*15);
+    const gsx = Math.ceil((r/w)*15);
+    const gex = Math.floor(100-(r/w)*15);
+    const svgSrc = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+<style>.mix{mix-blend-mode:screen}</style>
+<defs>
+  <linearGradient id="Y" x1="0" x2="0" y1="${gsy}%" y2="${gey}%">
+    <stop offset="0%" stop-color="#0F0"/><stop offset="100%" stop-color="#000"/>
+  </linearGradient>
+  <linearGradient id="X" x1="${gsx}%" x2="${gex}%" y1="0" y2="0">
+    <stop offset="0%" stop-color="#F00"/><stop offset="100%" stop-color="#000"/>
+  </linearGradient>
+</defs>
+<rect x="0" y="0" width="${w}" height="${h}" fill="#808080"/>
+<g filter="blur(2px)">
+  <rect x="0" y="0" width="${w}" height="${h}" fill="#000080"/>
+  <rect x="0" y="0" width="${w}" height="${h}" fill="url(#Y)" class="mix"/>
+  <rect x="0" y="0" width="${w}" height="${h}" fill="url(#X)" class="mix"/>
+  <rect x="${depth}" y="${depth}" width="${w-2*depth}" height="${h-2*depth}" fill="#808080" rx="${r}" ry="${r}" filter="blur(${depth}px)"/>
+</g>
+</svg>`;
+    mapURL = 'data:image/svg+xml,' + encodeURIComponent(svgSrc);
+    mapCanvas = null;
+  } else if (tc.useSVGGrad) {
+    mapCanvas = null;
+    const svgSrc = `<svg xmlns="http://www.w3.org/2000/svg" width="${MAP_SZ}" height="${MAP_SZ}">
+      <defs>
+        <linearGradient id="gx" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#008080"/><stop offset="50%" stop-color="#808080"/><stop offset="100%" stop-color="#FF8080"/>
+        </linearGradient>
+        <linearGradient id="gy" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#800080"/><stop offset="50%" stop-color="#808080"/><stop offset="100%" stop-color="#80FF80"/>
+        </linearGradient>
+      </defs>
+      <rect width="${MAP_SZ}" height="${MAP_SZ}" fill="url(#gx)"/>
+      <rect width="${MAP_SZ}" height="${MAP_SZ}" fill="url(#gy)" opacity="0.5"/>
+    </svg>`;
+    mapURL = 'data:image/svg+xml,' + encodeURIComponent(svgSrc);
+  } else if (tc.buildMap) {
+    mapCanvas = tc.buildMap();
+    mapURL = mapCanvas.toDataURL();
+  } else {
+    mapCanvas = null;
+    mapURL = null;
+  }
+
+  // 构建滤镜
+  let filterHTML;
+  if (tc.turbulenceOnly) {
+    // feTurbulence only (custom params)
+    filterHTML = `<filter id="f-${tc.id}" x="-30%" y="-30%" width="160%" height="160%"${tc.srgb?' color-interpolation-filters="sRGB"':''}>
+      <feTurbulence type="fractalNoise" baseFrequency="${tc.turbFreq||0.015}" numOctaves="2" seed="1" result="n"/>
+      <feGaussianBlur in="n" stdDeviation="${tc.turbBlur||3}" result="s"/>
+      <feDisplacementMap in="SourceGraphic" in2="s" scale="${tc.turbScale||100}" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>`;
+  } else if (tc.turbulence && !mapURL) {
+    // feTurbulence only (default)
+    filterHTML = `<filter id="f-${tc.id}" x="-30%" y="-30%" width="160%" height="160%"${tc.srgb?' color-interpolation-filters="sRGB"':''}>
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="1" result="n"/>
+      <feGaussianBlur in="n" stdDeviation="3" result="s"/>
+      <feDisplacementMap in="SourceGraphic" in2="s" scale="${tc.turbScale||100}" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>`;
+  } else if (tc.turbulence && mapURL) {
+    // Radial + turbulence blend
+    filterHTML = `<filter id="f-${tc.id}" x="-30%" y="-30%" width="160%" height="160%"${tc.srgb?' color-interpolation-filters="sRGB"':''}>
+      <feImage href="${mapURL}" result="dm" preserveAspectRatio="xMidYMid slice"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7" result="tb"/>
+      <feColorMatrix type="matrix" in="tb" result="tg" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0"/>
+      <feComposite in="tg" in2="dm" operator="arithmetic" k1="0" k2="${(tc.turbScale/100).toFixed(2)}" k3="${(1-tc.turbScale/100).toFixed(2)}" k4="0" result="cm"/>
+      <feDisplacementMap in="SourceGraphic" in2="cm" scale="100" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>`;
+  } else {
+    // feImage only
+    filterHTML = `<filter id="f-${tc.id}" x="-30%" y="-30%" width="160%" height="160%"${tc.srgb?' color-interpolation-filters="sRGB"':''}>
+      <feImage href="${mapURL}" result="dm" preserveAspectRatio="xMidYMid slice"/>
+      <feDisplacementMap in="SourceGraphic" in2="dm" scale="100" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>`;
+  }
+
+  // 创建隐藏 SVG
+  const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svgEl.classList.add('hidden-svg');
+  svgEl.setAttribute('aria-hidden', 'true');
+  svgEl.innerHTML = `<defs>${filterHTML}</defs>`;
+  document.body.appendChild(svgEl);
+
+  // 创建面板
+  const card = document.createElement('div'); card.className = 'box';
+  let thumbHTML;
+  if (mapCanvas) {
+    thumbHTML = `<div class="thumb-row"><canvas width="${MAP_SZ}" height="${MAP_SZ}"></canvas><span>实际位移图</span></div>`;
+  } else if (tc.useSVGDisplacementMap || tc.useSVGGrad) {
+    thumbHTML = `<div class="thumb-row"><img src="${mapURL}" width="48" height="48" style="border-radius:6px;border:1px solid rgba(255,255,255,0.1)"><span>SVG渐变位移图</span></div>`;
+  } else if (tc.turbulenceOnly || (tc.turbulence && !mapCanvas)) {
+    thumbHTML = `<div class="thumb-row"><span style="opacity:0.3">无位移图 (纯turbulence)</span></div>`;
+  } else {
+    thumbHTML = '';
+  }
+
+  card.innerHTML = `
+    <h3>${tc.title}</h3>
+    <p class="desc">${tc.desc}</p>
+    <div class="stage" id="stage-${tc.id}">
+      <div class="stage-bg"></div>
+      <div class="lens" id="lens-${tc.id}" style="${tc.debug ? `background: url(${mapURL}) center/100% 100%; border: 2px solid #c8a87c;` : ''}backdrop-filter: url(#f-${tc.id}) blur(3px) saturate(1.2)"></div>
+    </div>
+    <div class="btns">
+      <button data-size="wide">宽</button>
+      <button data-size="narrow" class="on">窄</button>
+    </div>
+    ${thumbHTML}
+  `;
+  grid.appendChild(card);
+
+  // 复制位移图缩略图
+  if (mapCanvas) {
+    const thumb = card.querySelector('canvas');
+    if (thumb) {
+      thumb.getContext('2d').drawImage(mapCanvas, 0, 0);
+    }
+  }
+
+  // ── 拖动 ──
+  const lens = card.querySelector('.lens');
+  const stage = card.querySelector('.stage');
+  let dragging = false, sx, sy, ol, ot, dragged = false;
+
+  lens.addEventListener('pointerdown', e => {
+    dragging = true; lens.setPointerCapture(e.pointerId);
+    sx = e.clientX; sy = e.clientY;
+    if (!dragged) {
+      const lr = lens.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+      ol = lr.left - sr.left; ot = lr.top - sr.top;
+      lens.style.left = ol + 'px'; lens.style.top = ot + 'px';
+      lens.style.transform = 'none';
+      dragged = true;
+    } else {
+      ol = parseFloat(lens.style.left)||0; ot = parseFloat(lens.style.top)||0;
+    }
+  });
+  lens.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    lens.style.left = (ol + e.clientX - sx) + 'px';
+    lens.style.top = (ot + e.clientY - sy) + 'px';
+  });
+  lens.addEventListener('pointerup', () => { dragging = false; });
+
+  // ── 尺寸切换 ──
+  card.querySelectorAll('[data-size]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      card.querySelectorAll('[data-size]').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      lens.classList.toggle('wide', btn.dataset.size === 'wide');
+      lens.style.left = '50%'; lens.style.top = '50%';
+      lens.style.transform = 'translate(-50%,-50%)';
+      dragged = false;
+    });
+  });
+});
+
+// ══ 全屏亮度扫描 ══
+let lumaScanOn = false, lumaScanId = 0;
+const lumaCanvas = document.getElementById('luma-overlay');
+const lumaBtn = document.getElementById('luma-overlay-toggle');
+const lumaCtx = lumaCanvas.getContext('2d');
+
+function rgbToLum(r,g,b) { return 0.2126*(r/255)+0.7152*(g/255)+0.0722*(b/255); }
+
+function lumToColor(lum) {
+  // 蓝(暗)→青→绿→黄→红(亮)
+  const t = Math.max(0,Math.min(1,lum));
+  let r,g,b;
+  if (t<0.25) { r=0; g=Math.round(t*4*255); b=255; }
+  else if (t<0.5) { r=0; g=255; b=Math.round((0.5-t)*4*255); }
+  else if (t<0.75) { r=Math.round((t-0.5)*4*255); g=255; b=0; }
+  else { r=255; g=Math.round((1-t)*4*255); b=0; }
+  return 'rgb('+r+','+g+','+b+')';
+}
+
+function scanLuma() {
+  if (!lumaScanOn) return;
+  const step = 30; // 每30px一个采样点
+  lumaCanvas.width = window.innerWidth;
+  lumaCanvas.height = window.innerHeight;
+  lumaCtx.clearRect(0,0,lumaCanvas.width,lumaCanvas.height);
+
+  for (let y = step/2; y < window.innerHeight; y += step) {
+    for (let x = step/2; x < window.innerWidth; x += step) {
+      try {
+        const els = document.elementsFromPoint(x, y);
+        let lum = null;
+        for (const el of els) {
+          if (el === lumaCanvas || el.classList.contains('hidden-svg')) continue;
+          const bg = getComputedStyle(el).backgroundColor;
+          const m = bg && bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (m) {
+            lum = rgbToLum(parseInt(m[1]),parseInt(m[2]),parseInt(m[3]));
+            break;
+          }
+        }
+        if (lum !== null) {
+          lumaCtx.fillStyle = lumToColor(lum);
+          lumaCtx.fillRect(x-4, y-4, 8, 8);
+          lumaCtx.fillStyle = lum > 0.5 ? '#000' : '#fff';
+          lumaCtx.font = '8px monospace';
+          lumaCtx.fillText((lum*100).toFixed(0), x+5, y+4);
+        }
+      } catch(e) {}
+    }
+  }
+  lumaScanId = requestAnimationFrame(scanLuma);
+}
+
+lumaBtn.addEventListener('click', () => {
+  lumaScanOn = !lumaScanOn;
+  lumaBtn.textContent = lumaScanOn ? '🔍 全屏亮度扫描 ON' : '🔍 全屏亮度扫描 OFF';
+  lumaBtn.style.background = lumaScanOn ? 'rgba(200,168,124,0.2)' : 'rgba(255,255,255,0.08)';
+  lumaCanvas.style.display = lumaScanOn ? 'block' : 'none';
+  if (lumaScanOn) scanLuma();
+  else { cancelAnimationFrame(lumaScanId); lumaCtx.clearRect(0,0,lumaCanvas.width,lumaCanvas.height); }
+});
+
+console.log('%c🧊 液态玻璃全方案测试 — 10个方案已加载',
+  'font-size:1.1em;color:#c8a87c');
+console.log('%c🔍 点击顶部"全屏亮度扫描"按钮 → 全屏网格显示各位置亮度(蓝暗→红亮)',
+  'color:#c8a87c');
+</script>
+</body>
+</html>

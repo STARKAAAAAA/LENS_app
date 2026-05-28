@@ -1,0 +1,2 @@
+      outColor = texture(u_blurredBg, v_uv);
+      outColor = mix(outColor, vec4(u_tint.r, u_tint.g, u_tint.b, 1.0), u_tint.a * 0.8);

@@ -238,6 +238,8 @@ function _applyLuminance(id, lum) {
 
   const def = PANEL_DEFS.find(p => p.id === id);
   if (!def) return;
+  // noAdaptive 面板不设自适应变量，用 CSS 规则默认值（与 gallery nav 一致）
+  if (def.noAdaptive) return;
 
   document.querySelectorAll(def.sel).forEach(el => {
     el.style.setProperty('--lg-brightness', '1.1', 'important');
