@@ -341,8 +341,15 @@ function _apply(id) {
 }
 
 function _applyStyleOnly(id, def, s) {
-  // 保留兼容：外部调用如 updatePanelBlur 时重新应用所有元素
-  _apply(id);
+  const filterRef = `url(#lg-panel-refract-${id})`;
+  const bf = `blur(${(s.blur/2).toFixed(1)}px) ${filterRef} blur(${s.blur.toFixed(1)}px) brightness(var(--lg-brightness,${s.brightness})) saturate(${s.saturate})`;
+  document.querySelectorAll(def.sel).forEach(el => {
+    el.style.setProperty('backdrop-filter', bf, 'important');
+    el.style.setProperty('-webkit-backdrop-filter', bf, 'important');
+    el.style.setProperty('background', `rgba(255,255,255,var(--lg-bg-alpha,${s.bgAlpha}))`, 'important');
+    el.style.setProperty('border', `1px solid rgba(255,255,255,${s.borderAlpha})`, 'important');
+    el.style.setProperty('box-shadow', `0 8px 32px rgba(0,0,0,${s.shadowAlpha}), inset 0 1px 0 rgba(255,255,255,${s.highlight})`, 'important');
+  });
 }
 
 export function applyAllPanelStyles() {
