@@ -499,6 +499,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- Back to top ----
   const backToTop = document.getElementById('back-to-top');
+  // Apple press feel — overlay for exposure
+  const _btExposure = document.createElement('div');
+  _btExposure.style.cssText = 'position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.35);pointer-events:none;opacity:0;z-index:99;';
+  backToTop.appendChild(_btExposure);
+
+  backToTop.addEventListener('mouseenter', () => {
+    backToTop.style.setProperty('background', 'rgba(255,255,255,0.30)', 'important');
+    backToTop.style.setProperty('border-color', 'rgba(255,255,255,0.35)', 'important');
+  });
+  backToTop.addEventListener('mouseleave', () => {
+    backToTop.style.background = 'transparent';
+    backToTop.style.setProperty('border-color', 'rgba(255,255,255,0.12)', 'important');
+    backToTop.style.removeProperty('transform');
+    _btExposure.style.opacity = '0';
+  });
+  backToTop.addEventListener('mousedown', () => {
+    backToTop.style.setProperty('transform', 'scale(1.22)', 'important');
+    _btExposure.style.opacity = '1';
+  });
+  backToTop.addEventListener('mouseup', () => {
+    backToTop.style.removeProperty('transform');
+    _btExposure.style.opacity = '0';
+  });
   let scrollTicking = false;
   backToTop.addEventListener('click', () => {
     const portfolio = document.getElementById('portfolio');

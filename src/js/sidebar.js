@@ -1,5 +1,7 @@
 // ========== 侧边栏渲染 & 缓存管理 ==========
 
+import { escapeHtml } from './utils.js';
+
 // renderSidebar(activeDir, { getSavedFolders, loadDir, sidebarList, onSelectFolder, onRemoveFolder })
 export function renderSidebar(activeDir, { getSavedFolders, loadDir, sidebarList, onSelectFolder, onRemoveFolder }) {
   const dirs = getSavedFolders();
@@ -19,7 +21,7 @@ export function renderSidebar(activeDir, { getSavedFolders, loadDir, sidebarList
     item.title = dir;
     item.innerHTML = `
       <svg class="sidebar__item-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <span class="sidebar__item-name">${name}</span>
+      <span class="sidebar__item-name">${escapeHtml(name)}</span>
       <span class="sidebar__item-remove">×</span>`;
     item.addEventListener('click', (e) => {
       if (e.target.classList.contains('sidebar__item-remove')) return;

@@ -213,7 +213,7 @@ function generateFullCSS(p) {
 --sidebar-glass-bg:rgba(${W},0.08);--sidebar-glass-border:rgba(${W},0.12);--sidebar-glass-bg-hover:rgba(${W},0.14);--sidebar-glass-border-bright:rgba(${W},0.22);--sidebar-glass-blur:calc(24px + var(--glass-blur,0px));
 --titlebar-glass-bg:rgba(${W},0.06);--titlebar-glass-border:rgba(${W},0.10);--titlebar-glass-bg-hover:rgba(${W},0.12);--titlebar-btn-color:rgba(${W},0.70);--titlebar-glass-blur:calc(12px + var(--glass-blur,0px));
 --toolbar-glass-bg:rgba(${W},0.06);--toolbar-glass-border:rgba(${W},0.10);--toolbar-glass-bg-hover:rgba(${W},0.10);--toolbar-btn-color:rgba(${W},0.70);--toolbar-glass-blur:calc(16px + var(--glass-blur,0px));
---card-glass-bg:rgba(${W},0.015);--card-glass-border:rgba(${W},0.05);--card-glass-bg-hover:rgba(${W},0.06);--card-glass-border-bright:rgba(${W},0.16);--card-hover-blur:calc(6px + var(--glass-blur,0px));--gallery-nav-blur:calc(24px + var(--glass-blur,0px));--dropdown-blur:calc(12px + var(--glass-blur,0px));
+--card-glass-bg:rgba(${W},0.015);--card-glass-border:rgba(${W},0.09);--card-glass-bg-hover:rgba(${W},0.06);--card-glass-border-bright:rgba(${W},0.24);--card-hover-blur:calc(6px + var(--glass-blur,0px));--gallery-nav-blur:calc(24px + var(--glass-blur,0px));--dropdown-blur:calc(12px + var(--glass-blur,0px));
 --panel-glass-bg:rgba(${S},0.92);--panel-glass-border:rgba(${A},0.15);--panel-glass-bg-hover:rgba(${A},0.06);--panel-glass-blur:calc(24px + var(--glass-blur,0px));--shortcuts-blur:calc(30px + var(--glass-blur,0px));
 --lightbox-glass-bg:rgba(${W},0.12);--lightbox-glass-border:rgba(${W},0.20);--lightbox-glass-bg-hover:rgba(${W},0.18);--lightbox-glass-blur:calc(30px + var(--glass-blur,0px));--lightbox-btn-blur:calc(20px + var(--glass-blur,0px));--lightbox-exif-blur:calc(16px + var(--glass-blur,0px));--slideshow-blur:calc(20px + var(--glass-blur,0px));
 --hero-scroll-blur:calc(20px + var(--glass-blur,0px));--back-to-top-blur:calc(20px + var(--glass-blur,0px));--dev-panel-blur:calc(40px + var(--glass-blur,0px));--loading-track-height:4px;
@@ -296,10 +296,6 @@ body{background:${p.bg}!important;color:var(--text)!important;}
 /* ═══ 灯箱 ═══ */
 .lightbox{background:rgba(0,0,0,0)}
 .lightbox.active{background:rgba(0,0,0,0.85)!important;backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important;-webkit-backdrop-filter:blur(var(--lightbox-glass-blur,calc(30px + ${p.glassBlur || '0px'})))!important}
-.lightbox__close{color:var(--text);background:var(--lightbox-glass-bg,rgba(${W},0.12));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.20))}
-.lightbox__close:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.18));border-color:var(--lightbox-glass-border,rgba(${W},0.30))}
-.lightbox__prev,.lightbox__next{color:var(--text);background:var(--lightbox-glass-bg,rgba(${W},0.10));border:0.5px solid var(--lightbox-glass-border,rgba(${W},0.18))}
-.lightbox__prev:hover,.lightbox__next:hover{background:var(--lightbox-glass-bg-hover,rgba(${W},0.16));border-color:var(--lightbox-glass-border,rgba(${W},0.28))}
 .lightbox__title{color:var(--text-3)}
 .lightbox__counter{color:var(--text-3)}
 .rating__star{color:rgba(${W},0.2)}
@@ -419,8 +415,6 @@ body.gamepad-active .gallery__back::after{background-color:${p.accent}!important
 
 /* ═══ 基础元素 ═══ */
 .hero__reveal{background:${p.bg}}
-.back-to-top{color:rgba(${W},0.5);background:rgba(${W},0.08);border:0.5px solid rgba(${W},0.12)}
-.back-to-top:hover{color:${p.accent};background:rgba(${W},0.16);border-color:rgba(${W},0.25)}
 
 /* ═══ 全局字体系统（零var()，硬编码保证WebView2生效）═══ */
 /* 展示 Display — 标题/Hero/导航 */
@@ -488,14 +482,14 @@ ${window.__lensLiquidGlass ? `
 /* 参数通过 CSS 变量调节：--lg-panel-blur(16px) / --lg-panel-saturate(1.5) / --lg-panel-refraction(150) */
 .sidebar,.sidebar__add,.toolbar,.titlebar__controls,
 .settings-panel,.shortcuts-panel,
-.lightbox__close,.lightbox__prev,.lightbox__next,.lightbox__exif,
-.slideshow__controls,.gallery__nav,.hero__scroll,.back-to-top,[popover],
+.lightbox__exif,
+.slideshow__controls,.gallery__nav,.hero__scroll,[popover],
 .custom-dropdown__trigger,.custom-dropdown__menu,
 .load-more-btn
 {background:linear-gradient(var(--lg-tint-bg,transparent),var(--lg-tint-bg,transparent)),rgba(255,255,255,var(--lg-panel-bg-alpha,var(--lg-bg-alpha,0.02)))!important;
 backdrop-filter:blur(var(--lg-panel-blur,6px)) brightness(var(--lg-brightness,0.7)) saturate(var(--lg-panel-saturate,1.5)) url(#lg-panel-refract)!important;
 -webkit-backdrop-filter:blur(var(--lg-panel-blur,6px)) brightness(var(--lg-brightness,0.7)) saturate(var(--lg-panel-saturate,1.5)) url(#lg-panel-refract)!important;
-border:0.5px solid rgba(255,255,255,var(--lg-panel-border-alpha,0.12))!important;
+border:0.5px solid rgba(255,255,255,var(--lg-panel-border-alpha,0.18))!important;
 box-shadow:0 8px 32px rgba(0,0,0,var(--lg-panel-shadow-alpha,0.3)),inset 0 1px 0 rgba(255,255,255,var(--lg-panel-highlight,0.08))!important;text-rendering:optimizeLegibility!important;}
 /* 子元素背景透明化 */
 .sidebar__item:hover{background:rgba(255,255,255,0.12)!important;box-shadow:0 0 12px rgba(255,255,255,0.06);}
@@ -577,9 +571,9 @@ function applyDirectStyles(p) {
     root.style.setProperty('--toolbar-btn-color', `rgba(${W},0.45)`);
     root.style.setProperty('--toolbar-glass-blur', 'calc(16px + var(--glass-blur,0px))');
     root.style.setProperty('--card-glass-bg', `rgba(${W},0.015)`);
-    root.style.setProperty('--card-glass-border', `rgba(${W},0.05)`);
+    root.style.setProperty('--card-glass-border', `rgba(${W},0.09)`);
     root.style.setProperty('--card-glass-bg-hover', `rgba(${W},0.06)`);
-    root.style.setProperty('--card-glass-border-bright', `rgba(${W},0.16)`);
+    root.style.setProperty('--card-glass-border-bright', `rgba(${W},0.24)`);
     root.style.setProperty('--card-hover-blur', 'calc(6px + var(--glass-blur,0px))');
     root.style.setProperty('--gallery-nav-blur', 'calc(24px + var(--glass-blur,0px))');
     root.style.setProperty('--dropdown-blur', 'calc(12px + var(--glass-blur,0px))');
@@ -683,6 +677,7 @@ function getPaletteByName(name) {
 }
 
 function paletteToVars(palette) {
+  const W = palette.warm;
   return {
     '--accent': palette.accent,
     '--accent-rgb': palette.accentRgb,
@@ -691,15 +686,23 @@ function paletteToVars(palette) {
     '--text': palette.text,
     '--text-2': palette.text2,
     '--text-3': palette.text3,
-    '--glass-bg': `rgba(${palette.warm},0.06)`,
-    '--glass-bg-hover': `rgba(${palette.warm},0.12)`,
-    '--glass-border': `rgba(${palette.warm},0.10)`,
-    '--glass-border-bright': `rgba(${palette.warm},0.20)`,
-    '--loading-color': `rgba(${palette.warm},0.55)`,
-    '--loading-color-dim': `rgba(${palette.warm},0.40)`,
-    '--loading-color-soft': `rgba(${palette.warm},0.45)`,
-    '--card-bg': `rgba(${palette.warm},0.015)`,
-    '--card-hover-bg': `rgba(${palette.warm},0.06)`,
+    '--sidebar-glass-bg': `rgba(${W},0.08)`,
+    '--sidebar-glass-border': `rgba(${W},0.12)`,
+    '--sidebar-glass-bg-hover': `rgba(${W},0.14)`,
+    '--sidebar-glass-border-bright': `rgba(${W},0.22)`,
+    '--titlebar-glass-bg': `rgba(${W},0.06)`,
+    '--titlebar-glass-border': `rgba(${W},0.10)`,
+    '--titlebar-glass-bg-hover': `rgba(${W},0.12)`,
+    '--toolbar-glass-bg': `rgba(${W},0.06)`,
+    '--toolbar-glass-border': `rgba(${W},0.10)`,
+    '--toolbar-glass-bg-hover': `rgba(${W},0.10)`,
+    '--card-glass-bg': `rgba(${W},0.015)`,
+    '--card-glass-border': `rgba(${W},0.09)`,
+    '--card-glass-bg-hover': `rgba(${W},0.06)`,
+    '--card-glass-border-bright': `rgba(${W},0.24)`,
+    '--loading-color': `rgba(${W},0.55)`,
+    '--loading-color-dim': `rgba(${W},0.40)`,
+    '--loading-color-soft': `rgba(${W},0.45)`,
     '--card-shadow': '0 4px 24px rgba(0,0,0,0.3)',
   };
 }

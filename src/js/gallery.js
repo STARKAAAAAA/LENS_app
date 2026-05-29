@@ -1,6 +1,6 @@
 // ========== 画廊 / 分类卡片 / 排序筛选 / 下拉组件 ==========
 
-import { preloadImages } from './utils.js';
+import { preloadImages, escapeHtml } from './utils.js';
 import { loadRatings } from './lightbox.js';
 
 // ========== 分类卡片 ==========
@@ -16,14 +16,15 @@ export function buildCategoryCardsDOM({ categoriesEl, data, featureToggles, onOp
     const card = document.createElement('div');
     card.className = 'category-card';
     card.dataset.category = cat;
+    const safeCat = escapeHtml(cat);
     card.innerHTML = `
-      <img class="category-card__img" src="${cover.thumbSrc || cover.src}" alt="${cat}" decoding="async">
+      <img class="category-card__img" src="${escapeHtml(cover.thumbSrc || cover.src)}" alt="${safeCat}" decoding="async">
       <div class="category-card__label">
-        <div class="category-card__label-name">${cat}</div>
+        <div class="category-card__label-name">${safeCat}</div>
         <div class="category-card__label-count">${catPhotos.length} 张</div>
       </div>
       <div class="category-card__info">
-        <div class="category-card__name">${cat}</div>
+        <div class="category-card__name">${safeCat}</div>
         <div class="category-card__count">${catPhotos.length} photos</div>
       </div>`;
     card.addEventListener('click', () => onOpenCategory(cat));
@@ -148,9 +149,10 @@ export function buildGalleryGridDOM(photos, { galleryGrid, galleryInfo }) {
     const favHtml = (r && r.fav)
       ? `<div class="gallery__item-fav">♥</div>`
       : '';
+    const safeTitle = escapeHtml(p.title);
     item.innerHTML = `
-      <img src="${p.thumbSrc || p.src}" alt="${p.title}" decoding="async">
-      <div class="gallery__item-overlay"><span class="gallery__item-title">${p.title}</span></div>
+      <img src="${escapeHtml(p.thumbSrc || p.src)}" alt="${safeTitle}" decoding="async">
+      <div class="gallery__item-overlay"><span class="gallery__item-title">${safeTitle}</span></div>
       ${starsHtml}${favHtml}`;
     fragment.appendChild(item);
   });

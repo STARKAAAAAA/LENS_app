@@ -22,14 +22,13 @@ let loadingScreenDoneResolve = null;
 export async function showLoadingScreen(msg, { onFirstShow } = {}) {
   let el = document.getElementById('loading-screen');
   if (!el) {
-    // 从 :root 读取当前预设的字体（颜色使用硬编码原始暖金色，不依赖 var() 解析）
+    // 从 :root 读取当前预设的字体和颜色
     const rootStyle = getComputedStyle(document.documentElement);
     const displayFont = rootStyle.getPropertyValue('--font-display').trim() || "'Cormorant Garamond', Georgia, serif";
     const fontWeight = rootStyle.getPropertyValue('--font-weight-display').trim() || '300';
-    // 加载颜色硬编码为原始暖金色（与 git e867cfa 一致）
-    const loadingColor = 'rgba(220,200,180,0.55)';
-    const loadingColorDim = 'rgba(220,200,180,0.40)';
-    const loadingColorSoft = 'rgba(220,200,180,0.45)';
+    const loadingColor = rootStyle.getPropertyValue('--loading-color').trim() || 'rgba(220,200,180,0.55)';
+    const loadingColorDim = rootStyle.getPropertyValue('--loading-color-dim').trim() || 'rgba(220,200,180,0.40)';
+    const loadingColorSoft = rootStyle.getPropertyValue('--loading-color-soft').trim() || 'rgba(220,200,180,0.45)';
     // 读取圆角变量用于 SVG 胶囊圆角
     const pillRadius = parseFloat(rootStyle.getPropertyValue('--radius-pill').trim()) || 100;
     const svgRx = Math.min(pillRadius, 11); // SVG rect 高度 22px，最大圆角半径 11px
@@ -268,6 +267,17 @@ export function hideLoadingScreen() {
 
 // ========== 启动动画：单个 rAF 循环同步驱动所有元素 ==========
 export function playStartupSequence({ onDone } = {}) {
+  // 启动动画期间隐藏所有面板和 UI chrome（直接改内联样式，不注入 CSS 避免白屏）
+  const panelsToHide = ['.toolbar', '.sidebar-frame', '.sidebar-trigger', '.titlebar__controls', '.back-to-top', '.hero__scroll', '.hero__beta'];
+  const hiddenEls = [];
+  panelsToHide.forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+      el.style.setProperty('visibility', 'hidden', 'important');
+      el.style.setProperty('opacity', '0', 'important');
+      hiddenEls.push(el);
+    });
+  });
+
   const reveal = document.querySelector('.hero__reveal');
   const title = document.querySelector('.hero__title');
   const subtitle = document.querySelector('.hero__subtitle');
@@ -362,6 +372,10 @@ export function playStartupSequence({ onDone } = {}) {
         }, 600);
       }
       moveTitleToCorner();
+      hiddenEls.forEach(el => {
+        el.style.removeProperty('visibility');
+        el.style.removeProperty('opacity');
+      });
       if (onDone) onDone();
     }
   }

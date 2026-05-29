@@ -314,6 +314,16 @@ const tests = [
     id: 'lumasubrect', title: '【lumaSubrect】全屏幕亮度可视化 + 采样点测试', desc: '渐变背景上叠加亮度热力图(Canvas) + 可拖动采样点。模拟Apple单像素lumaSubrect行为。',
     lumaSubrect: true,
   },
+  /* ══ Kyant0/AndroidLiquidGlass — WebGL2 SDF 折射 ══ */
+  {
+    id: 'kyant-sdf', title: '【Kyant0】AndroidLiquidGlass — circleMap SDF 折射', desc: 'WebGL2 完整复刻: circleMap(x)=1-√(1-x²) 折射曲线 + SDF梯度方向 + 7波长色散(red→purple) + depthEffect深度偏移。AGSL shader 1:1 翻译为 GLSL。',
+    kyantSDF: true,
+  },
+  /* ══ rdev/liquid-glass-react — SVG 弹性 + 双层边框 ══ */
+  {
+    id: 'rdev-elastic', title: '【rdev】liquid-glass-react — SVG 弹性 + 双层边框光照', desc: 'feDisplacementMap 三通道色差 + 弹性鼠标追踪(非对称scale+translate) + 双层渐变边框(screen+overlay) + backdrop-filter毛玻璃底。',
+    rdevElastic: true,
+  },
 ];
 
 // ── 渲染 ──
@@ -1333,6 +1343,570 @@ tests.forEach(tc => {
     return;
   }
 
+  /* ═══════════════════════════════════════════════════════
+     Kyant0/AndroidLiquidGlass — 100% 复刻 AGSL Shader
+     circleMap + radiusAt四角独立 + SDF梯度 + 7波长色散 + depthEffect
+     ═══════════════════════════════════════════════════════ */
+  if (tc.kyantSDF) {
+    const card=document.createElement('div');
+    card.style.cssText='grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);';
+    const w=300,h=300;
+    card.innerHTML='<h3 style="color:#c8a87c;margin-bottom:2px;">Kyant0/AndroidLiquidGlass — SDF 折射透镜 (AGSL→GLSL 1:1)</h3>'+
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:6px;">完整复刻: radiusAt四角独立半径 + sdRoundedRect + circleMap(x)=1-√(1-x²) + gradSdRoundedRect梯度 + 7波长色散(red→purple) + depthEffect</p>'+
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;justify-content:center;">'+
+        '<div style="flex-shrink:0;text-align:center;">'+
+          '<div style="position:relative;display:inline-block;">'+
+            '<canvas id="ky-canvas" width="'+w+'" height="'+h+'" style="border-radius:36px;border:1px solid rgba(255,255,255,0.15);width:'+w+'px;height:'+h+'px;display:block;"></canvas>'+
+            '<div id="ky-overlay" style="position:absolute;inset:0;border-radius:36px;background:rgba(255,255,255,0.10);pointer-events:none;"></div>'+
+          '</div>'+
+          '<div style="font-size:0.58rem;color:#888;margin-top:4px;">点击拖动透镜看折射 | 300×300 r=36</div>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;gap:4px;min-width:200px;font-size:0.62rem;color:#888;">'+
+          '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;">折射高</label><input type="range" id="ky-rh" min="0" max="80" value="30" style="flex:1;"><span id="ky-rh-v" style="min-width:24px;color:#c8a87c;">30</span></div>'+
+          '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;">折射量</label><input type="range" id="ky-ra" min="0" max="100" value="40" style="flex:1;"><span id="ky-ra-v" style="min-width:24px;color:#c8a87c;">40</span></div>'+
+          '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;">色差</label><input type="range" id="ky-ca" min="0" max="30" value="8" style="flex:1;"><span id="ky-ca-v" style="min-width:24px;color:#c8a87c;">8</span></div>'+
+          '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;">深度</label><input type="range" id="ky-de" min="0" max="50" value="20" style="flex:1;"><span id="ky-de-v" style="min-width:24px;color:#c8a87c;">20</span></div>'+
+          '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;">bgAlpha</label><input type="range" id="ky-bga" min="0" max="100" value="10" style="flex:1;"><span id="ky-bga-v" style="min-width:24px;color:#c8a87c;">0.10</span></div>'+
+          '<button id="ky-reset" style="margin-top:4px;font-size:0.58rem;padding:3px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#999;border-radius:5px;cursor:pointer;">重置默认</button>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">WebGL2 SDF</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(200,168,124,0.08);border:1px solid rgba(200,168,124,0.15);border-radius:10px;color:#c8a87c;">radiusAt 四角独立</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(200,168,124,0.08);border:1px solid rgba(200,168,124,0.15);border-radius:10px;color:#c8a87c;">circleMap(x)=1-√(1-x²)</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">gradSdRoundedRect</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">7λ 色散 red→purple</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">depthEffect</span>'+
+      '</div>';
+    grid.appendChild(card);
+
+    const canvas=card.querySelector('#ky-canvas');
+    const gl=canvas.getContext('webgl2',{alpha:true,premultipliedAlpha:false});
+    if(!gl){canvas.parentElement.innerHTML='<p style="color:#c44">WebGL2不可用</p>';return;}
+
+    // ── 完整 AGSL → GLSL 翻译 ──
+    const SDF='\n'+
+      'float radiusAt(vec2 coord, vec4 radii){if(coord.x>=0.){if(coord.y<=0.)return radii.y;else return radii.z;}else{if(coord.y<=0.)return radii.x;else return radii.w;}}\n'+
+      'float sdRoundedRect(vec2 coord, vec2 halfSize, float radius){vec2 cornerCoord=abs(coord)-(halfSize-vec2(radius));float outside=length(max(cornerCoord,0.))-radius;float inside=min(max(cornerCoord.x,cornerCoord.y),0.);return outside+inside;}\n'+
+      'vec2 gradSdRoundedRect(vec2 coord, vec2 halfSize, float radius){vec2 cornerCoord=abs(coord)-(halfSize-vec2(radius));if(cornerCoord.x>=0.||cornerCoord.y>=0.)return sign(coord)*normalize(max(cornerCoord,0.));else{float gx=step(cornerCoord.y,cornerCoord.x);return sign(coord)*vec2(gx,1.-gx);}}\n'+
+      'float circleMap(float x){return 1.-sqrt(1.-x*x);}\n';
+
+    // ── 多彩程序化背景 (模拟 content.eval) ──
+    const BG='\n'+
+      'vec4 sampleBg(vec2 uv){'+
+        'vec3 c1=vec3(.18,.13,.08);vec3 c2=vec3(.06,.16,.20);vec3 c3=vec3(.10,.18,.08);vec3 c4=vec3(.16,.06,.10);'+
+        'float t1=sin(uv.x*3.5+uv.y*2.3)*.5+.5;float t2=cos(uv.y*4.2-uv.x*1.7)*.5+.5;'+
+        'vec3 bg=mix(mix(c1,c2,t1),mix(c3,c4,t2),.5);'+
+        'float n=fract(sin(dot(uv*50.,vec2(12.9898,78.233)))*43758.5453);bg+=n*.025;'+
+        'vec2 g=abs(fract(uv*8.)-.5);float line=step(.48,min(g.x,g.y));bg=mix(bg,bg*1.35,line*.07);'+
+        'return vec4(bg,1.);}\n';
+
+    const vs='#version 300 es\nin vec2 a;out vec2 v;void main(){v=a*.5+.5;gl_Position=vec4(a,0,1);}';
+    const fs='#version 300 es\nprecision highp float;\n'+
+      'in vec2 v;out vec4 C;\n'+
+      'uniform vec2 u_sz;uniform float u_rh,u_ra,u_de,u_ca;uniform vec4 u_cr;\n'+
+      SDF+BG+
+      'void main(){\n'+
+        'vec2 hs=u_sz*.5,cc=v*u_sz-hs;\n'+
+        'float radius=radiusAt(v*u_sz,u_cr);\n'+ // radiusAt per-corner
+        'float sd=sdRoundedRect(cc,hs,radius);\n'+
+        'if(-sd>=u_rh){C=sampleBg(v);return;}\n'+
+        'sd=min(sd,0.);\n'+
+        'float d=circleMap(1.-(-sd)/max(u_rh,.001))*u_ra;\n'+
+        'float gr=min(radius*1.5,min(hs.x,hs.y));\n'+
+        'vec2 gd=normalize(gradSdRoundedRect(cc,hs,gr)+u_de*.01*normalize(cc));\n'+
+        'vec2 rc=v+d*gd/u_sz;\n'+
+        'if(u_ca<.001){C=sampleBg(rc);return;}\n'+
+        // 7波长色散: red→orange→yellow→green→cyan→blue→purple
+        'float ds=u_ca*.01*((cc.x*cc.y)/(hs.x*hs.y));vec2 dv=d*gd*ds/u_sz;C=vec4(0.);\n'+
+        'vec4 r0=sampleBg(rc+dv);        C.r+=r0.r/3.5;C.a+=r0.a/7.;\n'+
+        'vec4 o0=sampleBg(rc+dv*.667);   C.r+=o0.r/3.5;C.g+=o0.g/7.;C.a+=o0.a/7.;\n'+
+        'vec4 y0=sampleBg(rc+dv*.333);   C.r+=y0.r/3.5;C.g+=y0.g/3.5;C.a+=y0.a/7.;\n'+
+        'vec4 g0=sampleBg(rc);           C.g+=g0.g/3.5;C.a+=g0.a/7.;\n'+
+        'vec4 cy=sampleBg(rc-dv*.333);   C.g+=cy.g/3.5;C.b+=cy.b/3.;C.a+=cy.a/7.;\n'+
+        'vec4 bl=sampleBg(rc-dv*.667);   C.b+=bl.b/3.;C.a+=bl.a/7.;\n'+
+        'vec4 pu=sampleBg(rc-dv);        C.r+=pu.r/7.;C.b+=pu.b/3.;C.a+=pu.a/7.;\n'+
+      '}';
+
+    const compile=(t,s)=>{const sh=gl.createShader(t);gl.shaderSource(sh,s);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(sh));return sh;};
+    const vsS=compile(gl.VERTEX_SHADER,vs),fsS=compile(gl.FRAGMENT_SHADER,fs);
+    const prog=gl.createProgram();gl.attachShader(prog,vsS);gl.attachShader(prog,fsS);gl.linkProgram(prog);
+    const vao=gl.createVertexArray();gl.bindVertexArray(vao);
+    const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+    const defs={rh:30,ra:40,ca:8,de:20};
+    let P={...defs};
+    function render(){
+      gl.viewport(0,0,canvas.width,canvas.height);gl.useProgram(prog);gl.bindVertexArray(vao);
+      gl.uniform2f(gl.getUniformLocation(prog,'u_sz'),canvas.width,canvas.height);
+      gl.uniform1f(gl.getUniformLocation(prog,'u_rh'),P.rh);
+      gl.uniform1f(gl.getUniformLocation(prog,'u_ra'),P.ra);
+      gl.uniform1f(gl.getUniformLocation(prog,'u_ca'),P.ca);
+      gl.uniform1f(gl.getUniformLocation(prog,'u_de'),P.de);
+      gl.uniform4f(gl.getUniformLocation(prog,'u_cr'),36,36,36,36); // 四角相同
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    }
+    render();
+
+    // ── Highlight 着色器 (Directional + Ambient) ──
+    const HL_FS='#version 300 es\nprecision highp float;\n'+
+      'in vec2 v;out vec4 C;\n'+
+      'uniform vec2 u_sz;uniform vec4 u_cr;uniform float u_angle,u_falloff;uniform vec4 u_color;\n'+
+      SDF+
+      'void main(){\n'+
+        'vec2 hs=u_sz*.5,cc=v*u_sz-hs;\n'+
+        'float radius=radiusAt(v*u_sz,u_cr);\n'+
+        'float gr=min(radius*1.5,min(hs.x,hs.y));\n'+
+        'vec2 gd=gradSdRoundedRect(cc,hs,gr);\n'+
+        'vec2 nrm=vec2(cos(u_angle),sin(u_angle));\n'+
+        'float d=dot(gd,nrm);\n'+
+        'float intensity=pow(abs(d),u_falloff);\n'+
+        'C=u_color*intensity;\n'+
+      '}';
+    const hlFS=compile(gl.FRAGMENT_SHADER,HL_FS);
+    const hlProg=gl.createProgram();gl.attachShader(hlProg,vsS);gl.attachShader(hlProg,hlFS);gl.linkProgram(hlProg);
+
+    const hlDefs={angle:0.785,falloff:1.0,color:[1,1,1,0.5],enabled:true};
+    let hlP={...hlDefs};
+
+    function renderHighlight(){
+      gl.useProgram(hlProg);gl.bindVertexArray(vao);
+      gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE); // Plus blend mode
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.uniform2f(gl.getUniformLocation(hlProg,'u_sz'),canvas.width,canvas.height);
+      gl.uniform4f(gl.getUniformLocation(hlProg,'u_cr'),36,36,36,36);
+      gl.uniform1f(gl.getUniformLocation(hlProg,'u_angle'),hlP.angle);
+      gl.uniform1f(gl.getUniformLocation(hlProg,'u_falloff'),hlP.falloff);
+      gl.uniform4f(gl.getUniformLocation(hlProg,'u_color'),hlP.color[0],hlP.color[1],hlP.color[2],hlP.color[3]);
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+      gl.disable(gl.BLEND);
+    }
+
+    // ── 完整的渲染流程: 折射 + 高光 ──
+    const origRender=render;
+    render=function(){
+      gl.clearColor(.08,.06,.04,1);gl.clear(gl.COLOR_BUFFER_BIT);
+      origRender();
+      if(hlP.enabled) renderHighlight();
+    };
+
+    // ── UI 控件更新 ──
+    // 折射滑块
+    ['rh','ra','ca','de'].forEach(id=>{
+      card.querySelector('#ky-'+id).addEventListener('input',e=>{P[id]=+e.target.value;card.querySelector('#ky-'+id+'-v').textContent=e.target.value;render();});
+    });
+    // bgAlpha 滑块
+    card.querySelector('#ky-bga').addEventListener('input',e=>{
+      const v=+e.target.value/100;
+      card.querySelector('#ky-bga-v').textContent=v.toFixed(2);
+      card.querySelector('#ky-overlay').style.background=`rgba(255,255,255,${v.toFixed(2)})`;
+    });
+
+    // 高光控件
+    const hlHTML='<div style="border-top:1px solid rgba(255,255,255,0.04);margin-top:6px;padding-top:6px;">'+
+      '<div style="font-size:0.6rem;color:#c8a87c;margin-bottom:4px;">Highlight 高光 (SDF梯度法线)</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;font-size:0.62rem;color:#888;">角度</label><input type="range" id="ky-ha" min="0" max="360" value="45" style="flex:1;"><span id="ky-ha-v" style="min-width:24px;font-size:0.62rem;color:#c8a87c;">45°</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;font-size:0.62rem;color:#888;">衰减</label><input type="range" id="ky-hf" min="0.1" max="5" step="0.1" value="1" style="flex:1;"><span id="ky-hf-v" style="min-width:24px;font-size:0.62rem;color:#c8a87c;">1.0</span></div>'+
+      '<div style="display:flex;align-items:center;gap:6px;"><label style="min-width:50px;text-align:right;font-size:0.62rem;color:#888;">强度</label><input type="range" id="ky-hi" min="0.1" max="1" step="0.05" value="0.5" style="flex:1;"><span id="ky-hi-v" style="min-width:24px;font-size:0.62rem;color:#c8a87c;">0.50</span></div>'+
+      '<div style="display:flex;gap:4px;margin-top:4px;align-items:center;font-size:0.58rem;color:#888;">'+
+        '<button id="ky-hl-on" class="on" style="font-size:0.55rem;padding:2px 8px;background:rgba(200,168,124,0.18);border:1px solid rgba(200,168,124,0.3);color:#c8a87c;border-radius:3px;cursor:pointer;">高光 ON</button>'+
+      '</div></div>';
+    const ctrlDiv=card.querySelector('div[style*="flex-direction:column"]');
+    ctrlDiv.insertAdjacentHTML('beforeend',hlHTML);
+
+    // 高光滑块事件
+    card.querySelector('#ky-ha').addEventListener('input',e=>{hlP.angle=+e.target.value*Math.PI/180;card.querySelector('#ky-ha-v').textContent=e.target.value+'°';render();});
+    card.querySelector('#ky-hf').addEventListener('input',e=>{hlP.falloff=+e.target.value;card.querySelector('#ky-hf-v').textContent=parseFloat(e.target.value).toFixed(1);render();});
+    card.querySelector('#ky-hi').addEventListener('input',e=>{hlP.color[3]=+e.target.value;card.querySelector('#ky-hi-v').textContent=parseFloat(e.target.value).toFixed(2);render();});
+    card.querySelector('#ky-hl-on').addEventListener('click',function(){
+      hlP.enabled=!hlP.enabled;this.classList.toggle('on',hlP.enabled);
+      this.textContent='高光 '+(hlP.enabled?'ON':'OFF');
+      this.style.background=hlP.enabled?'rgba(200,168,124,0.18)':'rgba(255,255,255,0.05)';
+      this.style.color=hlP.enabled?'#c8a87c':'#999';
+      render();
+    });
+
+    card.querySelector('#ky-reset').addEventListener('click',()=>{
+      P={...defs};hlP={...hlDefs};render();
+      Object.entries(defs).forEach(([k,v])=>{card.querySelector('#ky-'+k).value=v;card.querySelector('#ky-'+k+'-v').textContent=v;});
+      card.querySelector('#ky-ha').value=45;card.querySelector('#ky-ha-v').textContent='45°';
+      card.querySelector('#ky-hf').value=1;card.querySelector('#ky-hf-v').textContent='1.0';
+      card.querySelector('#ky-hi').value=.5;card.querySelector('#ky-hi-v').textContent='0.50';
+      card.querySelector('#ky-bga').value=10;card.querySelector('#ky-bga-v').textContent='0.10';
+      card.querySelector('#ky-overlay').style.background='rgba(255,255,255,0.10)';
+      const hlb=card.querySelector('#ky-hl-on');hlb.classList.add('on');hlb.textContent='高光 ON';
+      hlb.style.background='rgba(200,168,124,0.18)';hlb.style.color='#c8a87c';
+    });
+
+    render(); // 初始渲染(含高光)
+    return;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     rdev/liquid-glass-react — 100% 复刻
+     SVG filter六阶段 + 弹性追踪 + 双层边框 + hover/active + overLight
+     ═══════════════════════════════════════════════════════ */
+  if (tc.rdevElastic) {
+    // ══ 4种位移图 (完全匹配原文: standard/polar/prominent/shader) ══
+    const DMAP_W=256,DMAP_H=256;
+    const ss=t=>t*t*(3-2*t); // smoothstep
+
+    // 生成 Canvas 位移图的辅助函数
+    function genDmap(paintFn){
+      const c=document.createElement('canvas');c.width=DMAP_W;c.height=DMAP_H;
+      const ctx=c.getContext('2d');const img=ctx.createImageData(DMAP_W,DMAP_H);
+      for(let y=0;y<DMAP_H;y++)for(let x=0;x<DMAP_W;x++){
+        const i=(y*DMAP_W+x)*4;[img.data[i],img.data[i+1],img.data[i+2],img.data[i+3]]=paintFn(x,y);
+      }
+      ctx.putImageData(img,0,0);return c.toDataURL();
+    }
+
+    // standard: smoothstep ring — 中心清晰，边缘扭曲
+    const stdURL=genDmap((x,y)=>{
+      const nx=(x/DMAP_W-.5)*2,ny=(y/DMAP_H-.5)*2,dist=Math.sqrt(nx*nx+ny*ny);
+      const s=dist<.35?0:dist>.82?0:ss((dist-.35)/.47);
+      return[Math.max(0,Math.min(255,(nx/(dist||1)*s*.5+.5)*255)),Math.max(0,Math.min(255,(ny/(dist||1)*s*.5+.5)*255)),128,255];
+    });
+
+    // polar: 极坐标扭曲 — 角度+径向同时渐变
+    const polURL=genDmap((x,y)=>{
+      const nx=(x/DMAP_W-.5)*2,ny=(y/DMAP_H-.5)*2,dist=Math.sqrt(nx*nx+ny*ny),ang=Math.atan2(ny,nx);
+      const s=dist>.9?0:dist<.25?0:ss((dist-.25)/.65);
+      const r=(ang/Math.PI*.5+.5)*255,g=dist*255;
+      return[Math.max(0,Math.min(255,r*s+128*(1-s))),Math.max(0,Math.min(255,g*s+128*(1-s))),128,255];
+    });
+
+    // prominent: 更强的扭曲 — 中心更小区清晰，边缘更强
+    const proURL=genDmap((x,y)=>{
+      const nx=(x/DMAP_W-.5)*2,ny=(y/DMAP_H-.5)*2,dist=Math.sqrt(nx*nx+ny*ny);
+      const s=dist<.6?0:dist>.95?0:ss((dist-.6)/.35);
+      return[Math.max(0,Math.min(255,(nx/(dist||1)*s*.5+.5)*255)),Math.max(0,Math.min(255,(ny/(dist||1)*s*.5+.5)*255)),128,255];
+    });
+
+    // shader: roundedRect SDF 逐像素位移 (匹配 shader-utils.ts)
+    function genShaderMap(cw,ch){
+      const c=document.createElement('canvas');c.width=cw;c.height=ch;
+      const ctx=c.getContext('2d');const img=ctx.createImageData(cw,ch);
+      const hw=cw/2,hh=ch/2,r=Math.min(cw,ch)*.25;
+      function sdfRoundedRect(px,py){
+        const dx=Math.abs(px)-hw+r,dy=Math.abs(py)-hh+r;
+        return Math.sqrt(Math.max(dx,0)**2+Math.max(dy,0)**2)+Math.min(Math.max(dx,dy),0)-r;
+      }
+      let maxD=0;
+      for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
+        const sd=sdfRoundedRect(x-hw,y-hh),d=-sd;i=(y*cw+x)*4;
+        if(d<0){img.data[i]=img.data[i+1]=128;img.data[i+2]=128;img.data[i+3]=255;continue;}
+        const t=Math.min(1,d/40),dm=d*t;
+        if(dm>maxD)maxD=dm;
+        img.data[i]=128;img.data[i+1]=128;img.data[i+2]=128;img.data[i+3]=255;
+      }
+      for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
+        const sd=sdfRoundedRect(x-hw,y-hh),d=-sd,i=(y*cw+x)*4;
+        if(d<=0)continue;
+        const t=Math.min(1,d/40),dm=d*t,gradX=(sdfRoundedRect(x+1-hw,y-hh)-sd),gradY=(sdfRoundedRect(x-hw,y+1-hh)-sd);
+        const gl=Math.sqrt(gradX*gradX+gradY*gradY)||1;
+        img.data[i]=Math.max(0,Math.min(255,(gradX/gl*(dm/maxD)*.5+.5)*255));
+        img.data[i+1]=Math.max(0,Math.min(255,(gradY/gl*(dm/maxD)*.5+.5)*255));
+        img.data[i+2]=128;img.data[i+3]=255;
+      }
+      ctx.putImageData(img,0,0);return c.toDataURL();
+    }
+    let shdURL=genShaderMap(DMAP_W,DMAP_H);
+    const MAPS={standard:stdURL,polar:polURL,prominent:proURL,shader:shdURL};
+    let dmapMode='standard';
+
+    // ══ SVG 滤镜链 — 100% 匹配 GlassFilter ══
+    const rdevSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    rdevSvg.classList.add('hidden-svg');rdevSvg.id='rdev-svg';
+    const buildFilter=(id,ds,ai,mask2nd)=>{
+      const m2=mask2nd||Math.max(30,80-ai*2);
+      return'<radialGradient id="'+id+'-em" cx="50%" cy="50%" r="50%">'+
+        '<stop offset="0%" stop-color="#000" stop-opacity="0"/>'+
+        '<stop offset="'+m2+'%" stop-color="#000" stop-opacity="0"/>'+
+        '<stop offset="100%" stop-color="#fff" stop-opacity="1"/>'+
+      '</radialGradient>'+
+      '<filter id="'+id+'" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">'+
+        // 位移图
+        '<feImage x="0" y="0" width="100%" height="100%" href="'+MAPS[dmapMode]+'" result="DMAP" preserveAspectRatio="xMidYMid slice"/>'+
+        // 灰度→边缘强度
+        '<feColorMatrix in="DMAP" type="matrix" values="0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0 0 0 1 0" result="EDGE_INT"/>'+
+        // 离散化→边缘遮罩
+        '<feComponentTransfer in="EDGE_INT" result="EDGE_MASK"><feFuncA type="discrete" tableValues="0 '+(ai*.05).toFixed(2)+' 1"/></feComponentTransfer>'+
+        // 中心原图
+        '<feOffset in="SourceGraphic" dx="0" dy="0" result="CENTER_ORIG"/>'+
+        // R通道位移 (最大scale)
+        '<feDisplacementMap in="SourceGraphic" in2="DMAP" scale="'+(ds).toFixed(0)+'" xChannelSelector="R" yChannelSelector="B" result="RD"/>'+
+        '<feColorMatrix in="RD" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="RC"/>'+
+        // G通道位移 (略小)
+        '<feDisplacementMap in="SourceGraphic" in2="DMAP" scale="'+(ds-ai*.05*ds).toFixed(0)+'" xChannelSelector="R" yChannelSelector="B" result="GD"/>'+
+        '<feColorMatrix in="GD" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="GC"/>'+
+        // B通道位移 (最小)
+        '<feDisplacementMap in="SourceGraphic" in2="DMAP" scale="'+(ds-ai*.1*ds).toFixed(0)+'" xChannelSelector="R" yChannelSelector="B" result="BD"/>'+
+        '<feColorMatrix in="BD" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="BC"/>'+
+        // 合成
+        '<feBlend in="GC" in2="BC" mode="screen" result="GB"/><feBlend in="RC" in2="GB" mode="screen" result="RGB"/>'+
+        '<feGaussianBlur in="RGB" stdDeviation="'+(Math.max(.1,.5-ai*.1)).toFixed(1)+'" result="AB"/>'+
+        // 边缘=AB在遮罩内, 中心=原图在反转遮罩内
+        '<feComposite in="AB" in2="EDGE_MASK" operator="in" result="EDGE_AB"/>'+
+        '<feComponentTransfer in="EDGE_MASK" result="INV_MASK"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>'+
+        '<feComposite in="CENTER_ORIG" in2="INV_MASK" operator="in" result="CENTER_CL"/>'+
+        '<feComposite in="EDGE_AB" in2="CENTER_CL" operator="over"/>'+
+      '</filter>';
+    };
+    // 默认参数: displacementScale=70, aberrationIntensity=2 (卡片) / button用较小值
+    const rdevDefs={ds:70,ai:6,blur:18,elastic:0.15,overLight:false};
+    let rp={...rdevDefs};
+    rdevSvg.innerHTML='<defs>'+buildFilter('rdev-fc',70,6)+buildFilter('rdev-fb',40,4)+'</defs>';
+    document.body.appendChild(rdevSvg);
+
+    const updateRdevFilters=()=>{
+      // shader模式按玻璃尺寸重新生成 SDF 位移图
+      if(dmapMode==='shader'){
+        const cw=Math.round(rCardW?rCardW.offsetWidth:200);
+        const ch=Math.round(rCardW?rCardW.offsetHeight:140);
+        MAPS.shader=genShaderMap(Math.max(cw||200,DMAP_W),Math.max(ch||140,DMAP_H));
+      }
+      rdevSvg.innerHTML='<defs>'+buildFilter('rdev-fc',rp.ds,rp.ai)+buildFilter('rdev-fb',rp.ds*.57,rp.ai*.67)+'</defs>';
+    };
+
+    // ══ 构建 UI ══
+    const card=document.createElement('div');
+    card.style.cssText='grid-column:1/-1;background:#141412;border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,0.06);';
+    card.innerHTML=
+      '<h3 style="color:#c8a87c;margin-bottom:2px;">rdev/liquid-glass-react — 100% 复刻 SVG filter + 弹性 + 边框 + hover</h3>'+
+      '<p style="font-size:0.65rem;opacity:0.35;margin-bottom:6px;">feImage位移图→feColorMatrix灰度→feComponentTransfer离散→EDGE_MASK | 3通道位移(R/G/B不同scale)→feComposite(edge in mask,center in inverse) | 弹性追踪(fadeInFactor+directionalScale+translate) | 双层边框(screen+overlay) | hover/active径向高光 | overLight暗底 | backdrop-filter毛玻璃</p>'+
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center;">'+
+        '<div class="stage" style="width:340px;height:220px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;" id="rdev-stage">'+
+          '<div class="stage-bg" style="position:absolute;"></div>'+
+          // ── Glass 卡片 ──
+          '<div id="rdev-card-wrap" style="position:relative;z-index:1;">'+
+            '<div id="rdev-card" style="position:relative;display:inline-flex;align-items:center;gap:24px;padding:16px 24px;border-radius:24px;overflow:hidden;'+
+              'background:rgba(255,255,255,0.03);box-shadow:0 12px 40px rgba(0,0,0,0.25);">'+
+              // glass__warp (SVG filter + backdrop-filter)
+              '<span class="rdev-warp" style="position:absolute;inset:0;filter:url(#rdev-fc);backdrop-filter:blur('+rp.blur+'px) saturate(1.4);-webkit-backdrop-filter:blur('+rp.blur+'px) saturate(1.4);"></span>'+
+              '<span style="position:relative;z-index:1;font:500 18px/1 system-ui;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,0.4);">液态玻璃</span>'+
+            '</div>'+
+          '</div>'+
+          // ── Button ──
+          '<div id="rdev-btn-wrap" style="position:relative;z-index:1;">'+
+            '<button id="rdev-btn" style="position:relative;display:inline-flex;align-items:center;padding:10px 28px;border-radius:100px;overflow:hidden;border:none;cursor:pointer;'+
+              'background:rgba(255,255,255,0.04);box-shadow:0 12px 40px rgba(0,0,0,0.25);">'+
+              '<span class="rdev-warp" style="position:absolute;inset:0;filter:url(#rdev-fb);backdrop-filter:blur('+(rp.blur*.75).toFixed(1)+'px) saturate(1.4);-webkit-backdrop-filter:blur('+(rp.blur*.75).toFixed(1)+'px) saturate(1.4);"></span>'+
+              '<span style="position:relative;z-index:1;font:500 16px/1 system-ui;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,0.4);">Click Me</span>'+
+            '</button>'+
+          '</div>'+
+        '</div>'+
+        '<div style="min-width:180px;font-size:0.62rem;color:#888;display:flex;flex-direction:column;gap:4px;">'+
+          '<div style="font-size:0.65rem;color:#c8a87c;margin-bottom:4px;">交互测试</div>'+
+          '<span>· 移动鼠标 → 弹性形变</span>'+
+          '<span>· 悬停卡片 → hover高光</span>'+
+          '<span>· 点击按钮 → active压下</span>'+
+          '<span>· 边框随鼠标旋转</span>'+
+          '<div style="font-size:0.58rem;color:#bbb;margin-top:4px;">位移图模式</div>'+
+          '<div style="display:flex;flex-wrap:wrap;gap:3px;" id="rdev-modes">'+
+            '<button data-m="standard" class="rdev-mode on" style="font-size:0.5rem;padding:2px 7px;background:rgba(200,168,124,0.18);border:1px solid rgba(200,168,124,0.3);color:#c8a87c;border-radius:3px;cursor:pointer;">standard</button>'+
+            '<button data-m="polar" class="rdev-mode" style="font-size:0.5rem;padding:2px 7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:3px;cursor:pointer;">polar</button>'+
+            '<button data-m="prominent" class="rdev-mode" style="font-size:0.5rem;padding:2px 7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:3px;cursor:pointer;">prominent</button>'+
+            '<button data-m="shader" class="rdev-mode" style="font-size:0.5rem;padding:2px 7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:3px;cursor:pointer;">shader</button>'+
+          '</div>'+
+          '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">'+
+            '<button id="rdev-ol" style="font-size:0.55rem;padding:2px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#999;border-radius:4px;cursor:pointer;">overLight OFF</button>'+
+          '</div>'+
+          '<div style="font-size:0.65rem;color:#c8a87c;margin-top:4px;">控件</div>'+
+          '<div style="display:flex;align-items:center;gap:4px;"><label style="min-width:36px;font-size:0.55rem;">位移</label><input type="range" id="rdev-ds" min="20" max="150" value="70" style="flex:1;"></div>'+
+          '<div style="display:flex;align-items:center;gap:4px;"><label style="min-width:36px;font-size:0.55rem;">色差</label><input type="range" id="rdev-ai" min="0" max="20" value="6" style="flex:1;"></div>'+
+          '<div style="display:flex;align-items:center;gap:4px;"><label style="min-width:36px;font-size:0.55rem;">弹性</label><input type="range" id="rdev-el" min="0" max="50" value="15" style="flex:1;"></div>'+
+          '<div style="display:flex;align-items:center;gap:4px;"><label style="min-width:36px;font-size:0.55rem;">模糊</label><input type="range" id="rdev-bl" min="4" max="40" value="18" style="flex:1;"></div>'+
+          '<div style="display:flex;align-items:center;gap:4px;"><label style="min-width:36px;font-size:0.55rem;">bgAlpha</label><input type="range" id="rdev-bga" min="0" max="80" value="8" style="flex:1;"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(200,168,124,0.08);border:1px solid rgba(200,168,124,0.15);border-radius:10px;color:#c8a87c;">feImage 位移图</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(200,168,124,0.08);border:1px solid rgba(200,168,124,0.15);border-radius:10px;color:#c8a87c;">feColorMatrix 灰度</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(200,168,124,0.08);border:1px solid rgba(200,168,124,0.15);border-radius:10px;color:#c8a87c;">feComponentTransfer discrete</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">feComposite in/over</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">fadeInFactor 弹性</span>'+
+        '<span style="font-size:0.52rem;padding:2px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;color:#777;">双层边框 screen+overlay</span>'+
+      '</div>';
+    grid.appendChild(card);
+
+    // ══ 弹性追踪 — 100% 匹配 calculateDirectionalScale / calculateFadeInFactor / calculateElasticTranslation ══
+    let mx=window.innerWidth/2,my=window.innerHeight/2;
+    const rCard=card.querySelector('#rdev-card'),rBtn=card.querySelector('#rdev-btn');
+    const rCardW=card.querySelector('#rdev-card-wrap'),rBtnW=card.querySelector('#rdev-btn-wrap');
+
+    function calcFadeIn(el){
+      const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const edX=Math.max(0,Math.abs(mx-cx)-r.width/2),edY=Math.max(0,Math.abs(my-cy)-r.height/2);
+      const ed=Math.sqrt(edX*edX+edY*edY);
+      return ed>200?0:1-ed/200;
+    }
+
+    function applyElastic(el,wrap){
+      const fadeIn=calcFadeIn(el);
+      const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const dx=mx-cx,dy=my-cy;
+      const cd=Math.sqrt(dx*dx+dy*dy);
+      if(cd===0){wrap.style.transform='translate(-50%,-50%) scale(1)';return;}
+
+      const e=rp.elastic,nx=dx/cd,ny=dy/cd;
+      // directionalScale
+      const si=Math.min(cd/300,1)*e*fadeIn;
+      const sx=1+Math.abs(nx)*si*.3-Math.abs(ny)*si*.15;
+      const sy=1+Math.abs(ny)*si*.3-Math.abs(nx)*si*.15;
+      // elasticTranslation
+      const tx=dx*e*.1*fadeIn,ty=dy*e*.1*fadeIn;
+      wrap.style.transform='translate(calc(-50% + '+tx.toFixed(2)+'px), calc(-50% + '+ty.toFixed(2)+'px)) scaleX('+Math.max(.8,sx).toFixed(4)+') scaleY('+Math.max(.8,sy).toFixed(4)+')';
+    }
+
+    // ══ 双层边框光照 — 100% 匹配源码 ══
+    // 为每个玻璃元素动态创建边框层
+    function ensureBorders(el,wrap){
+      if(wrap.querySelector('.rdev-border-scr'))return;
+      const mk='linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)';
+      ['screen','overlay'].forEach((bm,i)=>{
+        const s=document.createElement('span');
+        s.className='rdev-border-'+bm.substring(0,3);
+        s.style.cssText='position:absolute;height:100%;width:100%;border-radius:inherit;pointer-events:none;padding:1.5px;'+
+          '-webkit-mask:'+mk+';-webkit-mask-composite:xor;mask-composite:exclude;'+
+          'mix-blend-mode:'+bm+';opacity:'+(bm==='screen'?'.2':'1')+';z-index:'+(10+i)+';'+
+          'box-shadow:0 0 0 .5px rgba(255,255,255,.5) inset,0 1px 3px rgba(255,255,255,.25) inset,0 1px 4px rgba(0,0,0,.35);'+
+          'position:absolute;top:50%;left:50%;transition:all ease-out .2s;';
+        wrap.appendChild(s);
+      });
+    }
+    ensureBorders(rCard,rCardW);
+    ensureBorders(rBtn,rBtnW);
+
+    function updateBorders(el,wrap){
+      const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const ox=(mx-cx)/(r.width/2)*100; // mouseOffset.x
+      const oy=(my-cy)/(r.height/2)*100; // mouseOffset.y
+      [['.rdev-border-scr',.12,.4],['.rdev-border-ove',.32,.6]].forEach(([cls,lo,hi])=>{
+        const bs=wrap.querySelector(cls);
+        if(!bs)return;
+        bs.style.height=r.height+'px';bs.style.width=r.width+'px';
+        bs.style.background='linear-gradient('+(135+ox*1.2)+'deg,'+
+          'rgba(255,255,255,0) 0%,'+
+          'rgba(255,255,255,'+(lo+Math.abs(ox)*.008).toFixed(3)+') '+Math.max(10,33+oy*.3)+'%,'+
+          'rgba(255,255,255,'+(hi+Math.abs(ox)*.012).toFixed(3)+') '+Math.min(90,66+oy*.4)+'%,'+
+          'rgba(255,255,255,0) 100%)';
+      });
+    }
+
+    // ══ hover/active 高光层 ══
+    function ensureHoverLayers(el,wrap){
+      if(wrap.querySelector('.rdev-hover'))return;
+      [['rdev-hover1','radial-gradient(circle at 50% 0%, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 50%)','overlay'],
+       ['rdev-hover2','radial-gradient(circle at 50% 0%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)','overlay'],
+       ['rdev-hover3','radial-gradient(circle at 50% 0%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%)','overlay']].forEach(([cls,bg,bm])=>{
+        const d=document.createElement('div');
+        d.className=cls;d.style.cssText='position:absolute;border-radius:inherit;pointer-events:none;z-index:20;opacity:0;transition:all .2s ease-out;'+
+          'background-image:'+bg+';mix-blend-mode:'+bm+';';
+        wrap.appendChild(d);
+      });
+    }
+    ensureHoverLayers(rCard,rCardW);
+    ensureHoverLayers(rBtn,rBtnW);
+
+    let hoveredCard=false,hoveredBtn=false,activeBtn=false;
+    rCard.addEventListener('mouseenter',()=>{hoveredCard=true;updateHoverGlow(rCardW);});
+    rCard.addEventListener('mouseleave',()=>{hoveredCard=false;updateHoverGlow(rCardW);});
+    rBtn.addEventListener('mouseenter',()=>{hoveredBtn=true;updateHoverGlow(rBtnW);});
+    rBtn.addEventListener('mouseleave',()=>{hoveredBtn=false;activeBtn=false;updateHoverGlow(rBtnW);});
+    rBtn.addEventListener('mousedown',()=>{activeBtn=true;updateHoverGlow(rBtnW);});
+    rBtn.addEventListener('mouseup',()=>{activeBtn=false;updateHoverGlow(rBtnW);});
+
+    function updateHoverGlow(wrap){
+      const h1=wrap.querySelector('.rdev-hover1'),h2=wrap.querySelector('.rdev-hover2'),h3=wrap.querySelector('.rdev-hover3');
+      const isBtn=wrap===rBtnW,hovered=isBtn?hoveredBtn:hoveredCard,active=isBtn?activeBtn:false;
+      if(h1)h1.style.opacity=(hovered||active)?'.5':'0';
+      if(h2)h2.style.opacity=active?'.5':'0';
+      if(h3)h3.style.opacity=hovered?'.4':active?'.8':'0';
+    }
+
+    // ══ overLight 暗色叠加层 ══
+    function updateOverLight(){
+      [rCardW,rBtnW].forEach(wrap=>{
+        let ol1=wrap.querySelector('.rdev-ol1'),ol2=wrap.querySelector('.rdev-ol2');
+        if(rp.overLight){
+          if(!ol1){
+            ol1=document.createElement('div');ol1.className='rdev-ol1';
+            ol1.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:25;background:#000;opacity:.2;border-radius:inherit;transition:opacity .15s;';
+            wrap.appendChild(ol1);
+            ol2=document.createElement('div');ol2.className='rdev-ol2';
+            ol2.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:26;background:#000;mix-blend-mode:overlay;opacity:1;border-radius:inherit;transition:opacity .15s;';
+            wrap.appendChild(ol2);
+          }else{ol1.style.opacity='.2';ol2.style.opacity='1';}
+        }else{if(ol1){ol1.style.opacity='0';ol2.style.opacity='0';}}
+      });
+    }
+
+    // ══ 调整玻璃大小 ══
+    function updateGlassSize(){
+      [rCard,rBtn].forEach(el=>{
+        const r=el.getBoundingClientRect();
+        el.parentElement.querySelectorAll('.rdev-border-scr,.rdev-border-ove,.rdev-hover1,.rdev-hover2,.rdev-hover3,.rdev-ol1,.rdev-ol2').forEach(s=>{
+          s.style.height=r.height+'px';s.style.width=r.width+'px';
+        });
+      });
+    }
+
+    // ══ 动画循环 ══
+    function anim(){
+      applyElastic(rCard,rCardW);applyElastic(rBtn,rBtnW);
+      updateBorders(rCard,rCardW);updateBorders(rBtn,rBtnW);
+      updateGlassSize();
+      requestAnimationFrame(anim);
+    }
+    anim();
+
+    // ══ 控件绑定 ══
+    document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+    card.querySelector('#rdev-ds').addEventListener('input',e=>{rp.ds=+e.target.value;updateRdevFilters();});
+    card.querySelector('#rdev-ai').addEventListener('input',e=>{rp.ai=+e.target.value;updateRdevFilters();});
+    card.querySelector('#rdev-el').addEventListener('input',e=>{rp.elastic=+e.target.value/100;});
+    card.querySelector('#rdev-bl').addEventListener('input',e=>{
+      rp.blur=+e.target.value;
+      card.querySelectorAll('.rdev-warp').forEach(w=>{
+        w.style.backdropFilter='blur('+rp.blur+'px) saturate(1.4)';
+        w.style.webkitBackdropFilter='blur('+rp.blur+'px) saturate(1.4)';
+      });
+    });
+    // bgAlpha 滑块
+    card.querySelector('#rdev-bga').addEventListener('input',e=>{
+      const v=+e.target.value/100;
+      [rCard,rBtn].forEach(el=>{
+        el.style.background='rgba(255,255,255,'+v.toFixed(2)+')';
+      });
+    });
+    // 位移图模式切换
+    card.querySelectorAll('#rdev-modes .rdev-mode').forEach(btn=>{
+      btn.addEventListener('click',function(){
+        card.querySelectorAll('#rdev-modes .rdev-mode').forEach(b=>{b.classList.remove('on');b.style.background='rgba(255,255,255,0.04)';b.style.color='#999';b.style.borderColor='rgba(255,255,255,0.1)';});
+        this.classList.add('on');this.style.background='rgba(200,168,124,0.18)';this.style.color='#c8a87c';this.style.borderColor='rgba(200,168,124,0.3)';
+        dmapMode=this.dataset.m;
+        updateRdevFilters();
+      });
+    });
+
+    card.querySelector('#rdev-ol').addEventListener('click',function(){
+      rp.overLight=!rp.overLight;
+      this.textContent='overLight '+(rp.overLight?'ON':'OFF');
+      this.style.background=rp.overLight?'rgba(200,168,124,0.18)':'rgba(255,255,255,0.04)';
+      this.style.color=rp.overLight?'#c8a87c':'#999';
+      updateOverLight();
+      // 调整玻璃背景和文字阴影
+      [rCard,rBtn].forEach(el=>{
+        el.style.boxShadow=rp.overLight?'0px 16px 70px rgba(0,0,0,.75)':'0px 12px 40px rgba(0,0,0,.25)';
+      });
+    });
+
+    return;
+  }
+
   // 生成位移图
   let mapCanvas, mapURL;
 
@@ -1562,7 +2136,7 @@ lumaBtn.addEventListener('click', () => {
   else { cancelAnimationFrame(lumaScanId); lumaCtx.clearRect(0,0,lumaCanvas.width,lumaCanvas.height); }
 });
 
-console.log('%c🧊 液态玻璃全方案测试 — 10个方案已加载',
+console.log('%c🧊 液态玻璃全方案测试 — 12个方案已加载 (新增: Kyant0 WebGL2 SDF + rdev SVG弹性)',
   'font-size:1.1em;color:#c8a87c');
 console.log('%c🔍 点击顶部"全屏亮度扫描"按钮 → 全屏网格显示各位置亮度(蓝暗→红亮)',
   'color:#c8a87c');

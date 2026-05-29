@@ -104,6 +104,8 @@ export class LiquidGlassStudio {
     // 可调阈值: [极暗上限, 暗色上限, 亮色上限]
     this._adThresh = 0.5;
     this._adSpeed = 1; // 过渡动画秒数
+    this._backdropBrightness = 1.1; // 透镜背后曝光度
+    this._bgAlpha = 0.08; // 玻璃底透
     this._setup();
   }
 
@@ -291,13 +293,8 @@ export class LiquidGlassStudio {
       borderAlpha = 0.25;
       highlight = 0.08;
       shadowAlpha = 0.3;
-      if (this._adaptive) {
-        brightness = this._adCur.brightness;
-        bgAlpha = this._adCur.bgAlpha;
-      } else {
-        brightness = 1.1;
-        bgAlpha = 0.06;
-      }
+      brightness = this._adCur.brightness;
+      bgAlpha = this._bgAlpha;
     }
 
     const bf = `blur(${(blur / 2).toFixed(1)}px) ${filterUrl} blur(${blur.toFixed(1)}px) brightness(${brightness}) saturate(${saturate})`;
@@ -590,6 +587,7 @@ export class LiquidGlassStudio {
        <div class="pnl-sep" data-glass-only></div>
        <div class="pnl-row" data-glass-only><label>阈值</label><input type="range" id="__lg_pnl_at0" min="0" max="100" value="${this._adThresh*100}"><span class="pnl-val" id="__lg_pnl_at0v">${(this._adThresh*100).toFixed(0)}%</span></div>
        <div class="pnl-row" data-glass-only><label>过渡</label><input type="range" id="__lg_pnl_ads" min="0.2" max="3" step="0.1" value="${this._adSpeed}"><span class="pnl-val" id="__lg_pnl_adsv">${this._adSpeed.toFixed(1)}s</span></div>
+       <div class="pnl-row" data-glass-only><label>曝光</label><input type="range" id="__lg_pnl_bgalpha" min="0.5" max="2.0" step="0.05" value="1.1"><span class="pnl-val" id="__lg_pnl_bgalpha_v">1.10</span></div>
        <div class="pnl-row"><label>亮度</label><span class="pnl-val" id="__lg_pnl_lumv" style="color:#c8a87c;">-</span><span style="font-size:9px;color:#666;text-align:center;flex:1;" id="__lg_pnl_lumt">--</span></div>
        <div class="pnl-sep" data-glass-only></div>
        <div class="pnl-btns">
@@ -805,6 +803,22 @@ export class LiquidGlassStudio {
         if (this._frostOverlay) this._frostOverlay.style.transition = `opacity ${this._adSpeed}s ease`;
         if (this._glassText) this._glassText.style.transition = `color ${this._adSpeed}s ease`;
         setTextTransitionSpeed(this._adSpeed);
+      });
+    }
+
+    // 曝光滑块 — 控制玻璃背后的 brightness (背景亮度)
+    const bgaSl = document.getElementById('__lg_pnl_bgalpha');
+    if (bgaSl) {
+      bgaSl.addEventListener('input', () => {
+        const v = parseFloat(bgaSl.value);
+        const vl = document.getElementById('__lg_pnl_bgalpha_v');
+        if (vl) vl.textContent = v.toFixed(2);
+        if (this._targetPanel === '_glass') {
+          this._adCur.brightness = v;
+          this._applyGlassStyle();
+        } else {
+          setPanelBrightness(this._targetPanel, v);
+        }
       });
     }
 

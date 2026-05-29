@@ -15,10 +15,11 @@ export const PANEL_DEFS = [
   { id: 'titlebar',    label: '标题栏',       sel: '.titlebar__controls',                        refW: 120, refH: 32,  refR: 10 },
   { id: 'settings',    label: '设置面板',     sel: '.settings-panel',                            refW: 500, refH: 400, refR: 10 },
   { id: 'shortcuts',   label: '快捷键面板',   sel: '.shortcuts-panel',                           refW: 450, refH: 400, refR: 10 },
-  { id: 'lightbox',    label: '灯箱按钮',     sel: '.lightbox__close,.lightbox__prev,.lightbox__next', refW: 40, refH: 40, refR: 10 },
+	  { id: 'lightbox',    label: '灯箱按钮',     sel: '.lightbox__close,.lightbox__prev,.lightbox__next', refW: 40, refH: 40, refR: 10 },
   { id: 'exif',        label: 'EXIF面板',     sel: '.lightbox__exif',                             refW: 320, refH: 100, refR: 10 },
   { id: 'gallerynav',  label: '画廊导航',     sel: '.gallery__nav',                              refW: 800, refH: 50,  refR: 10 },
-  { id: 'backtotop',   label: '返回顶部',     sel: '.back-to-top',                               refW: 42,  refH: 42,  refR: 21 },
+	  { id: 'backtotop',   label: '返回顶部',     sel: '.back-to-top',                               refW: 42,  refH: 42,  refR: 21 },
+  { id: 'heroscroll',  label: '滚动提示',     sel: '.hero__scroll',                              refW: 30,  refH: 52,  refR: 15 },
   { id: 'heroscroll',  label: '滚动提示',     sel: '.hero__scroll',                              refW: 30,  refH: 52,  refR: 15 },
   { id: 'dropdown-trigger', label: '下拉按钮', sel: '.custom-dropdown__trigger', refW: 130, refH: 34, refR: 17 },
   { id: 'dropdown-menu',  label: '下拉菜单', sel: '.custom-dropdown__menu',    refW: 160, refH: 150, refR: 6 },
@@ -26,23 +27,23 @@ export const PANEL_DEFS = [
 ];
 
 /* 逐面板默认参数 — 共用同一个位移图，只调 blur/saturate/refraction */
-const _defaults = { blur: 4, saturate: 1.2, refraction: 50, depth: 5, brightness: 0.7, bgAlpha: 0.04, borderAlpha: 0.15, highlight: 0.06, shadowAlpha: 0.3 };
+const _defaults = { blur: 4, saturate: 1.2, refraction: 50, depth: 5, brightness: 0.7, bgAlpha: 0.04, borderAlpha: 0.22, highlight: 0.08, shadowAlpha: 0.3 };
 const _panelState = {};
 
 // 逐面板完整参数覆盖（从透镜调试得到的最佳值）
-// W/H/R/Depth 决定位移图生成，blur/saturate/refraction 决定 CSS
+// w/h/r/depth 决定位移图生成，blur/saturate/refraction 决定 CSS
+// w/h=0 或缺失 → 使用 PANEL_DEFS 参考值或实测元素尺寸
 const _panelOverrides = {
   toolbar:   { w: 800, h: 44, r: 10,  depth: 2,  blur: 3, saturate: 1.15, refraction: 150 },
   sidebar:   { w: 240, h: 0, r: 18, depth: 5,  blur: 12, saturate: 1.15, refraction: 150 },
   titlebar:  { w: 120, h: 32, r: 10,  depth: 2,  blur: 3, saturate: 1.15, refraction: 150 },
   settings:  { w: 500, h: 400, r: 10, depth: 7,  blur: 3, saturate: 1.15, refraction: 100 },
   shortcuts: { w: 450, h: 400, r: 10, depth: 7,  blur: 3, saturate: 1.15, refraction: 100 },
-  lightbox:  { w: 40, h: 40, r: 20, depth: 2,  blur: 3, saturate: 1.15, refraction: 150 },
-  backtotop: { w: 42, h: 42, r: 21, depth: 2,  blur: 3, saturate: 1.15, refraction: 150 },
+	  lightbox:  { w: 40, h: 40, r: 20, depth: 2,  blur: 3, saturate: 1.15, refraction: 150, brightness: 1.1 },
+	  backtotop: { w: 42, h: 42, r: 21, depth: 2,  blur: 3, saturate: 1.15, refraction: 150, brightness: 1.1 },
   heroscroll:{ w: 30, h: 52, r: 15, depth: 3,  blur: 3, saturate: 1.15, refraction: 50 },
   gallerynav:{ w: 800, h: 50, r: 10,  depth: 3,  blur: 3, saturate: 1.15, refraction: 100 },
   exif:      {                           depth: 4,  blur: 3, saturate: 1.15, refraction: 100 },
-  devpanel:  { w: 380, h: 600, r: 14, depth: 5,  blur: 3, saturate: 1.15, refraction: 100 },
   'dropdown-trigger': { w: 130, h: 34, r: 17, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
   'dropdown-menu':    { w: 160, h: 150, r: 6, depth: 3, blur: 3, saturate: 1.15, refraction: 100 },
   loadmore:           { w: 200, h: 44, r: 22, depth: 2, blur: 3, saturate: 1.15, refraction: 100 },
@@ -57,7 +58,6 @@ function _init() {
 /* ── 公开 API ── */
 
 let _resizeTimer = null;
-let _domObserver = null;
 let _domObserverTimer = null;
 
 function _onResize() {
@@ -80,11 +80,8 @@ export function enableLiquidGlassPanels() {
   _active = true;
   _init();
   window.addEventListener('resize', _onResize);
-  // DOM 变化时自动重试（元素延迟出现也能应用样式）
-  if (!_domObserver) {
-    _domObserver = new MutationObserver(() => _onDOMMutation());
-    _domObserver.observe(document.body, { childList: true, subtree: true });
-  }
+  // DOM 变化时由 adaptive-glass 的 MutationObserver 统一触发，避免重复监听
+  window.addEventListener('lens:panels-changed', _onDOMMutation);
   // 如果透镜 SVG 不存在，创建独立的面板滤镜
   if (!document.getElementById('__lg_studio_svg') && !document.getElementById('__lg_panel_svg')) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -132,7 +129,7 @@ export function enableLiquidGlassPanels() {
   const root = document.documentElement.style;
   if (!root.getPropertyValue('--lg-panel-blur')) root.setProperty('--lg-panel-blur', '6px');
   if (!root.getPropertyValue('--lg-panel-saturate')) root.setProperty('--lg-panel-saturate', '1.15');
-  if (!root.getPropertyValue('--lg-panel-border-alpha')) root.setProperty('--lg-panel-border-alpha', '0.10');
+  if (!root.getPropertyValue('--lg-panel-border-alpha')) root.setProperty('--lg-panel-border-alpha', '0.18');
   if (!root.getPropertyValue('--lg-panel-shadow-alpha')) root.setProperty('--lg-panel-shadow-alpha', '0.3');
   if (!root.getPropertyValue('--lg-panel-bg-alpha')) root.setProperty('--lg-panel-bg-alpha', '0');
   if (!root.getPropertyValue('--lg-panel-highlight')) root.setProperty('--lg-panel-highlight', '0.05');
@@ -142,21 +139,21 @@ export function enableLiquidGlassPanels() {
   // 强制下拉元素玻璃样式（优先级最高，确保与画廊导航一致）
   const ddStyle = document.createElement('style');
   ddStyle.id = '__lg_dropdown_glass';
-  ddStyle.textContent = `.custom-dropdown__trigger,.custom-dropdown__menu{background:rgba(255,255,255,0.04)!important;backdrop-filter:blur(6px) brightness(0.7) saturate(1.15)!important;-webkit-backdrop-filter:blur(6px) brightness(0.7) saturate(1.15)!important;border:0.5px solid rgba(255,255,255,0.12)!important;box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)!important;}`;
+  ddStyle.textContent = `.custom-dropdown__trigger,.custom-dropdown__menu{background:rgba(255,255,255,0.04)!important;backdrop-filter:blur(6px) brightness(var(--lg-brightness,1.1)) saturate(1.15)!important;-webkit-backdrop-filter:blur(6px) brightness(var(--lg-brightness,1.1)) saturate(1.15)!important;border:0.5px solid rgba(255,255,255,0.12)!important;box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06)!important;}`;
   document.head.appendChild(ddStyle);
 }
 
 export function disableLiquidGlassPanels() {
   _active = false;
-  stopAdaptiveGlass();
+  // 不再调用 stopAdaptiveGlass() — 自适应文字系统对所有预设生效
   window.removeEventListener('resize', _onResize);
   clearTimeout(_resizeTimer);
   clearTimeout(_domObserverTimer);
-  if (_domObserver) { _domObserver.disconnect(); _domObserver = null; }
+  window.removeEventListener('lens:panels-changed', _onDOMMutation);
   // 清除下拉玻璃专用样式表
   const ddStyle = document.getElementById('__lg_dropdown_glass');
   if (ddStyle) ddStyle.remove();
-  // 清除面板内联 backdrop-filter
+  // 清除面板内联 backdrop-filter（保留自适应文字变量 --text/--text-2/--text-3）
   PANEL_DEFS.forEach(p => {
     document.querySelectorAll(p.sel).forEach(el => {
       el.style.removeProperty('backdrop-filter');
@@ -334,20 +331,11 @@ function _apply(id) {
     const bf = `blur(${(s.blur/2).toFixed(1)}px) ${filterRef} blur(${s.blur.toFixed(1)}px) brightness(var(--lg-brightness,${s.brightness})) saturate(${s.saturate})`;
     el.style.setProperty('backdrop-filter', bf, 'important');
     el.style.setProperty('-webkit-backdrop-filter', bf, 'important');
-    el.style.setProperty('background', `rgba(255,255,255,var(--lg-bg-alpha,${s.bgAlpha}))`, 'important');
-    el.style.setProperty('border', `1px solid rgba(255,255,255,${s.borderAlpha})`, 'important');
-    el.style.setProperty('box-shadow', `0 8px 32px rgba(0,0,0,${s.shadowAlpha}), inset 0 1px 0 rgba(255,255,255,${s.highlight})`, 'important');
-  });
-}
-
-function _applyStyleOnly(id, def, s) {
-  const filterRef = `url(#lg-panel-refract-${id})`;
-  const bf = `blur(${(s.blur/2).toFixed(1)}px) ${filterRef} blur(${s.blur.toFixed(1)}px) brightness(var(--lg-brightness,${s.brightness})) saturate(${s.saturate})`;
-  document.querySelectorAll(def.sel).forEach(el => {
-    el.style.setProperty('backdrop-filter', bf, 'important');
-    el.style.setProperty('-webkit-backdrop-filter', bf, 'important');
-    el.style.setProperty('background', `rgba(255,255,255,var(--lg-bg-alpha,${s.bgAlpha}))`, 'important');
-    el.style.setProperty('border', `1px solid rgba(255,255,255,${s.borderAlpha})`, 'important');
+    // 灯箱按钮和返回顶部由 lightbox.js 独立管理 background/border
+    if (id !== 'lightbox' && id !== 'backtotop') {
+      el.style.setProperty('background', `rgba(255,255,255,var(--lg-bg-alpha,${s.bgAlpha}))`, 'important');
+      el.style.setProperty('border', `1px solid rgba(255,255,255,${s.borderAlpha})`, 'important');
+    }
     el.style.setProperty('box-shadow', `0 8px 32px rgba(0,0,0,${s.shadowAlpha}), inset 0 1px 0 rgba(255,255,255,${s.highlight})`, 'important');
   });
 }

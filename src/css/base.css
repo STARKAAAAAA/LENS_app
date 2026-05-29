@@ -36,13 +36,14 @@
     color: var(--text-3);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
+    will-change: transform;
     opacity: 0; visibility: hidden;
     translate: 0 12px;
     transition:
       opacity 0.35s ease,
       visibility 0s 0.35s,
       translate 0.35s var(--ease-out),
-      background 0.3s ease,
+      background 0.08s ease-out,
       border-color 0.3s ease,
       color 0.3s ease;
 
@@ -51,6 +52,8 @@
       translate: 0 0;
       transition: opacity 0.35s ease, visibility 0s 0s, translate 0.35s var(--ease-out);
     }
+
+    &:active { background: rgba(255,255,255,0.40); }
 
     &:hover {
       background: var(--glass-bg-hover);

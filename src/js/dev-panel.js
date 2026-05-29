@@ -4,7 +4,7 @@
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
 import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction, togglePanelDebug } from './lg-panels.js';
-import { markTextDirty, clearTextDirty } from './adaptive-glass.js';
+import { markTextDirty, clearTextDirty, initAdaptiveGlass } from './adaptive-glass.js';
 import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
 import { ANIMATION_TYPES, getAnimationType, setAnimationType, createMiniShaderPreview, ensureAuroraCSS, updateAuroraColors, ensureFallingCSS, buildFallingVars, ensureGradientBarsCSS, createAuroraBackground, disposeAuroraBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWebGLBackground, disposeWebGLBackground, createVolAuroraBackground, createWaveGridBackground, createDitherBackground } from './loading-shaders.js';
 
@@ -3807,6 +3807,8 @@ export function initDevPanel() {
 
   // 液态玻璃预设：先创建 SVG 滤镜 + 设置标志位，再调用 applySpecialVarEffects
   // 这样 generateFullCSS 内部能检测到标志位并输出玻璃 CSS
+  // 自适应文字系统对所有预设生效（根据背景亮度自动切换白/黑文字）
+  initAdaptiveGlass();
   if (localStorage.getItem(ACTIVE_PRESET_KEY) === '__liquid-glass__') {
     enableLiquidGlassPanels();
     window.__lensLiquidGlass = true;

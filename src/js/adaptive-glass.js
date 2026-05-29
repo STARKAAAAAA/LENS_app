@@ -8,12 +8,13 @@ import { PANEL_DEFS } from './lg-panels.js';
 
 let _active = false;
 let _ticking = false;
-let _scrollTimer = 0;
 let _resizeTimer = 0;
 let _domObserver = null;
 let _sampling = false;
 let _gridCache = null;
 let _textStyleEl = null;
+let _needsResample = true; // resize/mutation 后置 true，scroll 用冷却控制
+let _lastScrollResample = 0;
 
 const _forceDark = new Set();
 
@@ -40,14 +41,19 @@ function _textColors(mode, isDark) {
   const light = mode === 'white' || (mode === 'adaptive' && isDark);
   const alpha = light ? '255,255,255' : '0,0,0';
   return {
-    t1: `rgba(${alpha},0.94)`,
-    t2: `rgba(${alpha},0.82)`,
-    t3: `rgba(${alpha},0.64)`,
+    t1: `rgba(${alpha},0.96)`,
+    t2: `rgba(${alpha},0.88)`,
+    t3: `rgba(${alpha},0.72)`,
   };
 }
 
-function _onScroll() { clearTimeout(_scrollTimer); _scrollTimer = setTimeout(_scheduleUpdate, 150); }
-function _onResize() { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(_scheduleUpdate, 200); }
+function _onScroll() {
+  _scheduleUpdate();
+  // 固定面板(fixed)后的内容随滚动变化，需定期重采样，500ms 冷却防 capturePage 过频
+  if (performance.now() - _lastScrollResample > 500) _needsResample = true;
+}
+function _onResize() { _needsResample = true; clearTimeout(_resizeTimer); _resizeTimer = setTimeout(_scheduleUpdate, 50); }
+function _onRescanLuminance() { _needsResample = true; _scheduleUpdate(); }
 
 /* ── 主进程 IPC 全屏采样 ── */
 async function _sampleGrid() {
@@ -122,39 +128,6 @@ function _interpRgba(from, to, t) {
   return `rgba(${r},${g},${bb},${alpha})`;
 }
 
-function _animateTextVars(el, tc, durationSec) {
-  const key = el;
-  const existing = _textAnims.get(key);
-  if (existing) cancelAnimationFrame(existing.rafId);
-
-  const props = ['--text', '--text-2', '--text-3'];
-  const targetVals = [tc.t1, tc.t2, tc.t3];
-  const startVals = props.map(p => el.style.getPropertyValue(p) || getComputedStyle(el).getPropertyValue(p));
-
-  // 如果所有值相同，跳过
-  if (startVals.every((s, i) => s === targetVals[i])) return;
-
-  const startTime = performance.now();
-  const duration = durationSec * 1000;
-
-  function step(now) {
-    const raw = Math.min(1, (now - startTime) / duration);
-    const t = raw * (2 - raw); // easeOut quad
-    props.forEach((prop, i) => {
-      el.style.setProperty(prop, _interpRgba(startVals[i], targetVals[i], t), 'important');
-    });
-    if (raw < 1) {
-      _textAnims.set(key, { rafId: requestAnimationFrame(step) });
-    } else {
-      _textAnims.delete(key);
-      props.forEach((prop, i) => {
-        el.style.setProperty(prop, targetVals[i], 'important');
-      });
-    }
-  }
-  _textAnims.set(key, { rafId: requestAnimationFrame(step) });
-}
-
 function _removeTextStyle() {
   if (_textStyleEl) { _textStyleEl.remove(); _textStyleEl = null; }
 }
@@ -167,13 +140,19 @@ function _currentBgAlpha(el) {
   const v = el.style.getPropertyValue('--lg-bg-alpha');
   return v ? parseFloat(v) : 0;
 }
+function _currentBrightness(el) {
+  const v = el.style.getPropertyValue('--lg-brightness');
+  return v ? parseFloat(v) : 1.1;
+}
 
-function _animateGlass(el, id, targetBgAlpha, tc, mode, speed) {
-  // 取消该面板旧动画
-  const old = _locks.get(id);
+function _animateGlass(el, lockKey, targetBgAlpha, tc, mode, speed, targetBrightness) {
+  // 取消该元素旧动画
+  const old = _locks.get(lockKey);
   if (old && old._rafId) cancelAnimationFrame(old._rafId);
 
   const startBg = _currentBgAlpha(el);
+  const startBr = _currentBrightness(el);
+  const tgtBr = targetBrightness != null ? targetBrightness : startBr;
   const props = ['--text', '--text-2', '--text-3'];
   const targetT = [tc.t1, tc.t2, tc.t3];
   const startT = props.map(p => el.style.getPropertyValue(p) || getComputedStyle(el).getPropertyValue(p));
@@ -184,8 +163,9 @@ function _animateGlass(el, id, targetBgAlpha, tc, mode, speed) {
     const raw = Math.min(1, (now - startTime) / duration);
     const t = raw * (2 - raw); // easeOut quad
 
-    // 玻璃背景
+    // 玻璃背景 + 亮度
     el.style.setProperty('--lg-bg-alpha', (startBg + (targetBgAlpha - startBg) * t).toFixed(3), 'important');
+    el.style.setProperty('--lg-brightness', (startBr + (tgtBr - startBr) * t).toFixed(2), 'important');
     // 文字颜色
     if (!window.__lensTextDirty && mode !== 'white') {
       props.forEach((prop, i) => {
@@ -194,25 +174,27 @@ function _animateGlass(el, id, targetBgAlpha, tc, mode, speed) {
     }
 
     if (raw < 1) {
-      const lock = _locks.get(id);
+      const lock = _locks.get(lockKey);
       if (lock) lock._rafId = requestAnimationFrame(step);
     } else {
       // 动画完成：写入终值，解锁，处理排队
       el.style.setProperty('--lg-bg-alpha', targetBgAlpha, 'important');
+      el.style.setProperty('--lg-brightness', tgtBr.toFixed(2), 'important');
       if (!window.__lensTextDirty && mode !== 'white') {
         props.forEach((prop, i) => el.style.setProperty(prop, targetT[i], 'important'));
       }
-      _finishAnim(id, el);
+      _finishAnim(lockKey, el, targetBrightness);
     }
   }
 
-  const lock = _locks.get(id) || {};
-  lock._rafId = requestAnimationFrame(step);
-  _locks.set(id, lock);
+  const lock = _locks.get(lockKey) || {};
+  _locks.set(lockKey, lock);
+  // 首帧同步执行（省一帧 rAF），后续帧在 step 内部继续用 rAF
+  step(performance.now());
 }
 
-function _finishAnim(id, el) {
-  const lock = _locks.get(id);
+function _finishAnim(lockKey, el, targetBrightness) {
+  const lock = _locks.get(lockKey);
   if (!lock) return;
   clearTimeout(lock._timer);
   lock._locked = false;
@@ -220,55 +202,63 @@ function _finishAnim(id, el) {
   const p = lock._pending;
   if (p) {
     lock._pending = null;
-    // 仅当目标值不同时排队播放
     if (Math.abs(p.bgAlpha - _currentBgAlpha(el)) > 0.001 ||
+        Math.abs((p.brightness || 1.1) - _currentBrightness(el)) > 0.01 ||
         (p.tc && p.mode !== 'white' && !window.__lensTextDirty)) {
       lock._locked = true;
-      _animateGlass(el, id, p.bgAlpha, p.tc, p.mode, _adSpeed);
+      _animateGlass(el, lockKey, p.bgAlpha, p.tc, p.mode, _adSpeed, p.brightness);
     }
   }
 }
 
-function _applyLuminance(id, lum) {
+// 逐元素应用亮度（不再 querySelectorAll 全部元素，每个元素独立 lum）
+function _applyLuminanceToEl(id, el, idx, lum) {
   if (lum === null || lum === undefined) return;
   const isDark = lum < _adThresh;
-  const targetBgAlpha = isDark ? 0 : 0.35;
+  const targetBgAlpha = isDark ? 0 : 0.48;
+  const targetBrightness = 1.1; // 与其他面板一致，固定亮度
   const mode = _panelTextModes.get(id) || 'adaptive';
   const tc = _textColors(mode, isDark);
 
-  const def = PANEL_DEFS.find(p => p.id === id);
-  if (!def) return;
+  const lockKey = `${id}-${idx}`;
+  el.style.setProperty('--lg-brightness', '1.1', 'important');
 
-  document.querySelectorAll(def.sel).forEach(el => {
-    el.style.setProperty('--lg-brightness', '1.1', 'important');
+  let lock = _locks.get(lockKey);
+  if (!lock) { lock = {}; _locks.set(lockKey, lock); }
 
+  const shouldAnimate = Math.abs(targetBgAlpha - _currentBgAlpha(el)) > 0.001 ||
+    (mode !== 'white' && !window.__lensTextDirty);
 
-    // 过渡锁定：如果该面板正在动画中，排队
-    let lock = _locks.get(id);
-    if (!lock) { lock = {}; _locks.set(id, lock); }
-
-    const shouldAnimate = Math.abs(targetBgAlpha - _currentBgAlpha(el)) > 0.001 ||
-      (mode !== 'white' && !window.__lensTextDirty);
-
-    if (!shouldAnimate) {
-      el.style.setProperty('--lg-bg-alpha', targetBgAlpha, 'important');
-      if (mode === 'white') {
-        el.style.removeProperty('--text');
-        el.style.removeProperty('--text-2');
-        el.style.removeProperty('--text-3');
-      }
-      return;
+  if (!shouldAnimate) {
+    el.style.setProperty('--lg-bg-alpha', targetBgAlpha, 'important');
+    if (mode === 'white') {
+      el.style.removeProperty('--text');
+      el.style.removeProperty('--text-2');
+      el.style.removeProperty('--text-3');
+    } else {
+      el.style.setProperty('--text', tc.t1, 'important');
+      el.style.setProperty('--text-2', tc.t2, 'important');
+      el.style.setProperty('--text-3', tc.t3, 'important');
     }
-
-    if (lock._locked) {
-      lock._pending = { bgAlpha: targetBgAlpha, tc, mode };
-      return;
+    // 圆形按钮玻璃底板
+    if (id === 'lightbox' || id === 'backtotop') {
+      el.style.setProperty('background', `rgba(255,255,255,${targetBgAlpha})`, 'important');
     }
+    return;
+  }
 
-    lock._locked = true;
-    lock._pending = null;
-    _animateGlass(el, id, targetBgAlpha, tc, mode, _adSpeed);
-  });
+  if (lock._locked) {
+    lock._pending = { bgAlpha: targetBgAlpha, tc, mode, brightness: targetBrightness };
+    return;
+  }
+
+  lock._locked = true;
+  lock._pending = null;
+  _animateGlass(el, lockKey, targetBgAlpha, tc, mode, _adSpeed, targetBrightness);
+  // 圆形按钮（lightbox/backtotop）的玻璃底板：bgAlpha 自适应亮背景变白
+  if (id === 'lightbox' || id === 'backtotop') {
+    el.style.setProperty('background', `rgba(255,255,255,${targetBgAlpha})`, 'important');
+  }
 }
 
 /* ── 公开 API ── */
@@ -278,12 +268,13 @@ async function updateAllPanels() {
   _sampling = true;
 
   try {
-    const grid = await _sampleGrid();
+    const grid = _needsResample ? await _sampleGrid() : _gridCache;
+    if (_needsResample) { _lastScrollResample = performance.now(); _needsResample = false; }
     // IPC 失败时使用兜底：假设所有面板在暗色背景上（lum=0.1 → isDark → white text + clear glass）
 
     for (const def of PANEL_DEFS) {
       const els = document.querySelectorAll(def.sel);
-      els.forEach(el => {
+      els.forEach((el, idx) => {
         if (!_isVisible(def.id, el)) {
           // 面板不可见时平滑过渡到 :root 预设值，再清除内联
           const curBg = _currentBgAlpha(el);
@@ -292,9 +283,8 @@ async function updateAllPanels() {
             const rootT1 = root.getPropertyValue('--text').trim();
             const rootT2 = root.getPropertyValue('--text-2').trim();
             const rootT3 = root.getPropertyValue('--text-3').trim();
-            // 用 animateGlass 过渡到暗背景状态(0) + :root 文字色
             const dummyTc = { t1: rootT1 || 'rgba(255,255,255,0.94)', t2: rootT2 || 'rgba(255,255,255,0.82)', t3: rootT3 || 'rgba(255,255,255,0.64)' };
-            _animateGlass(el, def.id, 0, dummyTc, 'white', _adSpeed);
+            _animateGlass(el, `${def.id}-${idx}`, 0, dummyTc, 'white', _adSpeed);
           } else {
             ['--text','--text-2','--text-3','--lg-bg-alpha'].forEach(k => el.style.removeProperty(k));
           }
@@ -310,24 +300,38 @@ async function updateAllPanels() {
         } else {
           lum = 0.1;
         }
-        _applyLuminance(def.id, lum);
+        _applyLuminanceToEl(def.id, el, idx, lum);
       });
     }
 
-    // 下拉面板跟随画廊导航的玻璃颜色和文字颜色
+    // 画廊导航栏上 5 块玻璃统一联动（返回 + 按名称 trigger/menu + 全部 trigger/menu）
     const nav = document.querySelector('.gallery__nav');
     if (nav) {
-      const bg = nav.style.getPropertyValue('--lg-bg-alpha') || '0';
-      const br = nav.style.getPropertyValue('--lg-brightness') || '1.1';
-      const t1 = nav.style.getPropertyValue('--text') || '';
-      const t2 = nav.style.getPropertyValue('--text-2') || '';
-      const t3 = nav.style.getPropertyValue('--text-3') || '';
-      document.querySelectorAll('.custom-dropdown__trigger,.custom-dropdown__menu').forEach(el => {
-        el.style.setProperty('--lg-bg-alpha', bg, 'important');
-        el.style.setProperty('--lg-brightness', br, 'important');
-        if (t1) el.style.setProperty('--text', t1, 'important');
-        if (t2) el.style.setProperty('--text-2', t2, 'important');
-        if (t3) el.style.setProperty('--text-3', t3, 'important');
+      const navLum = grid ? (_lookupLuminance(nav) || 0.1) : 0.1;
+      const navDark = navLum < _adThresh;
+      const tc = _textColors('adaptive', navDark);
+      const targetBgAlpha = navDark ? 0 : 0.48;
+      // 取消下拉面板的主循环动画，用画廊导航栏亮度重新动画（保证变色速度一致）
+      ['dropdown-trigger', 'dropdown-menu'].forEach(did => {
+        for (let idx = 0; idx < 10; idx++) {
+          const lock = _locks.get(`${did}-${idx}`);
+          if (lock) {
+            if (lock._rafId) { cancelAnimationFrame(lock._rafId); lock._rafId = null; }
+            lock._locked = false;
+            lock._pending = null;
+          }
+        }
+      });
+      // 用同样的动画函数写入，保持 1s 过渡与其他面板一致
+      const ddBrightness = navDark ? 1.1 : 0.7;
+      document.querySelectorAll('.custom-dropdown__trigger,.custom-dropdown__menu').forEach((el, idx) => {
+        _animateGlass(el, `dd-sync-${idx}`, targetBgAlpha, tc, 'adaptive', _adSpeed, ddBrightness);
+      });
+      // 选项文字也同步
+      document.querySelectorAll('.custom-dropdown__option').forEach(el => {
+        el.style.setProperty('--text', tc.t1, 'important');
+        el.style.setProperty('--text-2', tc.t2, 'important');
+        el.style.setProperty('--text-3', tc.t3, 'important');
       });
     }
   } catch (_) {}
@@ -358,25 +362,31 @@ export function initAdaptiveGlass() {
 
   window.addEventListener('scroll', _onScroll, { passive: true });
   window.addEventListener('resize', _onResize);
+  window.addEventListener('lens:rescan-luminance', _onRescanLuminance);
 
-  _domObserver = new MutationObserver(() => _scheduleUpdate());
+  _domObserver = new MutationObserver((mutations) => {
+    // 只响应 childList（元素增删），忽略 attributes（避免自适应动画写 style 触发自身）
+    const hasChildList = mutations.some(m => m.type === 'childList');
+    if (!hasChildList) return;
+    _needsResample = true;
+    _scheduleUpdate();
+    window.dispatchEvent(new CustomEvent('lens:panels-changed'));
+  });
   _domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
 
-  // 下拉元素固定暗背景（白字透明玻璃，与画廊导航一致）
-  _forceDark.add('dropdown-trigger');
-  _forceDark.add('dropdown-menu');
-  // 初始化 dirty flag
-  if (window.__lensTextDirty === undefined) window.__lensTextDirty = false;
+  // dropdown-trigger + dropdown-menu 已从 PANEL_DEFS 移除，由同步代码统一控制
+  // 初始化 dirty flag — 重启自适应时始终清除手动覆盖
+  window.__lensTextDirty = false;
 
   updateAllPanels();
 }
 
 export function stopAdaptiveGlass() {
   _active = false;
-  clearTimeout(_scrollTimer);
   clearTimeout(_resizeTimer);
   window.removeEventListener('scroll', _onScroll);
   window.removeEventListener('resize', _onResize);
+  window.removeEventListener('lens:rescan-luminance', _onRescanLuminance);
   if (_domObserver) { _domObserver.disconnect(); _domObserver = null; }
   _gridCache = null;
   _removeTextStyle();
@@ -414,9 +424,9 @@ export function setPanelTextMode(id, mode) {
     ['--text','--text-2','--text-3'].forEach(k => el.style.removeProperty(k));
   }
 
-  // 重新应用（dirty flag 检查在 _applyLuminance 内部）
+  // 重新应用
   const lum = _forceDark.has(id) ? 0.1 : (_lookupLuminance(el) || 0.5);
-  _applyLuminance(id, lum);
+  _applyLuminanceToEl(id, el, 0, lum);
 }
 export function getPanelTextMode(id) { return _panelTextModes.get(id) || 'adaptive'; }
 

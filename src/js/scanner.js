@@ -5,15 +5,7 @@ import { cleanCategory, cleanTitle } from './utils.js';
 const api = window.electronAPI;
 
 export async function selectFolder() {
-  if (api) {
-    const selected = await api.invoke('dialog:open', { directory: true });
-    return selected || null;
-  }
-  // Tauri fallback
-  const [{ open }] = await Promise.all([
-    import('@tauri-apps/plugin-dialog'),
-  ]);
-  const selected = await open({ directory: true, multiple: false, title: '选择照片文件夹' });
+  const selected = await api.invoke('dialog:open', { directory: true });
   return selected || null;
 }
 
@@ -22,27 +14,17 @@ export async function scanPhotos(baseDir) {
 
   // Read directory entries
   async function readDirEntries(dir) {
-    if (api) return api.invoke('fs:readDir', dir);
-    const [{ readDir }, { join }] = await Promise.all([
-      import('@tauri-apps/plugin-fs'),
-      import('@tauri-apps/api/path'),
-    ]);
-    const raw = await readDir(dir);
-    return raw.map(e => ({ name: e.name, isDirectory: e.isDirectory, isFile: !e.isDirectory, isSymlink: false }));
+    return api.invoke('fs:readDir', dir);
   }
 
   // Join path segments
   async function pathJoin(...parts) {
-    if (api) return api.invoke('path:join', ...parts);
-    const { join } = await import('@tauri-apps/api/path');
-    return join(...parts);
+    return api.invoke('path:join', ...parts);
   }
 
   // Convert to display URL
   function toSrc(fullPath) {
-    if (api) return api.convertFileSrc(fullPath);
-    // Dynamic import for Tauri fallback
-    return import('@tauri-apps/api/core').then(m => m.convertFileSrc(fullPath));
+    return api.convertFileSrc(fullPath);
   }
 
   async function walk(dir) {

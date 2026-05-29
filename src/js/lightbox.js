@@ -55,6 +55,51 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
   const btnPrev = lightbox.querySelector('.lightbox__prev');
   const btnNext = lightbox.querySelector('.lightbox__next');
 
+  // ══ 自包含按钮样式（不受 colors.js / lg-panels 干扰） ══
+  if (!document.getElementById('__btn_press_style')) {
+    const sty = document.createElement('style');
+    sty.id = '__btn_press_style';
+    sty.textContent = '.lightbox__close,.lightbox__prev,.lightbox__next,.back-to-top{' +
+      'background:transparent;' +
+      'border:0.5px solid rgba(255,255,255,0.12)!important;' +
+      'box-shadow:0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08)!important;' +
+      'transform:scale(1)!important;' +
+      'transition:background 0.15s ease,border-color 0.15s ease,transform 0.25s cubic-bezier(0.175,0.885,0.32,1.275)!important;}' +
+      '.lightbox__close:hover,.lightbox__prev:hover,.lightbox__next:hover,.back-to-top:hover{' +
+      'background:rgba(255,255,255,0.30)!important;' +
+      'border-color:rgba(255,255,255,0.35)!important;' +
+      'transform:scale(1.10)!important;}';
+    document.head.appendChild(sty);
+  }
+
+  // ══ Apple press feel — overlay for exposure, no backdrop-filter changes ══
+  function _addPressFeel(el) {
+    // 曝光覆盖层（初始化时创建，不触发运行时 MutationObserver）
+    const exposure = document.createElement('div');
+    exposure.style.cssText = 'position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.35);pointer-events:none;opacity:0;z-index:99;';
+    el.appendChild(exposure);
+
+    el.addEventListener('mouseenter', () => {
+      el.style.setProperty('background', 'rgba(255,255,255,0.30)', 'important');
+      el.style.setProperty('border-color', 'rgba(255,255,255,0.35)', 'important');
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.background = 'transparent';
+      el.style.setProperty('border-color', 'rgba(255,255,255,0.12)', 'important');
+      el.style.removeProperty('transform');
+      exposure.style.opacity = '0';
+    });
+    el.addEventListener('mousedown', () => {
+      el.style.setProperty('transform', 'scale(1.22)', 'important');
+      exposure.style.opacity = '1';
+    });
+    el.addEventListener('mouseup', () => {
+      el.style.removeProperty('transform');
+      exposure.style.opacity = '0';
+    });
+  }
+  [btnClose, btnPrev, btnNext].forEach(_addPressFeel);
+
   let items = [], idx = 0, transitioning = false;
   let zoom = 1, panX = 0, panY = 0;
   let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
@@ -162,6 +207,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
       loadLightboxExif(item.dataset.path);
       updateRatingUI(item.dataset.path);
       transitioning = false;
+      window.dispatchEvent(new CustomEvent('lens:rescan-luminance'));
     }, 180);
   }
 
@@ -178,7 +224,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     document.body.style.overflow = 'hidden';
     loadLightboxExif(item.dataset.path);
     updateRatingUI(item.dataset.path);
-    setTimeout(() => { lbImg.style.opacity = '1'; transitioning = false; }, 300);
+    setTimeout(() => { lbImg.style.opacity = '1'; transitioning = false; window.dispatchEvent(new CustomEvent('lens:rescan-luminance')); }, 300);
   }
   function close() {
     lightbox.classList.remove('active');

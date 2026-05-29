@@ -26,19 +26,20 @@
       backdrop-filter: blur(var(--lightbox-btn-blur, calc(20px + var(--glass-blur, 0px))));
       -webkit-backdrop-filter: blur(var(--lightbox-btn-blur, calc(20px + var(--glass-blur, 0px))));
       border: 0.5px solid var(--glass-border-bright);
+      will-change: transform;
       opacity: 0; rotate: -90deg; scale: 0.8;
       transition:
         opacity calc(0.5s * var(--_anim-mult, 1)) var(--ease-out) calc(0.2s * var(--_anim-mult, 1)),
         rotate calc(0.5s * var(--_anim-mult, 1)) var(--ease-out) calc(0.2s * var(--_anim-mult, 1)),
         scale calc(0.5s * var(--_anim-mult, 1)) var(--ease-out) calc(0.2s * var(--_anim-mult, 1)),
-        background 0.3s ease,
+        background 0.08s ease-out,
         border-color 0.3s ease;
     }
+    & .lightbox__close:active { background: rgba(255,255,255,0.40); }
 
     &.active .lightbox__close { opacity: 1; rotate: 0deg; scale: 1; }
 
     & .lightbox__close:hover {
-      rotate: 90deg;
       background: var(--glass-bg-hover);
       border-color: var(--glass-border-bright);
     }
@@ -54,11 +55,12 @@
       backdrop-filter: blur(var(--lightbox-btn-blur, calc(20px + var(--glass-blur, 0px))));
       -webkit-backdrop-filter: blur(var(--lightbox-btn-blur, calc(20px + var(--glass-blur, 0px))));
       border: 0.5px solid var(--glass-bg-hover);
+      will-change: transform;
       opacity: 0;
       transition:
         opacity calc(0.4s * var(--_anim-mult, 1)) var(--ease-out) calc(0.3s * var(--_anim-mult, 1)),
         translate 0.3s var(--ease-out),
-        background 0.3s ease,
+        background 0.08s ease-out,
         border-color 0.3s ease;
     }
 
@@ -68,8 +70,9 @@
       background: var(--glass-bg-hover);
       border-color: var(--glass-border-bright);
     }
-    & .lightbox__prev { left: 1.5rem; &:hover { translate: -4px -50%; } }
-    & .lightbox__next { right: 1.5rem; &:hover { translate: 4px -50%; } }
+    & .lightbox__prev:active, & .lightbox__next:active { background: rgba(255,255,255,0.40); }
+    & .lightbox__prev { left: 1.5rem; }
+    & .lightbox__next { right: 1.5rem; }
 
     & .lightbox__content {
       text-align: center; max-width: 90vw; max-height: 85vh;
