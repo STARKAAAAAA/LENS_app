@@ -415,10 +415,12 @@ export class LiquidGlassStudio {
       if (!hasMoved) this._togglePanel();
     };
 
+    this._onPointerLeave = () => { dragging = false; };
+
     this._glass.addEventListener('pointerdown', this._onPointerDown);
     this._glass.addEventListener('pointermove', this._onPointerMove);
     this._glass.addEventListener('pointerup', this._onPointerUp);
-    this._glass.addEventListener('pointerleave', () => { dragging = false; });
+    this._glass.addEventListener('pointerleave', this._onPointerLeave);
   }
 
   /* ── HUD 左上角信息 ── */
@@ -1037,6 +1039,7 @@ export class LiquidGlassStudio {
       this._glass.removeEventListener('pointerdown', this._onPointerDown);
       this._glass.removeEventListener('pointermove', this._onPointerMove);
       this._glass.removeEventListener('pointerup', this._onPointerUp);
+      this._glass.removeEventListener('pointerleave', this._onPointerLeave);
       this._glass.remove();
       this._glass = null;
     }

@@ -10,7 +10,7 @@
     border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-pill);
     box-shadow: var(--card-shadow, 0 4px 24px rgba(0,0,0,0.3));
-    text-shadow: 0 0 6px rgba(10,10,8,0.5);
+    text-shadow: 0 0 6px rgba(var(--bg-deep-rgb, 10,10,8), 0.5);
     opacity: 0;
     transition: opacity 0.5s var(--ease-out);
   }

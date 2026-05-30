@@ -651,18 +651,10 @@ function initColorSystem(palette) {
   applyDirectStyles(palette || DEFAULT_PALETTE);
   window.__lensCurrentPalette = palette || DEFAULT_PALETTE;
   window.__lensUpdateColors = (p) => {
-    console.log("[colors] updateColorSystem heroGradTop:", p.heroGradTop, "cornerLogoColor:", p.cornerLogoColor);
     const css = generateFullCSS(p);
-    let s = document.getElementById('lens-colors');
-    if (s) {
-      s.textContent = css; console.log("[colors] lens-colors updated, CSS len:", css.length);
-    } else { console.error("[colors] lens-colors NOT FOUND!"); }
+    const s = document.getElementById('lens-colors');
+    if (s) { s.textContent = css; }
     applyDirectStyles(p);
-    var hl = document.querySelector(".hero__title");
-    var cl = document.getElementById("corner-logo");
-    console.log("[colors] heroTitle:", !!hl, "cornerLogo:", !!cl);
-    if (hl) console.log("[colors] heroTitle bg:", hl.style.background?.substring(0,60));
-    if (cl) console.log("[colors] cornerLogo color:", cl.style.color);
     window.__lensCurrentPalette = p;
   };
 }

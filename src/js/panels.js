@@ -63,7 +63,7 @@ export function initSettingsPanel({ settingsBtn, settingsPanel, featureToggles, 
     if (cacheBtn) {
       const selected = await openDialog({ directory: true });
       if (selected) {
-        const cachePath = selected + '\\thumbnails';
+        const cachePath = selected + (selected.endsWith('\\') || selected.endsWith('/') ? '' : (selected.includes('\\') ? '\\' : '/')) + 'thumbnails';
         featureToggles.cacheDir = cachePath;
         saveToggles(featureToggles);
         updateCacheDirDisplay(featureToggles);

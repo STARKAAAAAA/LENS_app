@@ -44,7 +44,7 @@ async function loggedInvoke(cmd, args) {
   }
 }
 
-import { formatBytes, preloadImages } from './js/utils.js';
+import { formatBytes, preloadImages, addPressFeel } from './js/utils.js';
 import { CONFIG_KEY, loadDir, saveDir, getSavedFolders, saveFolders } from './js/config.js';
 import { selectFolder, scanPhotos } from './js/scanner.js';
 import { initTitlebar } from './js/titlebar.js';
@@ -55,15 +55,11 @@ import { buildCategoryCardsDOM, buildGalleryGridDOM, renderGalleryDropdowns, ref
 import { initLightbox, initSlideshow, loadRatings } from './js/lightbox.js';
 import { initSettingsPanel, initShortcutsPanel } from './js/panels.js';
 import { initGamepad } from './js/gamepad.js';
-import { initColorSystem, paletteToVars } from './js/colors.js';
+import { initColorSystem } from './js/colors.js';
 import { initDevPanel } from './js/dev-panel.js';
 
 // ===== App =====
 document.addEventListener('DOMContentLoaded', async () => {
-  console.time('startup');
-  console.log('[LENS] DOMContentLoaded');
-
-  // ---- DOM refs ----
   const heroSlidesEl = document.getElementById('hero-slides');
   const categoriesEl = document.getElementById('categories');
   const galleryEl = document.getElementById('gallery');
@@ -443,29 +439,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ---- Toolbar buttons ----
-  document.getElementById('sidebar-add').addEventListener('click', pickAndLoad);
-  document.getElementById('tb-folder').addEventListener('click', pickAndLoad);
+  document.getElementById('sidebar-add')?.addEventListener('click', pickAndLoad);
+  document.getElementById('tb-folder')?.addEventListener('click', pickAndLoad);
 
   // ---- Gallery back button ----
-  galleryBack.addEventListener('click', async () => {
-    if (state.categoryTransitioning) return;
-    state.categoryTransitioning = true;
-    try {
-      galleryEl.classList.add('gallery--out');
-      await new Promise(r => setTimeout(r, 350));
-      state.currentCategory = null;
-      galleryEl.style.display = 'none';
-      galleryEl.classList.remove('gallery--out');
-      rebuildHero(state.data.photos);
-      categoriesEl.style.display = 'grid';
-      sectionTitle.textContent = 'Selected Works';
-    } finally {
-      state.categoryTransitioning = false;
-    }
-    const portfolioEl = document.getElementById('portfolio');
-    const portfolioRect = portfolioEl.getBoundingClientRect();
-    window.scrollTo({ top: window.scrollY + portfolioRect.top - 40, behavior: 'smooth' });
-  });
+  if (galleryBack) {
+    galleryBack.addEventListener('click', async () => {
+      if (state.categoryTransitioning) return;
+      state.categoryTransitioning = true;
+      try {
+        galleryEl.classList.add('gallery--out');
+        await new Promise(r => setTimeout(r, 350));
+        state.currentCategory = null;
+        galleryEl.style.display = 'none';
+        galleryEl.classList.remove('gallery--out');
+        rebuildHero(state.data.photos);
+        categoriesEl.style.display = 'grid';
+        sectionTitle.textContent = 'Selected Works';
+      } finally {
+        state.categoryTransitioning = false;
+      }
+      const portfolioEl = document.getElementById('portfolio');
+      const portfolioRect = portfolioEl.getBoundingClientRect();
+      window.scrollTo({ top: window.scrollY + portfolioRect.top - 40, behavior: 'smooth' });
+    });
+  }
 
   // ---- Init lightbox, slideshow, effects ----
   initLightbox(galleryGrid, {
@@ -483,10 +481,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- UI visibility after startup ----
   setTimeout(() => {
-    document.getElementById('toolbar').classList.add('toolbar--visible');
-    document.getElementById('titlebar').classList.add('titlebar--visible');
-    document.getElementById('titlebar-controls').classList.add('titlebar--visible');
-    document.getElementById('sidebar-trigger').classList.add('sidebar-trigger--ready');
+    document.getElementById('toolbar')?.classList.add('toolbar--visible');
+    document.getElementById('titlebar')?.classList.add('titlebar--visible');
+    document.getElementById('titlebar-controls')?.classList.add('titlebar--visible');
+    document.getElementById('sidebar-trigger')?.classList.add('sidebar-trigger--ready');
     const dirLabel = document.getElementById('dir-label');
     if (dirLabel) dirLabel.style.opacity = '1';
   }, 300);
@@ -499,29 +497,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---- Back to top ----
   const backToTop = document.getElementById('back-to-top');
-  // Apple press feel — overlay for exposure
-  const _btExposure = document.createElement('div');
-  _btExposure.style.cssText = 'position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.35);pointer-events:none;opacity:0;z-index:99;';
-  backToTop.appendChild(_btExposure);
+  if (backToTop) {
+  addPressFeel(backToTop);
 
-  backToTop.addEventListener('mouseenter', () => {
-    backToTop.style.setProperty('background', 'rgba(255,255,255,0.30)', 'important');
-    backToTop.style.setProperty('border-color', 'rgba(255,255,255,0.35)', 'important');
-  });
-  backToTop.addEventListener('mouseleave', () => {
-    backToTop.style.background = 'transparent';
-    backToTop.style.setProperty('border-color', 'rgba(255,255,255,0.12)', 'important');
-    backToTop.style.removeProperty('transform');
-    _btExposure.style.opacity = '0';
-  });
-  backToTop.addEventListener('mousedown', () => {
-    backToTop.style.setProperty('transform', 'scale(1.22)', 'important');
-    _btExposure.style.opacity = '1';
-  });
-  backToTop.addEventListener('mouseup', () => {
-    backToTop.style.removeProperty('transform');
-    _btExposure.style.opacity = '0';
-  });
   let scrollTicking = false;
   backToTop.addEventListener('click', () => {
     const portfolio = document.getElementById('portfolio');
@@ -536,6 +514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       scrollTicking = true;
     }
   }, { passive: true });
+  }
 
   // ---- Parallax ----
   function initParallax() {

@@ -410,8 +410,8 @@
   }
   .dev-btn--danger:hover {
     color: var(--danger);
-    background: rgba(232,112,112,0.12);
-    border-color: rgba(232,112,112,0.25);
+    background: rgba(var(--danger-rgb, 232,112,112), 0.12);
+    border-color: rgba(var(--danger-rgb, 232,112,112), 0.25);
   }
   .dev-btn--sm { padding: 4px 10px; font-size: 0.7rem; white-space: nowrap; }
   .dev-btn--active { background: var(--accent); color: var(--bg); border-color: var(--glass-border-bright); }
@@ -488,8 +488,8 @@
     padding: 1px 0;
     white-space: pre-wrap; word-break: break-all;
   }
-  .dev-console__line--warn { color: #e8c870; }
-  .dev-console__line--error { color: #e87070; }
+  .dev-console__line--warn { color: var(--warning, #e8c870); }
+  .dev-console__line--error { color: var(--danger, #e87070); }
   .dev-console__line--info { color: var(--text-2); }
   .dev-console__line--debug { color: rgba(180,180,180,0.4); }
 
@@ -588,9 +588,6 @@
   .dev-preset-card--active {
     border-color: var(--accent);
     background: var(--glass-bg-hover);
-  }
-  .dev-preset-card__name-old { /* removed — replaced by .dev-preset-card__info */
-    color: var(--text);
   }
   .dev-preset-card__badge {
     font-family: var(--font-body);

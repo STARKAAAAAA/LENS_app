@@ -1,8 +1,7 @@
 // ========== 灯箱 & 幻灯片 & 评分系统 ==========
 
-import { formatBytes } from './utils.js';
+import { addPressFeel } from './utils.js';
 
-const api = window.electronAPI;
 
 // ========== 评分数据（内存缓存 + localStorage 持久化） ==========
 const RATING_KEY = 'lens-photo-ratings';
@@ -72,33 +71,7 @@ export function initLightbox(galleryGrid, { featureToggles, invoke, formatBytes,
     document.head.appendChild(sty);
   }
 
-  // ══ Apple press feel — overlay for exposure, no backdrop-filter changes ══
-  function _addPressFeel(el) {
-    // 曝光覆盖层（初始化时创建，不触发运行时 MutationObserver）
-    const exposure = document.createElement('div');
-    exposure.style.cssText = 'position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.35);pointer-events:none;opacity:0;z-index:99;';
-    el.appendChild(exposure);
-
-    el.addEventListener('mouseenter', () => {
-      el.style.setProperty('background', 'rgba(255,255,255,0.30)', 'important');
-      el.style.setProperty('border-color', 'rgba(255,255,255,0.35)', 'important');
-    });
-    el.addEventListener('mouseleave', () => {
-      el.style.background = 'transparent';
-      el.style.setProperty('border-color', 'rgba(255,255,255,0.12)', 'important');
-      el.style.removeProperty('transform');
-      exposure.style.opacity = '0';
-    });
-    el.addEventListener('mousedown', () => {
-      el.style.setProperty('transform', 'scale(1.22)', 'important');
-      exposure.style.opacity = '1';
-    });
-    el.addEventListener('mouseup', () => {
-      el.style.removeProperty('transform');
-      exposure.style.opacity = '0';
-    });
-  }
-  [btnClose, btnPrev, btnNext].forEach(_addPressFeel);
+  [btnClose, btnPrev, btnNext].forEach(addPressFeel);
 
   let items = [], idx = 0, transitioning = false;
   let zoom = 1, panX = 0, panY = 0;
@@ -410,18 +383,18 @@ export function initSlideshow({ getPhotos } = {}) {
     zoom = targetZoom; panX = 0; panY = 0;
     applyTransform();
   }
+  const imgWrap = document.querySelector('.slideshow__img-wrap');
   btnFit?.addEventListener('click', () => { animateZoom(1); showControls(); });
   btnOrig?.addEventListener('click', () => {
     const nw = img.naturalWidth, nh = img.naturalHeight;
     let target = 2;
-    if (nw && nh) {
+    if (nw && nh && imgWrap) {
       const r = imgWrap.getBoundingClientRect();
       target = Math.min(nw / r.width, nh / r.height);
     }
     animateZoom(target); showControls();
   });
 
-  const imgWrap = document.querySelector('.slideshow__img-wrap');
   if (imgWrap) {
     imgWrap.addEventListener('wheel', e => {
       e.preventDefault();

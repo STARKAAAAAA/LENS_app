@@ -143,8 +143,7 @@ export class LiquidGlassWebGL {
       antialias: true,
     });
     if (!this.gl) {
-      console.error('[LG-WebGL] WebGL 2 not available');
-      return;
+      throw new Error('[LG-WebGL] WebGL 2 not available');
     }
     this.opts = {
       radius: 0.08, refraction: 0.7, dispersion: 0.6,
@@ -186,8 +185,8 @@ export class LiquidGlassWebGL {
     this._uGlare = gl.getUniformLocation(this.prog, 'u_glare');
 
     // Full-screen quad
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    this._vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this._vbo);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
     this._vao = gl.createVertexArray();
@@ -227,8 +226,11 @@ export class LiquidGlassWebGL {
     const dpr = window.devicePixelRatio || 1;
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
+    const cw = w * dpr;
+    const ch = h * dpr;
+    if (this.canvas.width === cw && this.canvas.height === ch) return;
+    this.canvas.width = cw;
+    this.canvas.height = ch;
   }
 
   _draw() {
@@ -260,6 +262,7 @@ export class LiquidGlassWebGL {
       const gl = this.gl;
       gl.deleteProgram(this.prog);
       gl.deleteVertexArray(this._vao);
+      if (this._vbo) { gl.deleteBuffer(this._vbo); this._vbo = null; }
     }
   }
 }

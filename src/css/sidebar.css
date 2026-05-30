@@ -8,10 +8,6 @@
     pointer-events: auto;
   }
 
-  .sidebar-trigger--ready {
-    /* 启动后始终可交互 */
-  }
-
   /* ========== 侧边栏外层容器（负责 transform + 定位）========== */
   .sidebar-frame {
     position: fixed;

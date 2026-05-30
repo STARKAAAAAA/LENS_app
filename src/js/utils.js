@@ -35,3 +35,30 @@ export function formatBytes(bytes) {
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / 1048576).toFixed(1) + ' MB';
 }
+
+// Apple-style button press feel: scale(1.22) on mousedown, spring-back on mouseup,
+// exposure overlay for brightness burst. Handles !important cascade correctly.
+export function addPressFeel(el) {
+  const exposure = document.createElement('div');
+  exposure.style.cssText = 'position:absolute;inset:0;border-radius:inherit;background:rgba(255,255,255,0.35);pointer-events:none;opacity:0;z-index:99;';
+  el.appendChild(exposure);
+
+  el.addEventListener('mouseenter', () => {
+    el.style.setProperty('background', 'rgba(255,255,255,0.30)', 'important');
+    el.style.setProperty('border-color', 'rgba(255,255,255,0.35)', 'important');
+  });
+  el.addEventListener('mouseleave', () => {
+    el.style.background = 'transparent';
+    el.style.setProperty('border-color', 'rgba(255,255,255,0.12)', 'important');
+    el.style.removeProperty('transform');
+    exposure.style.opacity = '0';
+  });
+  el.addEventListener('mousedown', () => {
+    el.style.setProperty('transform', 'scale(1.22)', 'important');
+    exposure.style.opacity = '1';
+  });
+  el.addEventListener('mouseup', () => {
+    el.style.setProperty('transform', 'scale(1)', 'important');
+    exposure.style.opacity = '0';
+  });
+}

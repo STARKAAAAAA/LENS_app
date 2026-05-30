@@ -1,6 +1,6 @@
 // ========== 加载画面系统 ==========
 
-import { getAnimationType, createShaderBackground, startShaderAnimation, stopShaderAnimation, disposeShaderBackground, resizeShaderBackground, createAuroraBackground, disposeAuroraBackground, createWebGLBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWaveGridBackground, createVolAuroraBackground, createDitherBackground } from './loading-shaders.js';
+import { getAnimationType, createShaderBackground, startShaderAnimation, disposeShaderBackground, createAuroraBackground, disposeAuroraBackground, createWebGLBackground, createFallingBackground, disposeFallingBackground, createGradientBarsBackground, disposeGradientBarsBackground, createWaveGridBackground, createVolAuroraBackground, createDitherBackground } from './loading-shaders.js';
 
 export const PHOTO_QUOTES = [
   '摄影是光的诗歌，影是时间的印记',
@@ -245,7 +245,11 @@ export function updateLoadingScreen(msg) {
 
 export function hideLoadingScreen() {
   const el = document.getElementById('loading-screen');
-  if (!el) return;
+  if (!el) {
+    // 如果 loading-screen 已被移除，返回已解决的 Promise
+    if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
+    return Promise.resolve();
+  }
   // 防止旧 Promise 悬挂：先 resolve 旧 Promise
   if (loadingScreenDoneResolve) { loadingScreenDoneResolve(); loadingScreenDoneResolve = null; }
   const elapsed = Date.now() - loadingShownAt;
@@ -266,7 +270,11 @@ export function hideLoadingScreen() {
 }
 
 // ========== 启动动画：单个 rAF 循环同步驱动所有元素 ==========
+let _startupAnimating = false;
+
 export function playStartupSequence({ onDone } = {}) {
+  if (_startupAnimating) return;
+  _startupAnimating = true;
   // 启动动画期间隐藏所有面板和 UI chrome（直接改内联样式，不注入 CSS 避免白屏）
   const panelsToHide = ['.toolbar', '.sidebar-frame', '.sidebar-trigger', '.titlebar__controls', '.back-to-top', '.hero__scroll', '.hero__beta'];
   const hiddenEls = [];
@@ -376,6 +384,7 @@ export function playStartupSequence({ onDone } = {}) {
         el.style.removeProperty('visibility');
         el.style.removeProperty('opacity');
       });
+      _startupAnimating = false;
       if (onDone) onDone();
     }
   }

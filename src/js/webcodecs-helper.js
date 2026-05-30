@@ -110,6 +110,7 @@ export async function generateThumbnail(source, maxWidth, maxHeight, mimeType) {
         return new Promise((resolve) => {
           const img = new Image();
           img.onload = () => {
+            URL.revokeObjectURL(img.src);
             const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
             const c = document.createElement('canvas');
             c.width = Math.round(img.width * scale);
@@ -117,7 +118,9 @@ export async function generateThumbnail(source, maxWidth, maxHeight, mimeType) {
             c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
             c.toBlob(resolve, mimeType || 'image/jpeg', 0.8);
           };
-          img.src = URL.createObjectURL(source);
+          img.src = source instanceof Blob || typeof source === 'string'
+            ? URL.createObjectURL(source)
+            : URL.createObjectURL(new Blob([source], { type: mimeType || 'image/jpeg' }));
         });
       }
     }

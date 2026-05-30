@@ -5,13 +5,6 @@
   font-style: normal;
   font-display: swap;
 }
-/* 备选：Windows 自带类似 Xbox 的粗几何字体 */
-@font-face {
-  font-family: 'Xbox Fallback';
-  src: local('Segoe UI Black'), local('Impact'), local('Arial Black');
-  font-weight: 900;
-}
-
 @layer components {
   .main-area {
     min-height: 100vh;
@@ -53,7 +46,7 @@
       transition: opacity 0.35s ease, visibility 0s 0s, translate 0.35s var(--ease-out);
     }
 
-    &:active { background: rgba(255,255,255,0.40); }
+    &:active { background: var(--glass-bg-active, rgba(255,255,255,0.40)); }
 
     &:hover {
       background: var(--glass-bg-hover);

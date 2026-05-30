@@ -1596,7 +1596,7 @@ tests.forEach(tc => {
       }
       let maxD=0;
       for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
-        const sd=sdfRoundedRect(x-hw,y-hh),d=-sd;i=(y*cw+x)*4;
+        const sd=sdfRoundedRect(x-hw,y-hh),d=-sd;let i=(y*cw+x)*4;
         if(d<0){img.data[i]=img.data[i+1]=128;img.data[i+2]=128;img.data[i+3]=255;continue;}
         const t=Math.min(1,d/40),dm=d*t;
         if(dm>maxD)maxD=dm;
@@ -2140,6 +2140,411 @@ console.log('%c🧊 液态玻璃全方案测试 — 12个方案已加载 (新增
   'font-size:1.1em;color:#c8a87c');
 console.log('%c🔍 点击顶部"全屏亮度扫描"按钮 → 全屏网格显示各位置亮度(蓝暗→红亮)',
   'color:#c8a87c');
+</script>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- liquid-dom Menu 复现 — 纯 CSS + JS                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<style>
+.lq-menu-demo {
+  margin: 24px auto;
+  max-width: 1400px;
+  background: #141412;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.lq-menu-demo h2 {
+  color: #c8a87c;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+.lq-menu-demo .subtitle {
+  font-size: 0.65rem;
+  opacity: 0.4;
+  margin-bottom: 16px;
+}
+.lq-menu-stage {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 400px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f4f5f6;
+}
+.lq-menu-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(255,100,80,0.5), transparent 50%),
+    radial-gradient(ellipse at 75% 60%, rgba(80,150,255,0.45), transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(255,200,60,0.35), transparent 40%),
+    radial-gradient(ellipse at 30% 70%, rgba(180,60,255,0.3), transparent 40%),
+    linear-gradient(160deg, #f0ece4 0%, #e8e4dc 30%, #dfd9cf 60%, #eae6de 100%);
+}
+/* ── 菜单面板 ── */
+.lq-glass-menu {
+  position: absolute;
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 0.5px solid rgba(255,255,255,0.55);
+  border-radius: 130px;
+  box-shadow:
+    0 18px 46px rgba(0,0,0,0.14),
+    0 4px 12px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  width: 40px;
+  height: 40px;
+  top: 20px;
+  left: 20px;
+  transition:
+    width 0.4s cubic-bezier(0.25, 0.9, 0.35, 1.15),
+    height 0.4s cubic-bezier(0.25, 0.9, 0.35, 1.15),
+    border-radius 0.65s cubic-bezier(0.22, 0.1, 0.25, 1.0),
+    top 0.5s cubic-bezier(0.34, 1.0, 0.64, 1.0),
+    left 0.5s cubic-bezier(0.34, 1.0, 0.64, 1.0);
+  overflow: hidden;
+  z-index: 2;
+}
+.lq-glass-menu.open {
+  width: 320px;
+  height: 360px;
+  border-radius: 70px;
+  top: 20px;
+  left: calc(50% - 160px);
+}
+/* ── 菜单内部内容 ── */
+.lq-menu-inner {
+  width: 320px;
+  height: 360px;
+  padding: 24px 28px;
+  opacity: 0;
+  filter: blur(8px);
+  transform: scale(2);
+  transition:
+    opacity 0.25s cubic-bezier(0.4,0,0.6,1) 0.1s,
+    filter 0.3s cubic-bezier(0.4,0,0.2,1) 0.08s,
+    transform 0.3s cubic-bezier(0.4,0,0.2,1) 0.08s;
+  display: flex;
+  flex-direction: column;
+  color: #09090b;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  pointer-events: none;
+}
+.lq-glass-menu.open .lq-menu-inner {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+  pointer-events: auto;
+}
+.lq-menu-section {
+  display: flex;
+  flex-direction: column;
+}
+.lq-menu-row {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  margin: 0 -8px;
+  padding: 0 14px;
+  font-size: 17px;
+  font-weight: 400;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.lq-menu-row:hover {
+  background: rgba(9,9,11,0.08);
+}
+.lq-menu-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.lq-menu-divider {
+  height: 1px;
+  margin: 10px 0;
+  background: rgba(9,9,11,0.1);
+}
+.lq-menu-footer {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+.lq-menu-footer-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  padding: 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.lq-menu-footer-item:hover {
+  background: rgba(9,9,11,0.08);
+}
+/* ── 触发按钮 ── */
+.lq-trigger {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 0.5px solid rgba(255,255,255,0.5);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.12),
+    0 2px 6px rgba(0,0,0,0.05),
+    inset 0 1px 0 rgba(255,255,255,0.65);
+  top: 15px;
+  left: 15px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    top 0.5s cubic-bezier(0.34, 1.0, 0.64, 1.0),
+    left 0.5s cubic-bezier(0.34, 1.0, 0.64, 1.0),
+    transform 0.35s cubic-bezier(0.34, 1.3, 0.64, 1.0),
+    opacity 0.18s ease 0.1s;
+  will-change: transform, top, left;
+}
+.lq-trigger:hover {
+  transform: scale(1.08);
+}
+.lq-trigger:active {
+  transform: scale(0.94);
+}
+.lq-trigger.open {
+  top: calc(20px + 360px/2 - 25px);
+  left: calc(50% + 320px/2 - 55px);
+  transform: scale(0.45);
+  opacity: 0;
+  pointer-events: none;
+}
+/* ── 触发按钮三点 ── */
+.lq-trigger-dots {
+  display: flex;
+  gap: 5px;
+  pointer-events: none;
+}
+.lq-trigger-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #111;
+}
+/* ── 点击遮罩 ── */
+.lq-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: none;
+}
+.lq-backdrop.on {
+  display: block;
+}
+</style>
+
+<div class="lq-menu-demo">
+  <h2>liquid-dom Menu 复现</h2>
+  <p class="subtitle">基于 AndrewPrifer/liquid-dom MenuDemo — 圆形按钮弹簧展开 → 玻璃菜单面板 + 图标选项 + 毛玻璃阴影高光</p>
+  <div class="lq-menu-stage" id="lqMenuStage">
+    <div class="lq-menu-bg"></div>
+    <div class="lq-glass-menu" id="lqGlassMenu">
+      <div class="lq-menu-inner">
+        <div class="lq-menu-section">
+          <div class="lq-menu-row"><span class="lq-menu-icon">↗</span>Share</div>
+          <div class="lq-menu-row"><span class="lq-menu-icon">🔖</span>Add to Bookmarks</div>
+          <div class="lq-menu-row"><span class="lq-menu-icon">📖</span>Add Bookmark to...</div>
+        </div>
+        <div class="lq-menu-divider"></div>
+        <div class="lq-menu-section">
+          <div class="lq-menu-row"><span class="lq-menu-icon">＋</span>New Tab</div>
+          <div class="lq-menu-row"><span class="lq-menu-icon">🕶</span>New Private Tab</div>
+        </div>
+        <div class="lq-menu-divider"></div>
+        <div class="lq-menu-footer">
+          <div class="lq-menu-footer-item"><span class="lq-menu-icon">📖</span>Bookmarks</div>
+          <div class="lq-menu-footer-item"><span class="lq-menu-icon">📋</span>All Tabs</div>
+        </div>
+      </div>
+    </div>
+    <button class="lq-trigger" id="lqTrigger">
+      <div class="lq-trigger-dots"><span></span><span></span><span></span></div>
+    </button>
+    <div class="lq-backdrop" id="lqBackdrop"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const trigger = document.getElementById('lqTrigger');
+  const menu = document.getElementById('lqGlassMenu');
+  const backdrop = document.getElementById('lqBackdrop');
+  let isOpen = false;
+
+  // ══ WebGL2 edge glow canvas ══
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;display:block;';
+  menu.style.position = 'relative';
+  menu.insertBefore(canvas, menu.firstChild);
+
+  // Slow-mo toggle state
+  let slowMo = false;
+  const slowMoBtn = document.createElement('button');
+  slowMoBtn.textContent = 'Slow mo';
+  slowMoBtn.style.cssText = 'position:absolute;right:8px;bottom:8px;z-index:10;padding:6px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:999px;background:rgba(255,255,255,0.7);font:600 12px system-ui;cursor:pointer;backdrop-filter:blur(10px);';
+  slowMoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    slowMo = !slowMo;
+    slowMoBtn.style.background = slowMo ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.7)';
+    slowMoBtn.style.color = slowMo ? '#fff' : '#111';
+    // Scale all transition durations
+    const scale = slowMo ? 7 : 1;
+    menu.style.transitionDuration = (0.4*scale)+'s,'+(0.4*scale)+'s,'+(0.65*scale)+'s,'+(0.5*scale)+'s,'+(0.5*scale)+'s';
+    trigger.style.transitionDuration = (0.5*scale)+'s,'+(0.5*scale)+'s,'+(0.35*scale)+'s,'+(0.18*scale)+'s';
+    document.querySelector('.lq-menu-inner').style.transitionDuration = (0.25*scale)+'s,'+(0.3*scale)+'s,'+(0.3*scale)+'s';
+  });
+  slowMoBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+  document.getElementById('lqMenuStage').appendChild(slowMoBtn);
+
+  const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false });
+  const vs = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vs, `#version 300 es
+in vec2 a_position; out vec2 v_uv;
+void main(){v_uv=(a_position+1.0)*0.5;gl_Position=vec4(a_position,0.0,1.0);}`);
+  gl.compileShader(vs);
+
+  const fs = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fs, `#version 300 es
+precision highp float;
+in vec2 v_uv; out vec4 fragColor;
+uniform vec2 u_res;
+uniform float u_r, u_w, u_h, u_smooth, u_edgeW;
+
+float sdRoundRect(vec2 p, vec2 hs, float r, float sm) {
+  float cornerLimit = min(hs.x, hs.y);
+  float cr = min(max(r, 0.0), cornerLimit);
+  vec2 q = abs(p) - hs + vec2(cr);
+  float maxSmooth = r > 0.001 ? max(cornerLimit / max(r, 0.001) - 1.0, 0.0) : 0.0;
+  float es = min(clamp(sm, 0.0, 1.0), maxSmooth);
+  float e = 2.0 + es * 3.3333333;
+  float cornerDist = pow(pow(max(q.x, 0.0), e) + pow(max(q.y, 0.0), e), 1.0 / e);
+  return cornerDist + min(max(q.x, q.y), 0.0) - cr;
+}
+
+void main() {
+  vec2 hs = vec2(u_w, u_h) * 0.5;
+  float dist = sdRoundRect(v_uv * u_res - hs, hs, u_r, u_smooth);
+  float pw = max(fwidth(dist), 0.5);
+  // Clamp edge width to panel size to prevent overflow on small panels
+  float maxEW = min(u_w, u_h) * 0.4;
+  float ew = min(u_edgeW + pw, maxEW);
+  float edgeMask = 1.0 - smoothstep(0.0, ew, abs(dist));
+  float inside = smoothstep(-ew * 0.5, 0.0, dist);
+  float alpha = edgeMask * (1.0 - inside) * 0.55;
+  alpha *= 1.0 - smoothstep(0.0, 1.4, dist);
+  vec3 edgeColor = mix(vec3(0.85, 0.55, 0.25), vec3(0.04,0.03,0.06), 0.4);
+  fragColor = vec4(edgeColor, alpha);
+}`);
+  gl.compileShader(fs);
+  if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) console.error('FS:', gl.getShaderInfoLog(fs));
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+
+  const uRes = gl.getUniformLocation(prog, 'u_res');
+  const uR = gl.getUniformLocation(prog, 'u_r');
+  const uW = gl.getUniformLocation(prog, 'u_w');
+  const uH = gl.getUniformLocation(prog, 'u_h');
+  const uS = gl.getUniformLocation(prog, 'u_smooth');
+  const uEW = gl.getUniformLocation(prog, 'u_edgeW');
+
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const buf2 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf2);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  let glCr = 130; // animated corner radius
+  function renderGL(now) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = menu.clientWidth, h = menu.clientHeight;
+    if (w === 0 || h === 0) { requestAnimationFrame(renderGL); return; }
+    const cw = w * dpr, ch = h * dpr;
+    if (canvas.width !== cw) canvas.width = cw;
+    if (canvas.height !== ch) canvas.height = ch;
+
+    // Smooth corner radius from CSS computed style
+    const cs = getComputedStyle(menu);
+    const cssR = parseFloat(cs.borderRadius) || 130;
+    const targetCr = cssR * dpr;
+    const speed = slowMo ? 0.02 : 0.2;
+    glCr += (targetCr - glCr) * speed;
+
+    // Clear to transparent
+    gl.clearColor(0,0,0,0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.viewport(0, 0, cw, ch);
+    gl.useProgram(prog);
+    gl.bindVertexArray(vao);
+    gl.uniform2f(uRes, cw, ch);
+    gl.uniform1f(uR, glCr);
+    gl.uniform1f(uW, w * dpr);
+    gl.uniform1f(uH, h * dpr);
+    gl.uniform1f(uS, 0.6);
+    gl.uniform1f(uEW, 20.0 * dpr);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(renderGL);
+  }
+  requestAnimationFrame(renderGL);
+
+  function openMenu() {
+    if (isOpen) return;
+    isOpen = true;
+    menu.classList.add('open');
+    trigger.classList.add('open');
+    backdrop.classList.add('on');
+  }
+
+  function closeMenu() {
+    if (!isOpen) return;
+    isOpen = false;
+    menu.classList.remove('open');
+    trigger.classList.remove('open');
+    backdrop.classList.remove('on');
+  }
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openMenu();
+  });
+
+  backdrop.addEventListener('click', () => closeMenu());
+
+  // 点击菜单项关闭
+  menu.querySelectorAll('.lq-menu-row, .lq-menu-footer-item').forEach(el => {
+    el.addEventListener('click', () => {
+      console.log('Selected:', el.textContent.trim());
+      closeMenu();
+    });
+  });
+})();
 </script>
 </body>
 </html>

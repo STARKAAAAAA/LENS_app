@@ -179,18 +179,22 @@ export function createDropdown(id, options, currentValue, onChange) {
   // 挂到 body 避免被 .portfolio contain:paint 裁剪
   document.body.appendChild(menu);
 
+  let _posCache = '';
   function positionMenu() {
     const r = trigger.getBoundingClientRect();
     const menuH = menu.offsetHeight || 200;
+    const left = r.left;
+    const width = r.width;
+    const top = (r.bottom + 6 + menuH > window.innerHeight && r.top - 6 - menuH > 0)
+      ? r.top - menuH - 6
+      : r.bottom + 6;
+    const key = left + ',' + top + ',' + width;
+    if (_posCache === key) return; // 位置未变，跳过写入避免触发重排
+    _posCache = key;
     menu.style.position = 'fixed';
-    menu.style.left = r.left + 'px';
-    menu.style.minWidth = r.width + 'px';
-    // 下方空间不够则翻到上方
-    if (r.bottom + 6 + menuH > window.innerHeight && r.top - 6 - menuH > 0) {
-      menu.style.top = (r.top - menuH - 6) + 'px';
-    } else {
-      menu.style.top = (r.bottom + 6) + 'px';
-    }
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    menu.style.minWidth = width + 'px';
   }
 
   const labelMap = {};

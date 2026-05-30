@@ -1197,7 +1197,11 @@ function poll() {
     let active = null;
     for (const gp of gamepads) { if (gp?.connected) { active = gp; break; } }
 
-    if (!active) { S.raf = requestAnimationFrame(poll); return; }
+    if (!active) {
+      // 无手柄连接时停止轮询，由 gamepadconnected 事件重启
+      S.raf = null;
+      return;
+    }
 
     const map = BTN[detectLayout(active)];
     const lx = active.axes[0] || 0;
