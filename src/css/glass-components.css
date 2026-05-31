@@ -1,0 +1,62 @@
+/* ═══════════════════════════════════════════════════════
+   Liquid Glass Components — Switch & Slider
+   Uses CSS custom properties for preset-aware theming
+   ═══════════════════════════════════════════════════════ */
+
+/* ── GlassSwitch Track ── */
+.gsw-track {
+  background: rgb(174, 174, 178);
+  transition: background 0.3s;
+}
+.gsw-track.on {
+  background: rgba(59, 191, 78, 0.933);
+}
+
+/* ── GlassSwitch Thumb ── */
+.gsw-thumb {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.1);
+}
+.gsw-thumb.glass {
+  background: transparent;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* ── GlassSlider Track ── */
+.gsl-track {
+  background: rgb(174, 174, 178);
+}
+.gsl-fill {
+  background: #0377F7;
+}
+
+/* ── GlassSlider Thumb ── */
+.gsl-thumb {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.1);
+}
+.gsl-thumb.glass {
+  background: transparent;
+  transform: translateX(-50%) scale(0.85);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+
+/* ── Glass component container ── */
+.glass-comp-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.glass-comp-row label {
+  font-size: 0.62rem;
+  color: var(--text-3, #999);
+  flex: 0 0 70px;
+  text-align: right;
+}
+.glass-comp-val {
+  font-size: 0.55rem;
+  color: var(--text-3, #888);
+  flex: 0 0 40px;
+  text-align: left;
+}

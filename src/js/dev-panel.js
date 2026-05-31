@@ -3,6 +3,8 @@
 
 import { updateColorSystem, paletteToVars, BUILTIN_PALETTES as COLOR_PRESETS } from './colors.js';
 import { mountLiquidGlass, unmountLiquidGlass, isLiquidGlassMounted, getStudio } from './liquid-glass.js';
+import { GlassSwitch } from './glass-switch.js';
+import { GlassSlider } from './glass-slider.js';
 import { enableLiquidGlassPanels, disableLiquidGlassPanels, isLiquidGlassPanelsActive, updatePanelBlur, updatePanelSaturate, updatePanelRefraction, togglePanelDebug } from './lg-panels.js';
 import { markTextDirty, clearTextDirty, initAdaptiveGlass } from './adaptive-glass.js';
 import { initColorPickers, syncColorTrigger, syncAllColorTriggers } from './color-picker.js';
@@ -1358,6 +1360,11 @@ function renderVisualGroup() {
       <details class="dev-zone" open>
         <summary class="dev-zone__summary">液态玻璃</summary>
       <div class="dev-section__desc">CSS backdrop-filter 磨砂玻璃 — 模糊 + 半透明 + 边缘高光 + 投影。鼠标移动时弹性跟随。</div>
+        <div class="dev-zone" style="margin-bottom:8px"><div style="font-size:0.7rem;color:var(--accent);margin-bottom:6px">🔮 液态玻璃交互预览</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0">
+          <div style="text-align:center"><div style="font-size:0.58rem;color:var(--text-3);margin-bottom:4px">Glass Switch</div><div id="gsw-demo"></div></div>
+          <div style="text-align:center"><div style="font-size:0.58rem;color:var(--text-3);margin-bottom:4px">Glass Slider</div><div id="gsl-demo"></div></div>
+        </div></div>
       <div class="dev-row">
         <span class="dev-row__label">启用液态玻璃</span>
         <button class="dev-toggle" id="dev-toggle-liquid-glass" data-key="liquid-glass"></button>
@@ -1390,6 +1397,28 @@ function renderVisualGroup() {
   el.innerHTML = html;
   bindVisualControls(el);
   buildDevPreview();
+  // Init glass component demos + preview section
+  setTimeout(() => {
+    try {
+      // Insert demo preview HTML
+      const lgSection = el.querySelector('[data-subtab=\"lg\"]');
+      if (lgSection && !lgSection.querySelector('#gsw-demo')) {
+        const preview = document.createElement('div');
+        preview.className = 'dev-zone';
+        preview.style.cssText = 'margin-bottom:8px';
+        preview.innerHTML = '<div style=\"font-size:0.7rem;color:var(--accent);margin-bottom:6px\">🔮 液态玻璃交互预览</div>'+
+          '<div style=\"display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0\">'+
+          '<div style=\"text-align:center\"><div style=\"font-size:0.58rem;color:var(--text-3);margin-bottom:4px\">Glass Switch</div><div id=\"gsw-demo\"></div></div>'+
+          '<div style=\"text-align:center\"><div style=\"font-size:0.58rem;color:var(--text-3);margin-bottom:4px\">Glass Slider</div><div id=\"gsl-demo\"></div></div></div>';
+        const desc = lgSection.querySelector('.dev-section__desc');
+        if (desc) desc.parentNode.insertBefore(preview, desc.nextSibling);
+      }
+      const d1=document.getElementById('gsw-demo');
+      if(d1&&!d1._gs){d1._gs=new GlassSwitch({});d1._gs.mount(d1);}
+      const d2=document.getElementById('gsl-demo');
+      if(d2&&!d2._gs){d2._gs=new GlassSlider({initialValue:50});d2._gs.mount(d2);}
+    }catch(e){console.warn('Glass demo:',e);}
+  },300);
 
   // 液态玻璃：读取滑块值更新 glass div
   const BASE_W = 240, BASE_H = 240;
