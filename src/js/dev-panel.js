@@ -1407,9 +1407,9 @@ function renderVisualGroup() {
         if (desc) desc.parentNode.insertBefore(preview, desc.nextSibling);
       }
       const d1=document.getElementById('gsw-demo');
-      if(d1&&!d1._gs){d1._gs=new GlassSwitch(Object.assign({}, _LG_SWITCH_DIM, {bezel:20,thick:20,scale:0.35,blur:0.05,saturate:0}));d1._gs.mount(d1);}
+      if(d1&&!d1._gs){d1._gs=new GlassSwitch({});d1._gs.mount(d1);}
       const d2=document.getElementById('gsl-demo');
-      if(d2&&!d2._gs){d2._gs=new GlassSlider(Object.assign({initialValue:50}, _LG_SLIDER_DIM, {bezel:14,thick:14,scale:0.70,blur:0,saturate:0}));d2._gs.mount(d2);}
+      if(d2&&!d2._gs){d2._gs=new GlassSlider({initialValue:50});d2._gs.mount(d2);}
 
       // ── Replace toggles with GlassSwitch ──
       _createGlassSwitch('liquid-glass', { initialState: !!(D.liquidGlassOn || window.__lensLiquidGlass), onChange: (on) => {
@@ -1551,9 +1551,9 @@ function lgSlider(label, name, min, max, val, step, unit) {
 }
 
 // ── Glass component row generators ──
-// Match original dev-toggle (36×20) and dev-slider (~160×4) closely
-const _LG_SWITCH_DIM = { trackW: 48, trackH: 24, thumbW: 40, thumbH: 28 };
-const _LG_SLIDER_DIM = { trackW: 160, trackH: 6, thumbW: 26, thumbH: 18 };
+// Original test-glass-v9 dimensions
+const _LG_SWITCH_DIM = { trackW: 160, trackH: 67, thumbW: 146, thumbH: 92 };
+const _LG_SLIDER_DIM = { trackW: 330, trackH: 14, thumbW: 90, thumbH: 60 };
 
 function makeGlassToggleRow(label, id) {
   return `<div class="dev-row">
@@ -1584,7 +1584,7 @@ function _createGlassSwitch(id, opts) {
   const sw = new GlassSwitch(Object.assign({
     trackW: _LG_SWITCH_DIM.trackW, trackH: _LG_SWITCH_DIM.trackH,
     thumbW: _LG_SWITCH_DIM.thumbW, thumbH: _LG_SWITCH_DIM.thumbH,
-    bezel: 20, thick: 20, scale: 0.35, blur: 0.05, saturate: 0,
+    bezel: 60, thick: 60, scale: 0.90, blur: 0.2, saturate: 0,
     specAngle: -45, specAlpha: 0.4,
   }, opts || {}));
   sw.mount(el);
@@ -1599,7 +1599,7 @@ function _createGlassSlider(name, opts) {
   const sl = new GlassSlider(Object.assign({
     trackW: _LG_SLIDER_DIM.trackW, trackH: _LG_SLIDER_DIM.trackH,
     thumbW: _LG_SLIDER_DIM.thumbW, thumbH: _LG_SLIDER_DIM.thumbH,
-    bezel: 14, thick: 14, scale: 0.70, blur: 0, saturate: 0,
+    bezel: 40, thick: 50, scale: 2.50, blur: 0, saturate: 0,
     specAngle: -45, specAlpha: 0.4,
   }, opts || {}));
   sl.mount(el);
