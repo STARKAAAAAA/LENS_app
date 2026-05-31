@@ -99,9 +99,7 @@ export class GlassSlider {
       position: 'absolute', height: this._opts.thumbH + 'px', width: this._opts.thumbW + 'px',
       borderRadius: (this._opts.thumbH / 2) + 'px',
       top: thumbTop + 'px', left: '0',
-      transform: 'translateX(-50%) scale(0.6)',
       cursor: 'pointer', touchAction: 'pan-y', userSelect: 'none',
-      transition: 'transform 0.25s cubic-bezier(0.34,1.3,0.64,1.0)',
     });
 
     this._outer.appendChild(this._track);
@@ -155,7 +153,6 @@ export class GlassSlider {
     this._thumb.classList.add('glass');
     setFilterScale(this.id, blobCache[this.id + 'SC'] || this._fullScale, 100);
     this._thumb.style.transition = 'transform 0.10s linear';
-    this._thumb.style.transform = 'translateX(-50%) scale(0.85)';
   }
 
   _glassOff() {
@@ -184,7 +181,6 @@ export class GlassSlider {
     this._dragging = false; this._glassOff();
     const w = this._track.getBoundingClientRect().width;
     this._thumb.style.transition = 'left 0.45s cubic-bezier(0.25,0.8,0.35,1.0), transform 0.3s cubic-bezier(0.22,0.9,0.36,1.0)';
-    this._thumb.style.transform = 'translateX(-50%) scale(0.6)';
     this._thumb.style.left = Math.round(this._frac * w) + 'px';
   }
 
