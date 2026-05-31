@@ -7,26 +7,6 @@ import { makeCapsuleSDF, F, snell, prepComponentFilter, setFilterScale, blobCach
 let _instanceId = 0;
 
 export class GlassSlider {
-  /**
-   * @param {Object} opts
-   * @param {number} [opts.trackW=330]
-   * @param {number} [opts.trackH=14]
-   * @param {number} [opts.thumbW=90]
-   * @param {number} [opts.thumbH=60]
-   * @param {string} [opts.surface='concave']
-   * @param {number} [opts.bezel=40]
-   * @param {number} [opts.thick=50]
-   * @param {number} [opts.scale=2.50]
-   * @param {number} [opts.blur=0]
-   * @param {number} [opts.saturate=0]
-   * @param {number} [opts.specAngle=-45]
-   * @param {number} [opts.specAlpha=0.4]
-   * @param {number} [opts.min=0]
-   * @param {number} [opts.max=100]
-   * @param {number} [opts.step=1]
-   * @param {number} [opts.initialValue=0]
-   * @param {Function} [opts.onChange]
-   */
   constructor(opts = {}) {
     this.id = 'gsl-' + (++_instanceId);
     this._opts = Object.assign({
@@ -38,16 +18,12 @@ export class GlassSlider {
     this._val = this._opts.initialValue;
     this._onChange = this._opts.onChange || null;
 
-    // Drag state
     this._dragging = false;
     this._targetX = 0; this._grabOffset = 0;
     this._raf = 0;
     this._mounted = false;
-
-    // Outer height = thumbH
     this._outerH = this._opts.thumbH;
 
-    // Bound handlers
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
@@ -58,15 +34,12 @@ export class GlassSlider {
     if (this._mounted) return;
     this._mounted = true;
 
-    // Build DOM
-    // Outer container
     this._outer = document.createElement('div');
     this._outer.className = 'gsl-outer';
     Object.assign(this._outer.style, {
       position: 'relative', width: this._opts.trackW + 'px', height: this._outerH + 'px',
     });
 
-    // Track
     const trackTop = (this._outerH - this._opts.trackH) / 2;
     this._track = document.createElement('div');
     this._track.className = 'gsl-track';
@@ -77,7 +50,6 @@ export class GlassSlider {
       position: 'absolute', cursor: 'pointer',
     });
 
-    // Fill wrap
     this._fillWrap = document.createElement('div');
     Object.assign(this._fillWrap.style, {
       width: '100%', height: '100%', overflow: 'hidden', borderRadius: (this._opts.trackH / 2) + 'px',
@@ -91,25 +63,23 @@ export class GlassSlider {
     this._fillWrap.appendChild(this._fill);
     this._track.appendChild(this._fillWrap);
 
-    // Thumb
     this._thumb = document.createElement('div');
     this._thumb.className = 'gsl-thumb';
     const thumbTop = (this._outerH - this._opts.thumbH) / 2;
+    const initFrac = this._frac;
+    const initLeft = Math.round(initFrac * this._opts.trackW);
     Object.assign(this._thumb.style, {
       position: 'absolute', height: this._opts.thumbH + 'px', width: this._opts.thumbW + 'px',
       borderRadius: (this._opts.thumbH / 2) + 'px',
-      top: thumbTop + 'px', left: '0',
+      top: thumbTop + 'px', left: initLeft + 'px',
+      transform: 'translateX(-50%) scale(0.6)',
       cursor: 'pointer', touchAction: 'pan-y', userSelect: 'none',
     });
+    this._fill.style.width = (initFrac * 100) + '%';
 
     this._outer.appendChild(this._track);
     this._outer.appendChild(this._thumb);
     parentEl.appendChild(this._outer);
-
-    // Set initial thumb position from initialValue
-    const initFrac = this._frac;
-    this._thumb.style.left = Math.round(initFrac * this._opts.trackW) + 'px';
-    this._fill.style.width = (initFrac * 100) + '%';
 
     // Generate filter
     const sdf = makeCapsuleSDF(this._opts.thumbW, this._opts.thumbH);
@@ -148,11 +118,15 @@ export class GlassSlider {
   }
 
   get value() { return this._val; }
+  get _frac() {
+    return Math.max(0, Math.min(1, (this._val - this._opts.min) / (this._opts.max - this._opts.min)));
+  }
 
   _glassOn() {
     this._thumb.classList.add('glass');
     setFilterScale(this.id, blobCache[this.id + 'SC'] || this._fullScale, 100);
     this._thumb.style.transition = 'transform 0.10s linear';
+    this._thumb.style.transform = 'translateX(-50%) scale(0.85)';
   }
 
   _glassOff() {
@@ -163,7 +137,8 @@ export class GlassSlider {
   _onPointerDown(e) {
     this._dragging = true; this._glassOn();
     const r = this._track.getBoundingClientRect();
-    const thumbCenter = parseFloat(this._thumb.style.left) || (this._frac * r.width);
+    const curLeft = parseFloat(this._thumb.style.left);
+    const thumbCenter = !isNaN(curLeft) ? curLeft : (this._frac * r.width);
     this._grabOffset = thumbCenter - (e.clientX - r.left);
     this._thumb.setPointerCapture(e.pointerId);
     if (!this._raf) this._raf = requestAnimationFrame(this._tick);
@@ -181,11 +156,8 @@ export class GlassSlider {
     this._dragging = false; this._glassOff();
     const w = this._track.getBoundingClientRect().width;
     this._thumb.style.transition = 'left 0.45s cubic-bezier(0.25,0.8,0.35,1.0), transform 0.3s cubic-bezier(0.22,0.9,0.36,1.0)';
+    this._thumb.style.transform = 'translateX(-50%) scale(0.6)';
     this._thumb.style.left = Math.round(this._frac * w) + 'px';
-  }
-
-  get _frac() {
-    return Math.max(0, Math.min(1, (this._val - this._opts.min) / (this._opts.max - this._opts.min)));
   }
 
   _tick() {
