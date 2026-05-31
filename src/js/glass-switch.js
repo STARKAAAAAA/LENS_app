@@ -69,9 +69,10 @@ export class GlassSwitch {
 
     this._thumb = document.createElement('div');
     this._thumb.className = 'gsw-thumb';
-    // Exact v9 CSS: top=33.5px, margin-left=-21.95px for 160×67/146×92
+    // Positioning computed from dimensions — overhang formula from v9 tuning
     const top = this._opts.trackH / 2;
-    const marginLeft = -21.95;
+    this._overhang = Math.round((this._opts.thumbH - this._opts.trackH) * 0.878 * 100) / 100;
+    const marginLeft = -this._overhang;
     Object.assign(this._thumb.style, {
       position: 'absolute', height: this._opts.thumbH + 'px', width: this._opts.thumbW + 'px',
       borderRadius: (this._opts.thumbH / 2) + 'px',
@@ -150,12 +151,12 @@ export class GlassSwitch {
     }
   }
 
-  // v9 exact: ON position = 57.9px for 160×67 track + 146×92 thumb
-  get _endTX() { return 57.9; }
+  // ON position computed from dimensions: trackW - thumbW + 2*overhang
+  get _endTX() { return Math.round((this._opts.trackW - this._opts.thumbW + 2 * this._overhang) * 100) / 100; }
 
   _getCurrentTX() {
     const m = this._thumb.style.transform.match(/translateX\(([-\d.]+)px\)/);
-    return m ? parseFloat(m[1]) : (this._on ? 57.9 : 0);
+    return m ? parseFloat(m[1]) : (this._on ? this._endTX : 0);
   }
 
   _onPointerDown(e) {
@@ -180,7 +181,7 @@ export class GlassSwitch {
     if (!this._active) return;
     this._active = false; this._raf = 0;
     if (this._moved < 3) this._snap(!this._on);
-    else this._snap(this._currentTX > 28.95);
+    else this._snap(this._currentTX > this._endTX / 2);
     this._glassOff();
   }
 
@@ -190,15 +191,16 @@ export class GlassSwitch {
 
   _tick() {
     if (!this._active) { this._raf = 0; return; }
+    const end = this._endTX, half = end / 2;
     let tx = this._targetTX;
     // Rubber band
     if (tx < 0) { const d = -tx; tx = -d / (1 + d * 0.10); }
-    else if (tx > 57.9) { const d = tx - 57.9; tx = 57.9 + d / (1 + d * 0.10); }
+    else if (tx > end) { const d = tx - end; tx = end + d / (1 + d * 0.10); }
     // Lerp damping
     this._currentTX = this._currentTX + (tx - this._currentTX) * 0.45;
     if (Math.abs(tx - this._currentTX) < 0.15) this._currentTX = tx;
     this._thumb.style.transform = 'translateX(' + this._currentTX + 'px) translateY(-50%) scale(0.96)';
-    this._track.classList.toggle('on', this._currentTX > 28.95);
+    this._track.classList.toggle('on', this._currentTX > half);
     this._raf = requestAnimationFrame(this._tick);
   }
 }

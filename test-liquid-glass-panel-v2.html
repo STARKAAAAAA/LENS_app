@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Glass — kube.io Article Method</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#131316;color:#ededec;font-family:InterVariable,Inter,system-ui,sans-serif;min-height:100vh;overflow:hidden;position:relative}
+  .hidden-svg{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+
+  .scene{position:fixed;inset:0;z-index:0;
+    background:radial-gradient(ellipse at 25% 35%,rgba(255,100,80,0.5),transparent 50%),
+      radial-gradient(ellipse at 70% 55%,rgba(80,150,255,0.5),transparent 50%),
+      radial-gradient(ellipse at 35% 75%,rgba(255,200,60,0.4),transparent 45%),
+      linear-gradient(160deg,#1a1520,#1e1a28 30%,#1c1826 60%,#201c2a);}
+  /* Grid to show refraction */
+  .grid{position:fixed;inset:0;z-index:1;opacity:0.2;
+    background-image:linear-gradient(to right,rgba(255,255,255,0.3) 1px,transparent 1px),
+      linear-gradient(to bottom,rgba(255,255,255,0.3) 1px,transparent 1px);
+    background-size:40px 40px;}
+  .bg-stuff{position:fixed;inset:0;z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+  .bg-stuff .t{font-size:2.5rem;font-weight:900;color:rgba(255,255,255,0.08);letter-spacing:-0.04em;user-select:none}
+  .bg-dots{display:flex;gap:24px}
+  .bg-dots div{width:60px;height:60px;border-radius:50%;opacity:0.4}
+
+  /* === CIRCULAR GLASS PANEL === */
+  .glass{
+    position:fixed;z-index:10;width:320px;height:320px;border-radius:50%;
+    top:50%;left:50%;margin-left:-160px;margin-top:-160px;
+    cursor:grab;user-select:none;
+    backdrop-filter:url(#glass);-webkit-backdrop-filter:url(#glass);
+    border:2px solid rgba(255,255,255,0.3);
+    box-shadow:0 16px 48px rgba(0,0,0,0.4),0 4px 12px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.15);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:30px;color:#fff;text-align:center;
+  }
+  .glass:active{cursor:grabbing;box-shadow:0 24px 60px rgba(0,0,0,0.55)}
+  .glass h2{font-size:1.2rem;font-weight:600;letter-spacing:-0.02em;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+  .glass p{font-size:0.7rem;opacity:0.5;margin-top:4px}
+
+  .controls{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    background:rgba(0,0,0,0.7);padding:10px 18px;border-radius:999px;
+    backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1)}
+  .controls label{font-size:0.65rem;color:#aaa;display:flex;align-items:center;gap:4px;white-space:nowrap}
+  .controls input[type=range]{width:55px;height:3px;accent-color:#8b5cf6}
+  .controls button{font-size:0.6rem;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#ccc;cursor:pointer}
+  .controls button:hover{background:rgba(255,255,255,0.15)}
+  .controls button.on{background:rgba(139,92,246,0.3);border-color:rgba(139,92,246,0.5);color:#a78bfa}
+
+  .dbg{position:fixed;top:8px;left:8px;z-index:100;font:10px monospace;color:#777;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="scene"></div><div class="grid"></div>
+<div class="bg-stuff">
+  <div class="t">LIQUID GLASS</div>
+  <div class="bg-dots">
+    <div style="background:#ff6b6b"></div><div style="background:#4ecdc4"></div>
+    <div style="background:#ffe66d"></div><div style="background:#a78bfa"></div>
+  </div>
+</div>
+
+<div class="glass" id="glass">
+  <h2>Liquid Glass</h2>
+  <p>Optics Study<br>Precision Lens</p>
+</div>
+
+<svg class="hidden-svg" id="svgBank"></svg>
+<div class="dbg" id="dbg"></div>
+
+<div class="controls">
+  <label>Blur σ <input type="range" min="0" max="8" step="0.2" value="2" id="blur"></label>
+  <label>Strength <input type="range" min="0" max="60" value="20" id="str"></label>
+  <label>Saturate <input type="range" min="0" max="15" step="0.5" value="4" id="sat"></label>
+  <label>Specular <input type="range" min="0" max="1" step="0.05" value="0.25" id="spec"></label>
+  <button id="btnMap">Show Map</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STRICTLY following kube.io article method:
+//
+// Step 1: Surface function f(distanceFromSide)
+// Step 2: Normal = {x:-derivative, y:1} (derivative rotated -90°)
+// Step 3: Snell's law: sin(θ₂)=sin(θ₁)/1.5
+// Step 4: Displacement = height × tan(θ₂)
+// Step 5: Pre-calc on ONE radius (128 samples)
+// Step 6: Normalize: mag /= maxDisplacement
+// Step 7: For each pixel: angle from center → displacement dir
+// Step 8: Polar→Cartesian: dx=cos(θ)×mag, dy=sin(θ)×mag
+// Step 9: Encode: R=128+dx×127, G=128+dy×127
+// Step 10: feDisplacementMap scale = maxDisplacement × multiplier
+// Step 11: backdrop-filter: url(#filter)
+// ═══════════════════════════════════════════════════════
+
+const IOR=1.5;
+const SIZE=320;          // glass panel diameter (px)
+const RADIUS=SIZE/2;     // 160px
+const MAP=SIZE;          // map MUST match element size (kube.io rule)
+const BEZEL=32;          // bezel width in px
+const THICK=16;          // glass thickness in px
+
+/* Step 1: Surface function — Convex Squircle (Apple's preferred) */
+function f(x){
+  const dx=1-Math.max(0,Math.min(1,x));
+  return dx<=0?1:Math.pow(1-Math.pow(dx,4),0.25);
+}
+
+/* Step 2-4: Compute Snell refraction on ONE radius */
+function computeSnell(N,bezelPx,thickPx){
+  const samples=[],delta=0.0005;
+  for(let i=0;i<N;i++){
+    const t=i/(N-1);         // 0=outer edge, 1=inner flat
+    const x=Math.max(0,Math.min(1,t));
+    const height=f(x)*thickPx;
+
+    // Step 2: derivative → normal (article code)
+    const xm=Math.max(0,x-delta),xp=Math.min(1,x+delta);
+    const deriv=(f(xp)-f(xm))/(xp-xm);
+    const normal={x:-deriv,y:1}; // rotated -90°
+
+    // Angle between vertical ray (0,1) and normal
+    const nLen=Math.sqrt(normal.x*normal.x+normal.y*normal.y);
+    const cosT1=Math.abs(normal.y)/nLen;
+    const theta1=Math.acos(Math.min(1,cosT1));
+
+    // Step 3: Snell
+    const sinT2=Math.sin(theta1)/IOR;
+    let displacement;
+    if(sinT2>=1)displacement=height*Math.tan(theta1); // TIR
+    else displacement=height*Math.tan(Math.asin(sinT2));
+
+    // Step 4: signed displacement (convex→inward=negative)
+    const dir=deriv>=0?-1:1;
+    samples.push({
+      t:x,
+      height,
+      deriv,
+      theta1,
+      mag:displacement*dir,   // signed (negative=inward)
+      absMag:displacement      // absolute
+    });
+  }
+  return samples;
+}
+
+/* Step 5-9: Build displacement map for a CIRCLE */
+function buildCircleMap(mapSize,circleRadius,bezelPx,samples,maxDisp){
+  const c=document.createElement('canvas');c.width=c.height=mapSize;
+  const ctx=c.getContext('2d');
+  const img=ctx.createImageData(mapSize,mapSize);
+  const d=img.data;
+  const cx=mapSize/2,cy=mapSize/2;
+  const mdp=maxDisp||1;
+
+  for(let y=0;y<mapSize;y++){
+    for(let x=0;x<mapSize;x++){
+      const i=(y*mapSize+x)*4;
+      const px=x-cx,py=y-cy;
+
+      // Step 7: angle from center (polar coordinate)
+      const angle=Math.atan2(py,px);
+      const distFromCenter=Math.sqrt(px*px+py*py);
+
+      // Distance from circle border
+      const borderDist=circleRadius-distFromCenter;
+
+      // Map: 0=edge (borderDist=0) → 1=flat interior (borderDist=bezelPx)
+      const t=Math.max(0,Math.min(1,borderDist/bezelPx));
+
+      // Outside bezel or outside circle → neutral
+      if(t<=0.002||t>=0.998||borderDist<-1){
+        d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;
+        continue;
+      }
+
+      // Look up pre-computed displacement
+      const si=Math.round(t*(samples.length-1));
+      const s=samples[Math.max(0,Math.min(samples.length-1,si))];
+
+      // Step 5 (normalized) + Step 8 (polar→Cartesian)
+      // "In a circle, displacement is always orthogonal to the border"
+      // Direction = radial. Convex (mag<0) → inward = opposite to radial.
+      const normMag=s.absMag/mdp; // normalized [0,1]
+      const sign=s.mag<0?-1:1;    // convex→inward(negative), concave→outward(positive)
+      const dx=Math.cos(angle)*normMag*sign;
+      const dy=Math.sin(angle)*normMag*sign;
+
+      // Step 9: encode to RG
+      d[i]    =Math.max(0,Math.min(255,Math.round(128+dx*127)));
+      d[i+1]  =Math.max(0,Math.min(255,Math.round(128+dy*127)));
+      d[i+2]  =0;
+      d[i+3]  =255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  return c;
+}
+
+/* Specular map — edge glow */
+function buildSpecMap(mapSize,circleRadius,bezelPx,intensity){
+  const c=document.createElement('canvas');c.width=c.height=mapSize;
+  const ctx=c.getContext('2d');
+  const img=ctx.createImageData(mapSize,mapSize);
+  const d=img.data;
+  const cx=mapSize/2,cy=mapSize/2;
+
+  for(let y=0;y<mapSize;y++){
+    for(let x=0;x<mapSize;x++){
+      const i=(y*mapSize+x)*4;
+      const px=x-cx,py=y-cy;
+      const dist=Math.sqrt(px*px+py*py);
+      const borderDist=circleRadius-dist;
+      const t=Math.max(0,Math.min(1,borderDist/bezelPx));
+      if(t<=0.01||t>=0.99||borderDist<-1){d[i]=d[i+1]=d[i+2]=0;d[i+3]=0;continue;}
+
+      const edgeF=1-Math.abs(borderDist)/bezelPx;
+      const val=Math.round(Math.pow(Math.max(0,Math.min(1,edgeF)),2.5)*intensity*255);
+      d[i]=val;d[i+1]=val;d[i+2]=val;d[i+3]=val;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  return c;
+}
+
+/* Step 10-11: SVG filter (kube.io exact chain) */
+function buildFilter(id,dURL,sURL,scale,blur,sat,specA){
+  const m=60;
+  let h=`<filter id="${id}" x="-${m}%" y="-${m}%" width="${100+m*2}%" height="${100+m*2}%">`;
+  h+=`<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="blur"/>`;
+  h+=`<feImage href="${dURL}" x="0" y="0" width="${MAP}" height="${MAP}" result="dm"/>`;
+  h+=`<feDisplacementMap in="blur" in2="dm" scale="${scale}" xChannelSelector="R" yChannelSelector="G" result="disp"/>`;
+  h+=`<feColorMatrix in="disp" type="saturate" values="${sat}" result="dispSat"/>`;
+  h+=`<feImage href="${sURL}" x="0" y="0" width="${MAP}" height="${MAP}" result="spec"/>`;
+  h+=`<feComposite in="dispSat" in2="spec" operator="in" result="specSat"/>`;
+  h+=`<feComponentTransfer in="spec" result="specFaded"><feFuncA type="linear" slope="${specA}"/></feComponentTransfer>`;
+  h+=`<feBlend in="specSat" in2="disp" mode="normal" result="ws"/>`;
+  h+=`<feBlend in="specFaded" in2="ws" mode="normal"/>`;
+  h+=`</filter>`;
+  return h;
+}
+
+// ═══════════════ INIT ═══════════════
+const glass=document.getElementById('glass');
+
+// Step 1-4: Compute Snell refraction
+const samples=computeSnell(128,BEZEL,THICK);
+const maxDisp=Math.max(...samples.map(s=>s.absMag),1);
+console.log('Snell: max displacement =',maxDisp.toFixed(2),'px');
+
+// Step 5-9: Build displacement map for circle
+const dispMap=buildCircleMap(MAP,RADIUS,BEZEL,samples,maxDisp);
+let specMap=buildSpecMap(MAP,RADIUS,BEZEL,0.25);
+
+// Step 10-11: Build filter + apply
+function update(){
+  const blur=parseFloat(document.getElementById('blur').value);
+  const str=parseInt(document.getElementById('str').value);
+  const sat=parseFloat(document.getElementById('sat').value);
+  const specA=parseFloat(document.getElementById('spec').value);
+
+  // Article: feDisplacementMap scale = maxDisplacement (for accurate physics)
+  // Multiplier for artistic control
+  const scale=Math.round(maxDisp*(str/10));
+
+  specMap=buildSpecMap(MAP,RADIUS,BEZEL,specA);
+  const html=buildFilter('glass',dispMap.toDataURL(),specMap.toDataURL(),scale,blur,sat,specA);
+  document.getElementById('svgBank').innerHTML='<defs>'+html+'</defs>';
+
+  glass.style.backdropFilter='none';glass.style.webkitBackdropFilter='none';
+  requestAnimationFrame(()=>{
+    glass.style.backdropFilter='url(#glass)';
+    glass.style.webkitBackdropFilter='url(#glass)';
+  });
+
+  document.getElementById('dbg').innerHTML=
+    'Snell maxDisp: '+maxDisp.toFixed(1)+'px | scale: '+scale+'<br>'+
+    'bezel: '+BEZEL+'px thick: '+THICK+'px radius: '+RADIUS+'px';
+}
+update();
+['blur','str','sat','spec'].forEach(id=>document.getElementById(id).addEventListener('input',update));
+
+// Debug: show map
+document.getElementById('btnMap').addEventListener('click',function(){
+  const on=glass.classList.toggle('dbg');
+  this.classList.toggle('on',on);
+  if(on){
+    glass.style.background='url('+dispMap.toDataURL()+') center/100% 100%';
+    glass.style.backdropFilter='none';glass.style.webkitBackdropFilter='none';
+    glass.style.border='2px solid #a78bfa';
+    this.textContent='Show Glass';
+  }else{
+    glass.style.background='';glass.style.border='2px solid rgba(255,255,255,0.3)';
+    update();this.textContent='Show Map';
+  }
+});
+
+// Drag — track cumulative offset, preserve CSS centering
+let drag=false,lastX=0,lastY=0,offX=0,offY=0;
+glass.addEventListener('pointerdown',e=>{drag=true;glass.setPointerCapture(e.pointerId);lastX=e.clientX;lastY=e.clientY;});
+glass.addEventListener('pointermove',e=>{if(!drag)return;offX+=e.clientX-lastX;offY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;glass.style.transform='translate('+offX+'px,'+offY+'px)';});
+glass.addEventListener('pointerup',()=>{drag=false;});
+
+console.log('%c🧬 Liquid Glass — following kube.io article step-by-step','font-size:1em;color:#a78bfa;');
+</script>
+</body>
+</html>

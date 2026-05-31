@@ -1,0 +1,335 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass v8 — kube.io Exact</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%}
+body{overflow:hidden;background:#d5cfc0;
+  background-image:linear-gradient(to right,rgba(0,0,0,0.25) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,0.25) 1px,transparent 1px),
+    radial-gradient(circle at 25% 35%,rgba(200,120,80,0.4),transparent 50%),
+    radial-gradient(circle at 70% 55%,rgba(80,140,200,0.35),transparent 50%);
+  background-size:30px 30px,30px 30px,100% 100%,100% 100%;
+  font-family:InterVariable,Inter,system-ui,sans-serif}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden}
+
+.pnl{position:fixed;top:0;left:0;width:440px;height:100vh;z-index:50;overflow-y:auto;
+  background:rgba(18,18,22,0.94);color:#ccc;padding:14px;
+  border-right:1px solid rgba(255,255,255,0.08)}
+.pnl h3{font-size:0.85rem;color:#c8a87c;margin-bottom:2px}
+.pnl .sub{font-size:0.58rem;color:#888;margin-bottom:6px}
+.pnl .row{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.pnl label{font-size:0.6rem;color:#999;flex:0 0 85px;text-align:right}
+.pnl input[type=range]{flex:1;height:3px;accent-color:#c8a87c}
+.pnl select{width:100%;font-size:0.6rem;background:#222;color:#ccc;border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;margin-bottom:6px}
+.pnl .val{font-size:0.55rem;color:#888;flex:0 0 36px;text-align:left}
+.pnl .sep{height:1px;background:rgba(255,255,255,0.06);margin:8px 0}
+.pnl .grp{border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;margin-bottom:8px}
+.pnl .grp h4{font-size:0.7rem;color:#c8a87c;margin-bottom:4px}
+.pnl .info{font-size:0.55rem;color:#a78bfa;text-align:center;margin-top:4px}
+
+/* ── Stage ── */
+.stage{position:fixed;inset:0;margin-left:440px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:64px}
+.comp-name{font-size:0.7rem;color:rgba(0,0,0,0.35);font-weight:500}
+
+/* ═══ SWITCH — exact kube.io ═══ */
+.sw-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.sw-track{display:inline-block;width:160px;height:67px;border-radius:33.5px;
+  position:relative;cursor:pointer;
+  background:rgba(255,255,255,0.35);
+  transition:background 0.3s}
+.sw-track.on{background:rgba(59,191,78,0.933)}
+
+/* Thumb: 146×92 capsule. Glass always on (JS sets backdrop-filter).
+   IDLE: scale(0.65). PRESSED: scale(0.80) */
+.sw-thumb{position:absolute;height:92px;width:146px;border-radius:46px;
+  top:33.5px;left:0;margin-left:-21.95px;
+  background:rgba(255,255,255,1);
+  box-shadow:0 4px 22px rgba(0,0,0,0.1);
+  transform:translateX(0px) translateY(-50%) scale(0.65);
+  transition:transform 0.35s cubic-bezier(0.34,1.3,0.64,1.0),background 0.2s}
+.sw-track.on .sw-thumb{transform:translateX(57.9px) translateY(-50%) scale(0.65)}
+.sw-thumb.glass{background:rgba(255,255,255,0.35);transform:translateX(0px) translateY(-50%) scale(0.80);box-shadow:0 8px 32px rgba(0,0,0,0.18)}
+.sw-track.on .sw-thumb.glass{transform:translateX(57.9px) translateY(-50%) scale(0.80)}
+
+/* ═══ SLIDER — exact kube.io ═══ */
+.sl-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.sl-outer{position:relative;width:330px;height:60px}
+.sl-track{display:inline-block;width:330px;height:14px;left:0;top:23px;
+  background:#89898F66;border-radius:7px;position:absolute;cursor:pointer}
+.sl-fill-wrap{width:100%;height:100%;overflow:hidden;border-radius:7px}
+.sl-fill{position:absolute;top:0;left:0;height:14px;border-radius:6px;
+  background:#0377F7}
+
+/* Thumb: 90×60 capsule. Glass always on (JS sets backdrop-filter).
+   IDLE: scale(0.6). PRESSED: scale(0.75).
+   Position via pixel left + translateX(-50%) */
+.sl-thumb{position:absolute;height:60px;width:90px;border-radius:30px;top:0;left:0;
+  background:rgba(255,255,255,1);
+  box-shadow:0 3px 14px rgba(0,0,0,0.1);
+  transform:translateX(-50%) scale(0.6);
+  cursor:pointer;touch-action:pan-y;user-select:none;
+  transition:transform 0.25s cubic-bezier(0.34,1.3,0.64,1.0),background 0.2s}
+.sl-thumb.glass{background:rgba(255,255,255,0.35);transform:translateX(-50%) scale(0.75);box-shadow:0 8px 28px rgba(0,0,0,0.22)}
+</style></head><body>
+
+<div class="pnl">
+  <h3>kube.io Switch & Slider</h3>
+  <p class="sub">Exact replica — capsule thumbs, always-on glass</p>
+
+  <div class="grp"><h4>🔘 Switch Thumb (146×92 capsule)</h4>
+  <select id="swSurf"><option value="squircle" selected>Convex Squircle</option><option value="circle">Convex Circle</option><option value="lip">Lip</option></select>
+  <div class="row"><label>Bezel</label><input type="range" min="10" max="60" value="35" id="swBw"><span class="val" id="swBwV">35</span></div>
+  <div class="row"><label>Thickness</label><input type="range" min="5" max="60" value="40" id="swTh"><span class="val" id="swThV">40</span></div>
+  <div class="row"><label>Scale Mult</label><input type="range" min="0.2" max="3" step="0.05" value="0.70" id="swMt"><span class="val" id="swMtV">0.70</span></div>
+  </div>
+
+  <div class="grp"><h4>🎚️ Slider Thumb (90×60 capsule)</h4>
+  <select id="slSurf"><option value="squircle" selected>Convex Squircle</option><option value="circle">Convex Circle</option></select>
+  <div class="row"><label>Bezel</label><input type="range" min="8" max="40" value="25" id="slBw"><span class="val" id="slBwV">25</span></div>
+  <div class="row"><label>Thickness</label><input type="range" min="5" max="50" value="35" id="slTh"><span class="val" id="slThV">35</span></div>
+  <div class="row"><label>Scale Mult</label><input type="range" min="0.2" max="3" step="0.05" value="0.90" id="slMt"><span class="val" id="slMtV">0.90</span></div>
+  </div>
+
+  <div class="grp"><h4>✨ Specular</h4>
+  <div class="row"><label>Angle</label><input type="range" min="-180" max="180" value="-60" id="sa"><span class="val" id="saV">-60</span></div>
+  <div class="row"><label>Alpha</label><input type="range" min="0" max="1" step="0.05" value="0.5" id="sα"><span class="val" id="sαV">0.50</span></div>
+  </div>
+
+  <div class="info" id="info">Thumbs: capsule-shaped, always-on glass, scaled down</div>
+</div>
+
+<div class="stage">
+  <div class="sw-wrap">
+    <span class="comp-name">Switch / Toggle</span>
+    <div class="sw-track" id="swTrack">
+      <div class="sw-thumb" id="swThumb"></div>
+    </div>
+  </div>
+  <div class="sl-wrap">
+    <span class="comp-name">Slider</span>
+    <div class="sl-outer">
+      <div class="sl-track" id="slTrack">
+        <div class="sl-fill-wrap"><div class="sl-fill" id="slFill" style="width:30%"></div></div>
+      </div>
+      <div class="sl-thumb" id="slThumb" style="left:30%"></div>
+    </div>
+  </div>
+</div>
+
+<svg class="hidden-svg" id="svg"></svg>
+
+<script>
+const IOR=1.5;
+
+// ── SDF ────────────────────────────────────────────────
+function makeCapsuleSDF(W,H){
+  var hw=W/2,hh=H/2,r=Math.min(hw,hh),hl=Math.max(0,hw-r);
+  return function(px,py){var cx=Math.max(-hl,Math.min(hl,px));return Math.sqrt((px-cx)*(px-cx)+py*py)-r;};
+}
+function sdfGrad(sdf,px,py,eps){
+  eps=eps||0.5;var gx=sdf(px+eps,py)-sdf(px-eps,py),gy=sdf(px,py+eps)-sdf(px,py-eps);
+  var gl=Math.sqrt(gx*gx+gy*gy);return gl<0.0001?{x:0,y:1}:{x:gx/gl,y:gy/gl};
+}
+
+// ── Surface functions ──────────────────────────────────
+function st(x){x=Math.max(0,Math.min(1,x));return x*x*x*(x*(x*6-15)+10)}
+var F={
+  circle:function(x){var d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.sqrt(1-d*d)},
+  squircle:function(x){var d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.pow(1-Math.pow(d,4),0.25)},
+  lip:function(x){var t=st(x);return F.squircle(x)*(1-t)+(1-F.squircle(x))*t}
+};
+
+// ── Snell ──────────────────────────────────────────────
+function snell(fn,bw,th,N){
+  N=N||128;var o=[],d=0.0005;
+  for(var i=0;i<N;i++){
+    var x=i/(N-1),h=fn(x)*th,xm=Math.max(0,x-d),xp=Math.min(1,x+d);
+    var der=(fn(xp)-fn(xm))/(xp-xm),nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    var cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT)),s2=Math.sin(t1)/IOR,ds;
+    if(s2>=1)ds=h*Math.tan(t1);else ds=h*Math.tan(Math.asin(s2));
+    o.push({t:x,der:der,ab:ds,mg:ds*(der>=0?-1:1)});
+  }return o;
+}
+
+// ── Build displacement map (SDF-based) ─────────────────
+function buildMap(mW,mH,sdf,bw,samples,md){
+  var c=document.createElement('canvas');c.width=mW;c.height=mH;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(mW,mH),d=img.data;
+  for(var y=0;y<mH;y++)for(var x=0;x<mW;x++){
+    var i=(y*mW+x)*4,px=x-mW/2,py=y-mH/2,sd=sdf(px,py),bd=-sd;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.002||t>=0.998||bd<-2){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    var nm=Math.min(1,s.ab/Math.max(md,0.01)),sg=s.mg<0?-1:1,grad=sdfGrad(sdf,px,py);
+    d[i]=Math.max(0,Math.min(255,Math.round(128-grad.x*nm*sg*127)));
+    d[i+1]=Math.max(0,Math.min(255,Math.round(128-grad.y*nm*sg*127)));
+    d[i+2]=0;d[i+3]=255;
+  }ctx.putImageData(img,0,0);return c;
+}
+
+// ── Build specular map ─────────────────────────────────
+function buildSpecMap(mW,mH,sdf,bw,samples,angleDeg){
+  var c=document.createElement('canvas');c.width=mW;c.height=mH;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(mW,mH),d=img.data;
+  var lightA=angleDeg*Math.PI/180,lx=Math.cos(lightA),ly=Math.sin(lightA);
+  for(var y=0;y<mH;y++)for(var x=0;x<mW;x++){
+    var i=(y*mW+x)*4,px=x-mW/2,py=y-mH/2,sd=sdf(px,py),bd=-sd;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.01||t>=0.99||bd<-2){d[i]=0;d[i+1]=0;d[i+2]=0;d[i+3]=0;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    var Nx=-s.der,Ny=1,nL=Math.sqrt(Nx*Nx+Ny*Ny);Nx/=nL;Ny/=nL;
+    var grad=sdfGrad(sdf,px,py),radialDot=grad.x*lx+grad.y*ly,dot=Nx*radialDot;
+    dot=Math.max(0,dot);var rim=Math.pow(dot,6),v=Math.round(rim*255);
+    d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=v;
+  }ctx.putImageData(img,0,0);return c;
+}
+
+// ── Build SVG filter (EXACT kube.io chain) ──
+function buildFilter(id,dispBlob,specBlob,mW,mH,sc,blur,sat,sα){
+  return '<filter id="'+id+'" color-interpolation-filters="sRGB">'+
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="'+blur+'" result="bl"/>'+
+    '<feImage href="'+dispBlob+'" x="0" y="0" width="'+mW+'" height="'+mH+'" result="dm"/>'+
+    '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G" result="dp"/>'+
+    '<feColorMatrix in="dp" type="saturate" values="'+sat+'" result="ds"/>'+
+    '<feImage href="'+specBlob+'" x="0" y="0" width="'+mW+'" height="'+mH+'" result="sp"/>'+
+    '<feComposite in="ds" in2="sp" operator="in" result="ss"/>'+
+    '<feComponentTransfer in="sp" result="sf"><feFuncA type="linear" slope="'+sα.toFixed(2)+'"/></feComponentTransfer>'+
+    '<feBlend in="ss" in2="dp" mode="normal" result="ws"/>'+
+    '<feBlend in="sf" in2="ws" mode="normal"/>'+
+    '</filter>';
+}
+
+// ── Cache ──────────────────────────────────────────────
+var blobCache={};
+
+function prepFilter(id,el,mW,mH,sdf,bw,th,mt,surf,sa,sα,sat,blur){
+  var fn=F[surf],samples=snell(fn,bw,th,128);
+  var md=Math.max.apply(null,samples.map(function(s){return s.ab}));
+  if(md<0.01)md=0.01;var sc=Math.round(md*mt);
+  var dispMap=buildMap(mW,mH,sdf,bw,samples,md);
+  var specMap=buildSpecMap(mW,mH,sdf,bw,samples,sa);
+  dispMap.toBlob(function(dblob){specMap.toBlob(function(sblob){
+    if(blobCache[id+'D'])URL.revokeObjectURL(blobCache[id+'D']);
+    if(blobCache[id+'S'])URL.revokeObjectURL(blobCache[id+'S']);
+    blobCache[id+'D']=URL.createObjectURL(dblob);
+    blobCache[id+'S']=URL.createObjectURL(sblob);
+    var svg=document.getElementById('svg');
+    var fHTML=buildFilter(id,blobCache[id+'D'],blobCache[id+'S'],mW,mH,sc,blur,sat,sα);
+    blobCache[id+'H']=fHTML;
+    var all='<defs>';
+    for(var k in blobCache){if(k.slice(-1)==='H')all+=blobCache[k];}
+    all+='</defs>';
+    svg.innerHTML=all;
+    // Always apply filter. Scale=0 initially (idle=frosted), scale=full on press (liquid glass)
+    el.style.backdropFilter='url(#'+id+')';
+    el.style.webkitBackdropFilter='url(#'+id+')';
+    // Start with scale=0 (no displacement, just blur from feGaussianBlur)
+    var dispEl=svg.querySelector('#'+id+' feDisplacementMap');
+    if(dispEl)dispEl.setAttribute('scale','0');
+    // Store full scale for press activation
+    blobCache[id+'SC']=sc;
+  });});
+  return {md:md,sc:sc};
+}
+
+// ── Update ─────────────────────────────────────────────
+function update(){
+  var sa=parseInt(document.getElementById('sa').value);
+  var sα=parseFloat(document.getElementById('sα').value);
+  document.getElementById('saV').textContent=sa;document.getElementById('sαV').textContent=sα.toFixed(2);
+
+  // Switch Thumb: 146×92 CAPSULE
+  var swSurf=document.getElementById('swSurf').value,swBw=+document.getElementById('swBw').value,swTh=+document.getElementById('swTh').value,swMt=+document.getElementById('swMt').value;
+  document.getElementById('swBwV').textContent=swBw;document.getElementById('swThV').textContent=swTh;document.getElementById('swMtV').textContent=swMt.toFixed(2);
+  var swR=prepFilter('fSw',document.getElementById('swThumb'),146,92,makeCapsuleSDF(146,92),swBw,swTh,swMt,swSurf,sa,sα,6,'0.2');
+
+  // Slider Thumb: 90×60 CAPSULE
+  var slSurf=document.getElementById('slSurf').value,slBw=+document.getElementById('slBw').value,slTh=+document.getElementById('slTh').value,slMt=+document.getElementById('slMt').value;
+  document.getElementById('slBwV').textContent=slBw;document.getElementById('slThV').textContent=slTh;document.getElementById('slMtV').textContent=slMt.toFixed(2);
+  var slR=prepFilter('fSl',document.getElementById('slThumb'),90,60,makeCapsuleSDF(90,60),slBw,slTh,slMt,slSurf,sa,sα,7,'0');
+
+  document.getElementById('info').textContent='SW cap 146×92 sc='+swR.sc+' | SL cap 90×60 sc='+slR.sc;
+}
+
+var ids=['swSurf','swBw','swTh','swMt','slSurf','slBw','slTh','slMt','sa','sα'];
+ids.forEach(function(id){
+  document.getElementById(id).addEventListener('input',update);
+  document.getElementById(id).addEventListener('change',update);
+});
+
+// ═══════════════════════════════════════════════════════
+// APPLE PRESS-TO-GLASS
+// IDLE: scaled down + frosted blur (no SVG)
+// PRESSED: scales UP + transparent liquid glass (SVG filter)
+// ═══════════════════════════════════════════════════════
+
+// ── Switch ──
+var swTrack=document.getElementById('swTrack'),swThumb=document.getElementById('swThumb'),isOn=false;
+var swPressed=false,swTimeout=null;
+
+function setDispScale(filterId,val){
+  var svg=document.getElementById('svg');
+  var el=svg.querySelector('#'+filterId+' feDisplacementMap');
+  if(el)el.setAttribute('scale',val);
+}
+function swGlassOn(){
+  swThumb.classList.add('glass');clearTimeout(swTimeout);
+  setDispScale('fSw',blobCache['fSwSC']||22);
+}
+function swGlassOff(){
+  swThumb.classList.remove('glass');
+  setDispScale('fSw','0');
+}
+
+swThumb.addEventListener('pointerdown',function(e){
+  swPressed=true;swGlassOn();swThumb.setPointerCapture(e.pointerId);
+  e.preventDefault();e.stopPropagation();
+});
+swTrack.addEventListener('pointerdown',function(e){
+  swPressed=true;swGlassOn();e.preventDefault();
+});
+function swUp(){
+  if(!swPressed)return;swPressed=false;
+  isOn=!isOn;swTrack.classList.toggle('on',isOn);
+  swTimeout=setTimeout(swGlassOff,420); // glass fades after slide
+}
+swTrack.addEventListener('pointerup',swUp);
+swThumb.addEventListener('pointerup',swUp);
+swTrack.addEventListener('pointerleave',function(){if(swPressed){swPressed=false;swGlassOff();}});
+swThumb.addEventListener('pointerleave',function(){if(swPressed){swPressed=false;swGlassOff();}});
+
+// ── Slider ──
+var slThumb=document.getElementById('slThumb'),slTrack=document.getElementById('slTrack');
+var slFill=document.getElementById('slFill'),sliding=false,valNum=0.3;
+
+function slGlassOn(){
+  slThumb.classList.add('glass');
+  setDispScale('fSl',blobCache['fSlSC']||34);
+}
+function slGlassOff(){
+  slThumb.classList.remove('glass');
+  setDispScale('fSl','0');
+}
+
+function moveSlider(clientX){
+  var r=slTrack.getBoundingClientRect();
+  valNum=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
+  var px=Math.round(valNum*r.width);
+  slThumb.style.left=px+'px';slFill.style.width=(valNum*100)+'%';
+}
+
+slThumb.addEventListener('pointerdown',function(e){
+  sliding=true;slGlassOn();slThumb.setPointerCapture(e.pointerId);e.preventDefault();
+});
+slTrack.addEventListener('pointerdown',function(e){
+  sliding=true;slGlassOn();moveSlider(e.clientX);e.preventDefault();
+});
+window.addEventListener('pointermove',function(e){if(sliding)moveSlider(e.clientX);});
+window.addEventListener('pointerup',function(){if(sliding){sliding=false;slGlassOff();}});
+
+// ── Init ──
+// Set slider initial position in pixels
+(function(){
+  var r=slTrack.getBoundingClientRect();
+  slThumb.style.left=Math.round(0.3*r.width)+'px';
+})();
+update();
+</script></body></html>

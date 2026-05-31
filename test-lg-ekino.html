@@ -2142,6 +2142,777 @@ console.log('%c🔍 点击顶部"全屏亮度扫描"按钮 → 全屏网格显�
   'color:#c8a87c');
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- kube.io Liquid Glass in the Browser — 4 组件完整复现          -->
+<!-- Ref: https://kube.io/blog/liquid-glass-css-svg/                -->
+<!-- Snell 折射 + SVG feDisplacementMap + Specular Highlight       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<style>
+.kube-demo {
+  margin: 24px auto;
+  max-width: 1600px;
+  background: #141412;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.kube-demo h2 {
+  color: #c8a87c;
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+.kube-demo .kube-subtitle {
+  font-size: 0.65rem;
+  opacity: 0.4;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+.kube-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+.kube-card {
+  background: #1a1a18;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.kube-card h3 {
+  font-size: 0.85rem;
+  color: #c8a87c;
+  margin-bottom: 2px;
+}
+.kube-card .kube-desc {
+  font-size: 0.6rem;
+  opacity: 0.35;
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+.kube-stage {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.kube-stage-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px),
+    radial-gradient(ellipse at 30% 40%, rgba(255,100,80,0.5), transparent 60%),
+    radial-gradient(ellipse at 70% 60%, rgba(80,150,255,0.45), transparent 55%),
+    radial-gradient(ellipse at 40% 80%, rgba(255,200,60,0.35), transparent 50%),
+    linear-gradient(160deg, #1a1a1a 0%, #222 40%, #1a1a1a 100%);
+  background-size: 24px 24px, 24px 24px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+}
+.kube-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.kube-controls label {
+  font-size: 0.58rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.kube-controls input[type="range"] {
+  width: 60px;
+  height: 3px;
+  accent-color: #c8a87c;
+}
+.kube-controls input[type="range"]::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+}
+.kube-badge {
+  display: inline-block;
+  font-size: 0.55rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(200,168,124,0.15);
+  color: #c8a87c;
+  margin-left: 4px;
+}
+
+/* ── Magnifying Glass ── */
+.kube-mag-stage {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  touch-action: none;
+}
+.kube-mag-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 35%, rgba(120,180,255,0.4), transparent 50%),
+    radial-gradient(ellipse at 70% 65%, rgba(255,140,60,0.35), transparent 45%),
+    linear-gradient(150deg, #e8e4dc 0%, #f0ece6 30%, #e0dcd4 70%, #ece8e0 100%);
+}
+.kube-mag-photo {
+  position: absolute;
+  inset: 0;
+  background-image: url('data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="320">'+
+    '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a90d9"/><stop offset="60%" stop-color="#87ceeb"/><stop offset="100%" stop-color="#e0d8c8"/></linearGradient>'+
+    '<linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b8e6b"/><stop offset="100%" stop-color="#4a6741"/></linearGradient></defs>'+
+    '<rect width="400" height="320" fill="url(#sky)"/>'+
+    '<circle cx="300" cy="60" r="35" fill="#fff8dc" opacity="0.9"/>'+
+    '<polygon points="0,200 60,120 130,180 200,100 280,160 340,90 400,150 400,320 0,320" fill="url(#mtn)"/>'+
+    '<polygon points="20,220 80,160 150,210 220,140 300,190 360,130 400,180 400,320 0,320" fill="#3a5530" opacity="0.6"/>'+
+    '<rect x="160" y="175" width="12" height="40" fill="#5a4a3a"/><rect x="145" y="170" width="45" height="8" fill="#5a4a3a"/>'+
+    '<circle cx="166" cy="165" r="15" fill="#3a6030" opacity="0.5"/>'+
+    '<text x="10" y="300" fill="rgba(0,0,0,0.3)" font-size="10" font-family="sans-serif">Photo: Alpine Meadow</text>'+
+    '</svg>'));
+  background-size: cover;
+  background-position: center;
+  opacity: 0.85;
+}
+.kube-mag-lens {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  user-select: none;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.25),
+    0 2px 8px rgba(0,0,0,0.1),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+  transition: box-shadow 0.2s ease;
+  background: rgba(255,255,255,0.04);
+}
+.kube-mag-lens:active {
+  cursor: grabbing;
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.35),
+    0 4px 12px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.kube-mag-label {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
+  color: rgba(0,0,0,0.5);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Searchbox ── */
+.kube-sb-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 260px;
+}
+.kube-sb-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 22px;
+  border: 0.5px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.35);
+  padding: 0 18px 0 42px;
+  font-size: 14px;
+  color: #111;
+  outline: none;
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.1),
+    0 1px 4px rgba(0,0,0,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+  transition: box-shadow 0.2s ease;
+}
+.kube-sb-input:focus {
+  box-shadow:
+    0 6px 28px rgba(0,0,0,0.15),
+    0 2px 6px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.kube-sb-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* ── Switch ── */
+.kube-sw-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.kube-sw-track {
+  position: relative;
+  width: 140px;
+  height: 70px;
+  border-radius: 35px;
+  background: rgba(255,255,255,0.35);
+  border: 0.5px solid rgba(255,255,255,0.4);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.1),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+  cursor: pointer;
+  overflow: visible;
+  transition: background 0.25s ease;
+}
+.kube-sw-track.on {
+  background: rgba(60,180,120,0.45);
+}
+.kube-sw-thumb {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  top: 4px;
+  left: 4px;
+  background: rgba(255,255,255,0.6);
+  border: 0.5px solid rgba(255,255,255,0.5);
+  box-shadow:
+    0 3px 10px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition:
+    left 0.3s cubic-bezier(0.34,1.3,0.64,1.0),
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.kube-sw-track.on .kube-sw-thumb {
+  left: 74px;
+}
+.kube-sw-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.6rem;
+  color: rgba(0,0,0,0.4);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.kube-sw-label.off { left: -24px; }
+.kube-sw-label.on { right: -24px; opacity: 0.35; }
+.kube-sw-track.on .kube-sw-label.on { opacity: 0.7; }
+.kube-sw-track.on .kube-sw-label.off { opacity: 0.25; }
+
+/* ── Slider ── */
+.kube-sl-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+}
+.kube-sl-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.08);
+  cursor: pointer;
+  touch-action: none;
+}
+.kube-sl-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+  background: rgba(200,168,124,0.5);
+  transition: width 0.05s linear;
+}
+.kube-sl-thumb {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.55);
+  border: 0.5px solid rgba(255,255,255,0.5);
+  box-shadow:
+    0 3px 12px rgba(0,0,0,0.15),
+    0 1px 3px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.45);
+  cursor: grab;
+  transition: box-shadow 0.15s ease;
+  z-index: 2;
+}
+.kube-sl-thumb:active {
+  cursor: grabbing;
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.25),
+    0 2px 5px rgba(0,0,0,0.1),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+}
+.kube-sl-value {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+</style>
+
+<div class="kube-demo">
+  <h2>kube.io — Liquid Glass in the Browser 完整复现</h2>
+  <p class="kube-subtitle">基于 <a href="https://kube.io/blog/liquid-glass-css-svg/" style="color:#c8a87c;">kube.io 原文</a>：Snell 折射物理 + 4种曲面函数 + SVG feDisplacementMap + Specular Highlight 镜面高光。<br>Chrome/Electron 专属（SVG filter 作为 backdrop-filter）。每个组件含实时参数调节。</p>
+
+  <div class="kube-grid" id="kubeGrid"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- kube.io 组件渲染引擎 (inline, standalone)                      -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  // ═══════════════════════════════════════════════════════════
+  // kube.io Liquid Glass — 使用已验证的位移图生成技术
+  // 与测试页前半部分成功的 SDF 方案完全一致
+  // Gradient + SDF cutout → feDisplacementMap + backdrop-filter
+  // ═══════════════════════════════════════════════════════════
+
+  const MAP_SZ = 256; // displacement map resolution
+
+  // SDF for rounded rectangle (same as working tests)
+  function sdRoundedBox(px, py, hw, hh, r) {
+    const dx = Math.abs(px) - hw + r;
+    const dy = Math.abs(py) - hh + r;
+    return Math.sqrt(Math.max(dx, 0) ** 2 + Math.max(dy, 0) ** 2) + Math.min(Math.max(dx, dy), 0) - r;
+  }
+
+  // ═══════════════════════════════════════════
+  // PROVEN: Gradient + SDF cutout displacement map
+  // Same algorithm as makeSDFMap() from working tests
+  // ═══════════════════════════════════════════
+  function buildDisplacementMap(w, h, br, depth) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    const hw = w / 2, hh = h / 2;
+    const ss = t => t * t * (3 - 2 * t);
+
+    const gsx = Math.ceil((br / w) * 15) / 100, gex = 1 - gsx;
+    const gsy = Math.ceil((br / h) * 15) / 100, gey = 1 - gsy;
+
+    const cutW = w - 2 * depth, cutH = h - 2 * depth;
+    const cutHw = cutW / 2, cutHh = cutH / 2;
+    const cutR = Math.max(0, br - depth);
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const ex = x - hw, ey = y - hh;
+        const i = (y * w + x) * 4;
+
+        const nx = (ex / hw) * 0.5 + 0.5;
+        const tx = Math.max(0, Math.min(1, (nx - gsx) / (gex - gsx || 0.01)));
+        const gradR = (1 - tx) * 255;
+        const ny = (ey / hh) * 0.5 + 0.5;
+        const ty = Math.max(0, Math.min(1, (ny - gsy) / (gey - gsy || 0.01)));
+        const gradG = (1 - ty) * 255;
+
+        const cutSdf = sdRoundedBox(ex, ey, cutHw, cutHh, cutR);
+        const inside = -cutSdf;
+        const cutMask = ss(Math.max(0, Math.min(1, (inside + depth) / (depth * 2 || 1))));
+
+        d[i]     = Math.max(0, Math.min(255, gradR * (1 - cutMask) + 128 * cutMask));
+        d[i + 1] = Math.max(0, Math.min(255, gradG * (1 - cutMask) + 128 * cutMask));
+        d[i + 2] = 128; d[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  // ═══════════════════════════════════════════
+  // SVG Filter Builder (simple, proven structure)
+  // ═══════════════════════════════════════════
+  function buildFilterHTML(id, mapURL, scale, mapW, mapH) {
+    return `<filter id="${id}" color-interpolation-filters="sRGB" x="-40%" y="-40%" width="180%" height="180%">` +
+      `<feImage href="${mapURL}" x="0" y="0" width="${mapW}" height="${mapH}" result="dm"/>` +
+      `<feDisplacementMap in="SourceGraphic" in2="dm" scale="${scale}" xChannelSelector="R" yChannelSelector="G"/>` +
+      `</filter>`;
+  }
+
+  // ═══════════════════════════════════════════
+  // Shared SVG + filter registry
+  // ═══════════════════════════════════════════
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svgEl = document.createElementNS(svgNS, 'svg');
+  svgEl.classList.add('hidden-svg');
+  svgEl.id = 'kube-svg-filters';
+  document.body.appendChild(svgEl);
+
+  const filterRegistry = new Map();
+  function rebuildAllFilters() {
+    let html = '';
+    for (const [, fhtml] of filterRegistry) { html += fhtml; }
+    svgEl.innerHTML = `<defs>${html}</defs>`;
+  }
+  function registerFilter(id, html) {
+    filterRegistry.set(id, html);
+    rebuildAllFilters();
+  }
+
+  // Helper: refresh backdrop-filter on an element
+  function refreshBF(el, blurPx, filterId) {
+    const bf = `blur(${blurPx}px) url(#${filterId})`;
+    el.style.backdropFilter = bf;
+    el.style.webkitBackdropFilter = bf;
+  }
+
+  const grid = document.getElementById('kubeGrid');
+
+  // ═══════════════════════════ 1. MAGNIFYING GLASS ═══════════════════════════
+
+  function buildMagnifyingGlass() {
+    const card = document.createElement('div');
+    card.className = 'kube-card';
+    card.style.cssText = 'grid-column:1/-1;';
+
+    const lensSize = 120, lensRadius = 60, depth = 28, blurPx = 4, scale = 80;
+    const dispMap = buildDisplacementMap(MAP_SZ, MAP_SZ, lensSize, lensSize, lensRadius, depth);
+    const filterId = 'kube-mag';
+    registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), scale, MAP_SZ, MAP_SZ));
+
+    card.innerHTML = `
+      <h3>🔍 Magnifying Glass <span class="kube-badge">Circle SDF 折射</span></h3>
+      <p class="kube-desc">圆形透镜拖动扫描背景。SDF 位移图沿边缘法线方向折射，center=0 位移，边缘=max。CSS box-shadow 模拟镜面高光。</p>
+      <div class="kube-mag-stage" id="magStage">
+        <div class="kube-mag-bg"></div>
+        <div class="kube-mag-photo"></div>
+        <div class="kube-mag-lens" id="magLens"
+          style="backdrop-filter:blur(${blurPx}px) url(#${filterId});-webkit-backdrop-filter:blur(${blurPx}px) url(#${filterId});">
+        </div>
+        <div class="kube-mag-label">Drag to scan ▸ Photo: Alpine Meadow</div>
+      </div>
+      <div class="kube-controls">
+        <label>Refraction <input type="range" min="0" max="200" value="${scale}" id="magRefr"></label>
+        <label>Blur <input type="range" min="0" max="20" step="0.5" value="${blurPx}" id="magBlur"></label>
+        <label>Depth <input type="range" min="4" max="60" value="${depth}" id="magDepth"></label>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const stage = card.querySelector('#magStage');
+    const lens = card.querySelector('#magLens');
+    let isDragging = false;
+    let lensX = 0.5, lensY = 0.5;
+
+    function updateLensPos(clientX, clientY) {
+      const rect = stage.getBoundingClientRect();
+      lensX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      lensY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      lens.style.left = (lensX * rect.width - lensSize / 2) + 'px';
+      lens.style.top = (lensY * rect.height - lensSize / 2) + 'px';
+      lens.style.transform = 'none';
+    }
+
+    lens.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      lens.setPointerCapture(e.pointerId);
+      updateLensPos(e.clientX, e.clientY);
+    });
+    lens.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      updateLensPos(e.clientX, e.clientY);
+    });
+    lens.addEventListener('pointerup', () => { isDragging = false; });
+    lens.addEventListener('pointerleave', () => { isDragging = false; });
+
+    // Controls: rebuild disp map + filter on change
+    card.querySelector('#magRefr').addEventListener('input', function() {
+      const s = parseInt(this.value);
+      registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(lens, blurPx, filterId);
+    });
+    let curBlur = blurPx;
+    card.querySelector('#magBlur').addEventListener('input', function() {
+      curBlur = parseFloat(this.value);
+      refreshBF(lens, curBlur, filterId);
+    });
+    card.querySelector('#magDepth').addEventListener('input', function() {
+      const d = parseInt(this.value);
+      const newMap = buildDisplacementMap(MAP_SZ, MAP_SZ, lensSize, lensSize, lensRadius, d);
+      dispMap.width = newMap.width; dispMap.height = newMap.height;
+      dispMap.getContext('2d').drawImage(newMap, 0, 0);
+      const s = parseInt(card.querySelector('#magRefr').value);
+      registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(lens, curBlur, filterId);
+    });
+  }
+
+  // ═══════════════════════════ 2. SEARCHBOX ═══════════════════════════
+
+  function buildSearchbox() {
+    const card = document.createElement('div');
+    card.className = 'kube-card';
+
+    const sbW = 260, sbH = 44, sbR = 22, depth = 12, blurPx = 8, scale = 30;
+    const dispMap = buildDisplacementMap(MAP_SZ, MAP_SZ, sbW, sbH, sbR, depth);
+    const filterId = 'kube-sb';
+    registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), scale, MAP_SZ, MAP_SZ));
+
+    card.innerHTML = `
+      <h3>🔎 Searchbox <span class="kube-badge">Pill SDF 折射</span></h3>
+      <p class="kube-desc">搜索框毛玻璃折射。Convex 效果通过 SDF 位移图实现（边缘向内推，中心清晰）。可正常交互输入。</p>
+      <div class="kube-stage" style="background:#e8e4dc;">
+        <div class="kube-sb-wrap">
+          <span class="kube-sb-icon">🔍</span>
+          <input class="kube-sb-input" id="kubeSbInput" type="text" placeholder="Search optics, lenses, refraction..."
+            style="backdrop-filter:blur(${blurPx}px) url(#${filterId});-webkit-backdrop-filter:blur(${blurPx}px) url(#${filterId});">
+        </div>
+      </div>
+      <div class="kube-controls">
+        <label>Refraction <input type="range" min="0" max="100" value="${scale}" id="sbRefr"></label>
+        <label>Blur <input type="range" min="0" max="16" step="0.5" value="${blurPx}" id="sbBlur"></label>
+        <label>Depth <input type="range" min="2" max="30" value="${depth}" id="sbDepth"></label>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const input = card.querySelector('#kubeSbInput');
+    let curBlur = blurPx;
+    card.querySelector('#sbRefr').addEventListener('input', function() {
+      const s = parseInt(this.value);
+      registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(input, curBlur, filterId);
+    });
+    card.querySelector('#sbBlur').addEventListener('input', function() {
+      curBlur = parseFloat(this.value);
+      refreshBF(input, curBlur, filterId);
+    });
+    card.querySelector('#sbDepth').addEventListener('input', function() {
+      const d = parseInt(this.value);
+      const newMap = buildDisplacementMap(MAP_SZ, MAP_SZ, sbW, sbH, sbR, d);
+      dispMap.getContext('2d').drawImage(newMap, 0, 0);
+      const s = parseInt(card.querySelector('#sbRefr').value);
+      registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(input, curBlur, filterId);
+    });
+  }
+
+  // ═══════════════════════════ 3. SWITCH ═══════════════════════════
+
+  function buildSwitch() {
+    const card = document.createElement('div');
+    card.className = 'kube-card';
+
+    const swW = 140, swH = 70, swR = 35, swDepth = 16, swBlur = 2, swScale = 40;
+    const thW = 62, thH = 62, thR = 31, thDepth = 14, thBlur = 2, thScale = 35;
+
+    const trackMap = buildDisplacementMap(MAP_SZ, MAP_SZ, swW, swH, swR, swDepth);
+    const thumbMap = buildDisplacementMap(MAP_SZ, MAP_SZ, thW, thH, thR, thDepth);
+
+    const trackFilterId = 'kube-sw-track';
+    const thumbFilterId = 'kube-sw-thumb';
+
+    registerFilter(trackFilterId, buildFilterHTML(trackFilterId, trackMap.toDataURL(), swScale, MAP_SZ, MAP_SZ));
+    registerFilter(thumbFilterId, buildFilterHTML(thumbFilterId, thumbMap.toDataURL(), thScale, MAP_SZ, MAP_SZ));
+
+    card.innerHTML = `
+      <h3>🔘 Switch / Toggle <span class="kube-badge">Pill + Circle SDF</span></h3>
+      <p class="kube-desc">轨道和滑块各自独立的玻璃滤镜。轨道 Pill 形状 + 滑块 Circle 形状。点击切换 ON/OFF。</p>
+      <div class="kube-stage" style="background:#e8e4dc;">
+        <div class="kube-sw-stage">
+          <div class="kube-sw-track" id="swTrack"
+            style="backdrop-filter:blur(${swBlur}px) url(#${trackFilterId});-webkit-backdrop-filter:blur(${swBlur}px) url(#${trackFilterId});">
+            <span class="kube-sw-label off">OFF</span>
+            <span class="kube-sw-label on">ON</span>
+            <div class="kube-sw-thumb" id="swThumb"
+              style="backdrop-filter:blur(${thBlur}px) url(#${thumbFilterId});-webkit-backdrop-filter:blur(${thBlur}px) url(#${thumbFilterId});">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="kube-controls">
+        <label>Track Refr <input type="range" min="0" max="100" value="${swScale}" id="swRefr"></label>
+        <label>Thumb Refr <input type="range" min="0" max="80" value="${thScale}" id="swThumbRefr"></label>
+        <label>Track Blur <input type="range" min="0" max="8" step="0.5" value="${swBlur}" id="swBlur"></label>
+        <button id="swForceBtn" style="font-size:0.6rem;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.15);background:rgba(200,168,124,0.1);color:#c8a87c;cursor:pointer;">Force Active</button>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const track = card.querySelector('#swTrack');
+    const thumb = card.querySelector('#swThumb');
+    let isOn = false;
+
+    track.addEventListener('click', () => {
+      isOn = !isOn;
+      track.classList.toggle('on', isOn);
+    });
+
+    let forceActive = false;
+    card.querySelector('#swForceBtn').addEventListener('click', function() {
+      forceActive = !forceActive;
+      this.textContent = forceActive ? 'Release' : 'Force Active';
+      this.style.background = forceActive ? 'rgba(200,168,124,0.25)' : 'rgba(200,168,124,0.1)';
+      if (!isOn) { isOn = true; track.classList.add('on'); }
+    });
+
+    let curSwBlur = swBlur, curThBlur = thBlur;
+    card.querySelector('#swRefr').addEventListener('input', function() {
+      const s = parseInt(this.value);
+      registerFilter(trackFilterId, buildFilterHTML(trackFilterId, trackMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(track, curSwBlur, trackFilterId);
+    });
+    card.querySelector('#swThumbRefr').addEventListener('input', function() {
+      const s = parseInt(this.value);
+      registerFilter(thumbFilterId, buildFilterHTML(thumbFilterId, thumbMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(thumb, curThBlur, thumbFilterId);
+    });
+    card.querySelector('#swBlur').addEventListener('input', function() {
+      curSwBlur = parseFloat(this.value);
+      curThBlur = parseFloat(this.value);
+      refreshBF(track, curSwBlur, trackFilterId);
+      refreshBF(thumb, curThBlur, thumbFilterId);
+    });
+  }
+
+  // ═══════════════════════════ 4. SLIDER ═══════════════════════════
+
+  function buildSlider() {
+    const card = document.createElement('div');
+    card.className = 'kube-card';
+
+    const thW = 48, thH = 48, thR = 24, depth = 14, blurPx = 2, scale = 35;
+    const dispMap = buildDisplacementMap(MAP_SZ, MAP_SZ, thW, thH, thR, depth);
+    const filterId = 'kube-sl';
+    registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), scale, MAP_SZ, MAP_SZ));
+
+    card.innerHTML = `
+      <h3>🎚️ Slider <span class="kube-badge">Circle SDF 折射</span></h3>
+      <p class="kube-desc">圆形滑块旋钮带玻璃折射。拖动滑块看玻璃旋钮折射背景。SDF 位移图使中心清晰、边缘折射。</p>
+      <div class="kube-stage" style="background:#e8e4dc;">
+        <div class="kube-sl-wrap" style="top:40%;">
+          <div class="kube-sl-track" id="slTrack">
+            <div class="kube-sl-fill" id="slFill" style="width:50%;"></div>
+            <div class="kube-sl-thumb" id="slThumb"
+              style="left:50%;backdrop-filter:blur(${blurPx}px) url(#${filterId});-webkit-backdrop-filter:blur(${blurPx}px) url(#${filterId});">
+            </div>
+            <div class="kube-sl-value" id="slVal" style="left:50%;">50</div>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:0.55rem;color:rgba(0,0,0,0.3);">
+          ▸ Drag thumb — glass refracts different backgrounds as you slide
+        </div>
+      </div>
+      <div class="kube-controls">
+        <label>Refraction <input type="range" min="0" max="100" value="${scale}" id="slRefr"></label>
+        <label>Blur <input type="range" min="0" max="8" step="0.5" value="${blurPx}" id="slBlur"></label>
+        <label>Depth <input type="range" min="2" max="30" value="${depth}" id="slDepth"></label>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const track = card.querySelector('#slTrack');
+    const thumb = card.querySelector('#slThumb');
+    const fill = card.querySelector('#slFill');
+    const valLabel = card.querySelector('#slVal');
+    let sliderValue = 0.5, isSliding = false;
+
+    function updateSlider(clientX) {
+      const rect = track.getBoundingClientRect();
+      sliderValue = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const pct = sliderValue * 100;
+      thumb.style.left = pct + '%';
+      fill.style.width = pct + '%';
+      valLabel.style.left = pct + '%';
+      valLabel.textContent = Math.round(sliderValue * 100);
+    }
+
+    thumb.addEventListener('pointerdown', (e) => {
+      isSliding = true;
+      thumb.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    track.addEventListener('pointerdown', (e) => {
+      isSliding = true;
+      track.setPointerCapture(e.pointerId);
+      updateSlider(e.clientX);
+      e.preventDefault();
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!isSliding) return;
+      updateSlider(e.clientX);
+    });
+    window.addEventListener('pointerup', () => { isSliding = false; });
+
+    let curBlur = blurPx;
+    card.querySelector('#slRefr').addEventListener('input', function() {
+      const s = parseInt(this.value);
+      registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(thumb, curBlur, filterId);
+    });
+    card.querySelector('#slBlur').addEventListener('input', function() {
+      curBlur = parseFloat(this.value);
+      refreshBF(thumb, curBlur, filterId);
+    });
+    card.querySelector('#slDepth').addEventListener('input', function() {
+      const d = parseInt(this.value);
+      const newMap = buildDisplacementMap(MAP_SZ, MAP_SZ, thW, thH, thR, d);
+      dispMap.getContext('2d').drawImage(newMap, 0, 0);
+      const s = parseInt(card.querySelector('#slRefr').value);
+      registerFilter(filterId, buildFilterHTML(filterId, dispMap.toDataURL(), s, MAP_SZ, MAP_SZ));
+      refreshBF(thumb, curBlur, filterId);
+    });
+
+    // Force active button
+    const forceBtn = document.createElement('button');
+    forceBtn.textContent = 'Force Active';
+    forceBtn.style.cssText = 'font-size:0.6rem;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.15);background:rgba(200,168,124,0.1);color:#c8a87c;cursor:pointer;';
+    card.querySelector('.kube-controls').appendChild(forceBtn);
+    let forceActive = false;
+    forceBtn.addEventListener('click', function() {
+      forceActive = !forceActive;
+      this.textContent = forceActive ? 'Release' : 'Force Active';
+      this.style.background = forceActive ? 'rgba(200,168,124,0.25)' : 'rgba(200,168,124,0.1)';
+      if (!isSliding) {
+        sliderValue = forceActive ? 0.75 : 0.3;
+        const pct = sliderValue * 100;
+        thumb.style.left = pct + '%';
+        fill.style.width = pct + '%';
+        valLabel.style.left = pct + '%';
+        valLabel.textContent = Math.round(sliderValue * 100);
+      }
+    });
+  }
+
+  // ═══════════════════════════ BUILD ALL ═══════════════════════════
+
+  buildMagnifyingGlass();
+  buildSearchbox();
+  buildSwitch();
+  buildSlider();
+
+  console.log('%c🔬 kube.io 液态玻璃 4 组件已加载 — SDF位移图 + backdrop-filter + box-shadow高光',
+    'font-size:1em;color:#c8a87c');
+})();
+</script>
+
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- liquid-dom Menu 复现 — 纯 CSS + JS                    -->
 <!-- ═══════════════════════════════════════════════════════ -->

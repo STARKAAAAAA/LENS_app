@@ -1,0 +1,213 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass v4 — Step Debug</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%}
+body{background:#111;overflow:hidden}
+.bg{position:fixed;inset:0;
+  background:radial-gradient(ellipse at 30% 40%,rgba(255,100,80,0.5),transparent 50%),
+    radial-gradient(ellipse at 70% 60%,rgba(80,150,255,0.5),transparent 50%),
+    linear-gradient(160deg,#1a1520,#1e1a28 30%,#1c1826 60%,#201c2a)}
+.grid{position:fixed;inset:0;opacity:0.15;
+  background-image:linear-gradient(to right,rgba(255,255,255,0.3) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(255,255,255,0.3) 1px,transparent 1px);
+  background-size:40px 40px}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+
+.glass{position:fixed;inset:0;margin:auto;width:320px;height:320px;border-radius:50%;z-index:10;
+  border:2px solid rgba(255,255,255,0.3);
+  box-shadow:0 16px 48px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;text-align:center;cursor:grab;user-select:none}
+.glass:active{cursor:grabbing}
+.glass h2{font-size:1.2rem;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+.glass p{font-size:0.7rem;opacity:0.5;margin-top:4px}
+.ctrl{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  background:rgba(0,0,0,0.7);padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.1)}
+.ctrl button{font-size:0.6rem;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#ccc;cursor:pointer}
+.ctrl button.on{background:rgba(139,92,246,0.3);border-color:#a78bfa;color:#a78bfa}
+.ctrl button.active{background:rgba(0,200,100,0.3);border-color:#0c6;color:#0c6}
+.dbg{position:fixed;top:8px;left:8px;z-index:100;font:10px monospace;color:#0f0;pointer-events:none;max-width:400px}
+</style></head><body>
+<div class="bg"></div><div class="grid"></div>
+<div class="glass" id="g"><h2>Liquid Glass</h2><p>Optics Study</p></div>
+<svg class="hidden-svg" id="svgbank"></svg><div class="dbg" id="dbg"></div>
+<div class="ctrl">
+  <button id="s0">0: No filter</button>
+  <button id="s1">1: Blur only</button>
+  <button id="s2">2: + Displace</button>
+  <button id="s2c">2c: Lip Wide</button>
+  <button id="s3">3: Full chain</button>
+  <button id="map">Map</button>
+</div>
+<script>
+const R=160,B=32,T=16,N=128,S=320,IOR=1.5;
+function st(t){const x=Math.max(0,Math.min(1,t));return x*x*x*(x*(x*6-15)+10)}
+function cv(x){const d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.sqrt(1-d*d)}
+function cc(x){return 1-cv(x)}
+function lip(x){const t=st(Math.max(0,Math.min(1,x)));return cv(x)*(1-t)+cc(x)*t}
+
+const sm=(()=>{
+  const o=[],d=0.0005;
+  for(let i=0;i<N;i++){
+    const t=i/(N-1),x=Math.max(0,Math.min(1,t));
+    const h=lip(x)*T,xm=Math.max(0,x-d),xp=Math.min(1,x+d);
+    const der=(lip(xp)-lip(xm))/(xp-xm);
+    const nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    const cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT));
+    const s2=Math.sin(t1)/IOR;
+    let ds;if(s2>=1)ds=h*Math.tan(t1);else ds=h*Math.tan(Math.asin(s2));
+    o.push({t:x,h,der,t1,mg:ds*(der>=0?-1:1),ab:ds});
+  }
+  return o;
+})();
+const md=Math.max(...sm.map(s=>s.ab),1);
+
+function dm(){
+  const c=document.createElement('canvas');c.width=c.height=S;
+  const ctx=c.getContext('2d'),img=ctx.createImageData(S,S),d=img.data;
+  const cx=S/2,cy=S/2;
+  for(let y=0;y<S;y++){for(let x=0;x<S;x++){
+    const i=(y*S+x)*4,px=x-cx,py=y-cy;
+    const a=Math.atan2(py,px),dist=Math.sqrt(px*px+py*py),bd=R-dist;
+    const t=Math.max(0,Math.min(1,bd/B));
+    if(t<=0.002||t>=0.998||bd<-2){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+    const si=Math.round(t*(sm.length-1)),s=sm[Math.max(0,Math.min(sm.length-1,si))];
+    const nm=s.ab/md,sg=s.mg<0?-1:1;
+    const dx=Math.cos(a)*nm*sg,dy=Math.sin(a)*nm*sg;
+    d[i]=Math.max(0,Math.min(255,Math.round(128+dx*127)));
+    d[i+1]=Math.max(0,Math.min(255,Math.round(128+dy*127)));
+    d[i+2]=0;d[i+3]=255;
+  }}
+  ctx.putImageData(img,0,0);return c;
+}
+const dispMap=dm();
+
+function spm(){
+  const c=document.createElement('canvas');c.width=c.height=S;
+  const ctx=c.getContext('2d'),img=ctx.createImageData(S,S),d=img.data;
+  const cx=S/2,cy=S/2;
+  for(let y=0;y<S;y++){for(let x=0;x<S;x++){
+    const i=(y*S+x)*4,px=x-cx,py=y-cy;
+    const dist=Math.sqrt(px*px+py*py),bd=R-dist;
+    const t=Math.max(0,Math.min(1,bd/B));
+    if(t<=0.01||t>=0.99||bd<-2){d[i]=d[i+1]=d[i+2]=0;d[i+3]=0;continue;}
+    const ef=1-Math.abs(bd)/B;
+    const v=Math.round(Math.pow(Math.max(0,Math.min(1,ef)),2.5)*0.3*255);
+    d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=v;
+  }}
+  ctx.putImageData(img,0,0);return c;
+}
+const specMap=spm();
+
+const g=document.getElementById('g'),dbg=document.getElementById('dbg');
+function log(m){dbg.textContent=m;console.log(m);}
+
+// Toggle button states
+function setActive(id){
+  ['s0','s1','s2','s3'].forEach(i=>document.getElementById(i).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Step 0: No filter
+document.getElementById('s0').addEventListener('click',()=>{
+  document.getElementById('svgbank').innerHTML='';
+  g.style.backdropFilter='none';g.style.webkitBackdropFilter='none';
+  g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+  setActive('s0');log('Step 0: NO filter — raw glass (just border + shadow)');
+});
+
+// Step 1: Blur ONLY
+document.getElementById('s1').addEventListener('click',()=>{
+  document.getElementById('svgbank').innerHTML='<defs><filter id="gf"><feGaussianBlur in="SourceGraphic" stdDeviation="6"/></filter></defs>';
+  g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+  g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+  setActive('s1');log('Step 1: backdrop-filter: blur(6px) ONLY — should see frosty glass');
+});
+
+// Step 2: Blur + Displacement (using real PNG file)
+document.getElementById('s2').addEventListener('click',()=>{
+  const sc=Math.round(md*5);
+  const h='<defs><filter id="gf" x="-70%" y="-70%" width="240%" height="240%" color-interpolation-filters="sRGB">'+
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+    '<feImage x="0" y="0" width="320" height="320" href="disp-map-lip.png" result="dm"/>'+
+    '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G"/>'+
+    '</filter></defs>';
+  document.getElementById('svgbank').innerHTML=h;
+  g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+  g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+  setActive('s2');log('Step 2: blur + feDisplacementMap scale='+sc+' href=disp-map-lip.png');
+});
+
+// Step 2b: EXTREME displacement map (R:0-255, G:0-255) — should be VERY visible
+document.getElementById('s2b').addEventListener('click',()=>{
+  const sc=100; // Large scale for extreme effect
+  const h='<defs><filter id="gf" x="-70%" y="-70%" width="240%" height="240%" color-interpolation-filters="sRGB">'+
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+    '<feImage x="0" y="0" width="320" height="320" href="disp-map-loud.png" result="dm"/>'+
+    '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G"/>'+
+    '</filter></defs>';
+  document.getElementById('svgbank').innerHTML=h;
+  g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+  g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+  setActive('s2b');log('Step 2b: EXTREME map (R:0-255,G:0-255) scale='+sc+' — must show visible distortion');
+});
+
+// Step 2c: Lip + Wide bezel + Full magnitude (correct direction, visible strength)
+document.getElementById('s2c').addEventListener('click',()=>{
+  const sc=60;
+  const h='<defs><filter id="gf" x="-70%" y="-70%" width="240%" height="240%" color-interpolation-filters="sRGB">'+
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+    '<feImage x="0" y="0" width="320" height="320" href="disp-map-lip-wide.png" result="dm"/>'+
+    '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G"/>'+
+    '</filter></defs>';
+  document.getElementById('svgbank').innerHTML=h;
+  g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+  g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+  setActive('s2c');log('Step 2c: Lip Wide B=80 bell-mag scale='+sc+' — double ring: outer in, inner out');
+});
+
+// Step 3: Full kube.io chain (using real PNG files)
+document.getElementById('s3').addEventListener('click',()=>{
+  const sc=Math.round(md*5);
+  const h='<defs><filter id="gf" x="-70%" y="-70%" width="240%" height="240%" color-interpolation-filters="sRGB">'+
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+    '<feImage x="0" y="0" width="320" height="320" href="disp-map-lip.png" result="dm"/>'+
+    '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G" result="dp"/>'+
+    '<feColorMatrix in="dp" type="saturate" values="4" result="ds"/>'+
+    '<feImage x="0" y="0" width="320" height="320" href="disp-map-lip.png" result="sp"/>'+
+    '<feComposite in="ds" in2="sp" operator="in" result="ss"/>'+
+    '<feComponentTransfer in="sp" result="sf"><feFuncA type="linear" slope="0.3"/></feComponentTransfer>'+
+    '<feBlend in="ss" in2="dp" mode="normal" result="ws"/>'+
+    '<feBlend in="sf" in2="ws" mode="normal"/>'+
+    '</filter></defs>';
+  document.getElementById('svgbank').innerHTML=h;
+  g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+  g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+  setActive('s3');log('Step 3: FULL kube.io chain scale='+sc+' using disp-map-lip.png');
+});
+
+// Map toggle
+document.getElementById('map').addEventListener('click',function(){
+  const on=this.classList.toggle('on');
+  if(on){
+    g.style.background='url('+dispMap.toDataURL()+') center / 100% 100%';
+    g.style.backdropFilter='none';g.style.webkitBackdropFilter='none';
+    g.style.border='3px solid #a78bfa';this.textContent='Glass';
+    log('MAP: showing displacement map directly on panel');
+  }else{
+    g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+    // Re-apply whatever filter was active
+    const active=document.querySelector('.ctrl button.active');
+    if(active)active.click();else document.getElementById('s0').click();
+    this.textContent='Map';
+  }
+});
+
+// Drag
+let dr=false,lx=0,ly=0,ox=0,oy=0;
+g.addEventListener('pointerdown',e=>{dr=true;lx=e.clientX;ly=e.clientY;e.target.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',e=>{if(!dr)return;ox+=e.clientX-lx;oy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;g.style.transform='translate('+ox+'px,'+oy+'px)';});
+window.addEventListener('pointerup',()=>{dr=false;});
+
+log('Ready. maxDisp='+md.toFixed(2)+'px. Click buttons 0-1-2-3 to test each stage.');
+</script></body></html>

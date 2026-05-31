@@ -1,0 +1,177 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass Panel v3</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;margin:0;padding:0}
+body{background:#111;overflow:hidden}
+/* Background scene */
+.bg{position:fixed;inset:0;
+  background:radial-gradient(ellipse at 30% 40%,rgba(255,100,80,0.5),transparent 50%),
+    radial-gradient(ellipse at 70% 60%,rgba(80,150,255,0.5),transparent 50%),
+    linear-gradient(160deg,#1a1520,#1e1a28 30%,#1c1826 60%,#201c2a);}
+.grid{position:fixed;inset:0;opacity:0.15;
+  background-image:linear-gradient(to right,rgba(255,255,255,0.3) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(255,255,255,0.3) 1px,transparent 1px);
+  background-size:40px 40px;}
+.obj{position:fixed;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.1);
+  border:2px solid rgba(255,255,255,0.3);}
+
+/* Glass panel - centered using inset:0 + margin:auto (most reliable fixed centering) */
+.glass{position:fixed;inset:0;margin:auto;width:320px;height:320px;border-radius:50%;z-index:10;
+  border:2px solid rgba(255,255,255,0.3);
+  box-shadow:0 16px 48px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;text-align:center;cursor:grab;user-select:none;}
+.glass:active{cursor:grabbing;}
+.glass h2{font-size:1.2rem;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+.glass p{font-size:0.7rem;opacity:0.5;margin-top:4px}
+
+.ctrl{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  background:rgba(0,0,0,0.7);padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.1)}
+.ctrl label{font-size:0.6rem;color:#aaa;display:flex;align-items:center;gap:3px}
+.ctrl input[type=range]{width:50px;height:3px;accent-color:#a78bfa}
+.ctrl button{font-size:0.6rem;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#ccc;cursor:pointer}
+.ctrl button.on{background:rgba(139,92,246,0.3);border-color:#a78bfa;color:#a78bfa}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+.dbg{position:fixed;top:8px;left:8px;z-index:100;font:10px monospace;color:#777;pointer-events:none}
+</style></head><body>
+<div class="bg"></div><div class="grid"></div>
+<div class="glass" id="g"><h2>Liquid Glass</h2><p>Optics Study</p></div>
+<svg class="hidden-svg" id="svgbank"></svg><div class="dbg" id="dbg"></div>
+<div class="ctrl">
+  <label>Str<input type="range" min="0" max="60" value="20" id="str"></label>
+  <label>Blur<input type="range" min="0" max="8" step="0.2" value="2" id="blur"></label>
+  <button id="map">Map</button>
+</div>
+<script>
+const IOR=1.5,R=160,B=32,T=16,N=128,S=320;
+
+// Surface: Lip (mix convex + concave via smootherstep)
+// Article: y = mix(Convex(x), Concave(x), Smootherstep(x))
+function smootherstep(t){const t2=Math.max(0,Math.min(1,t));return t2*t2*t2*(t2*(t2*6-15)+10)}
+function convex(x){const dx=1-Math.max(0,Math.min(1,x));return dx<=0?1:Math.sqrt(1-dx*dx)}
+function concave(x){return 1-convex(x)}
+function f(x){
+  const t=smootherstep(Math.max(0,Math.min(1,x)));
+  return convex(x)*(1-t)+concave(x)*t;
+}
+
+// Snell on one radius
+function snell(){
+  const o=[],d=0.0005;
+  for(let i=0;i<N;i++){
+    const t=i/(N-1),x=Math.max(0,Math.min(1,t));
+    const h=f(x)*T,xm=Math.max(0,x-d),xp=Math.min(1,x+d);
+    const der=(f(xp)-f(xm))/(xp-xm);
+    const nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    const cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT));
+    const s2=Math.sin(t1)/IOR;
+    let dis;if(s2>=1)dis=h*Math.tan(t1);else dis=h*Math.tan(Math.asin(s2));
+    o.push({t:x,h,der,t1,mg:dis*(der>=0?-1:1),ab:dis});
+  }
+  return o;
+}
+
+// Build displacement map (circle, polar coords)
+function dmap(sm,maxD){
+  const c=document.createElement('canvas');c.width=c.height=S;
+  const ctx=c.getContext('2d');
+  const img=ctx.createImageData(S,S),d=img.data;
+  const cx=S/2,cy=S/2,md=maxD||1;
+  for(let y=0;y<S;y++){
+    for(let x=0;x<S;x++){
+      const i=(y*S+x)*4;
+      const px=x-cx,py=y-cy;
+      const a=Math.atan2(py,px),dist=Math.sqrt(px*px+py*py);
+      const bd=R-dist;
+      const t=Math.max(0,Math.min(1,bd/B));
+      if(t<=0.002||t>=0.998||bd<-2){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+      const si=Math.round(t*(sm.length-1));
+      const s=sm[Math.max(0,Math.min(sm.length-1,si))];
+      const nm=s.ab/md,sg=s.mg<0?-1:1;
+      const dx=Math.cos(a)*nm*sg;
+      const dy=Math.sin(a)*nm*sg;
+      d[i]=Math.max(0,Math.min(255,Math.round(128+dx*127)));
+      d[i+1]=Math.max(0,Math.min(255,Math.round(128+dy*127)));
+      d[i+2]=0;d[i+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+// Build specular map
+function smap(inten){
+  const c=document.createElement('canvas');c.width=c.height=S;
+  const ctx=c.getContext('2d');
+  const img=ctx.createImageData(S,S),d=img.data;
+  const cx=S/2,cy=S/2;
+  for(let y=0;y<S;y++){
+    for(let x=0;x<S;x++){
+      const i=(y*S+x)*4;
+      const px=x-cx,py=y-cy;
+      const dist=Math.sqrt(px*px+py*py),bd=R-dist;
+      const t=Math.max(0,Math.min(1,bd/B));
+      if(t<=0.01||t>=0.99||bd<-2){d[i]=d[i+1]=d[i+2]=0;d[i+3]=0;continue;}
+      const ef=1-Math.abs(bd)/B;
+      const v=Math.round(Math.pow(Math.max(0,Math.min(1,ef)),2.5)*inten*255);
+      d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=v;
+    }
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+// Filter (kube.io chain)
+function filtr(dURL,sURL,sc,bl){
+  let h='<filter id="g" x="-60%" y="-60%" width="220%" height="220%">';
+  h+='<feGaussianBlur in="SourceGraphic" stdDeviation="'+bl+'" result="bl"/>';
+  h+='<feImage href="'+dURL+'" x="0" y="0" width="'+S+'" height="'+S+'" result="dm"/>';
+  h+='<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G" result="dp"/>';
+  h+='<feColorMatrix in="dp" type="saturate" values="4" result="ds"/>';
+  h+='<feImage href="'+sURL+'" x="0" y="0" width="'+S+'" height="'+S+'" result="sp"/>';
+  h+='<feComposite in="ds" in2="sp" operator="in" result="ss"/>';
+  h+='<feComponentTransfer in="sp" result="sf"><feFuncA type="linear" slope="0.25"/></feComponentTransfer>';
+  h+='<feBlend in="ss" in2="dp" mode="normal" result="ws"/>';
+  h+='<feBlend in="sf" in2="ws" mode="normal"/>';
+  h+='</filter>';return h;
+}
+
+const sm=snell();
+const md=Math.max(...sm.map(s=>s.ab),1);
+console.log('maxDisp:',md.toFixed(2),'px');
+const dm=dmap(sm,md);
+let spm=smap(0.25);
+
+function upd(){
+  const sc=Math.round(md*(parseInt(document.getElementById('str').value)/10));
+  const bl=parseFloat(document.getElementById('blur').value);
+  spm=smap(0.25);
+  // IMPORTANT: set innerHTML first, THEN apply backdrop-filter
+  document.getElementById('svgbank').innerHTML='<defs>'+filtr(dm.toDataURL(),spm.toDataURL(),sc,bl)+'</defs>';
+  const g=document.getElementById('g');
+  g.style.backdropFilter='url(#g)';g.style.webkitBackdropFilter='url(#g)';
+  document.getElementById('dbg').textContent='maxDisp:'+md.toFixed(1)+' scale:'+sc+' blur:'+bl;
+}
+upd();
+document.getElementById('str').addEventListener('input',upd);
+document.getElementById('blur').addEventListener('input',upd);
+
+// Map toggle
+document.getElementById('map').addEventListener('click',function(){
+  const g=document.getElementById('g');
+  const on=this.classList.toggle('on');
+  if(on){
+    g.style.background='url('+dm.toDataURL()+') center / 100% 100%';
+    g.style.backdropFilter='none';g.style.webkitBackdropFilter='none';
+    g.style.border='3px solid #a78bfa';this.textContent='Glass';
+  }else{
+    g.style.background='';g.style.border='2px solid rgba(255,255,255,0.3)';
+    g.style.backdropFilter='url(#g)';g.style.webkitBackdropFilter='url(#g)';
+    this.textContent='Map';
+  }
+});
+
+// Drag
+let dr=false,lx=0,ly=0,ox=0,oy=0;
+document.getElementById('g').addEventListener('pointerdown',e=>{dr=true;lx=e.clientX;ly=e.clientY;e.target.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',e=>{if(!dr)return;ox+=e.clientX-lx;oy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;document.getElementById('g').style.transform='translate('+ox+'px,'+oy+'px)';});
+window.addEventListener('pointerup',()=>{dr=false;});
+</script></body></html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass v6 Final</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%}
+body{overflow:hidden;background:#d5cfc0;
+  background-image:linear-gradient(to right,rgba(0,0,0,0.25) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,0.25) 1px,transparent 1px),
+    radial-gradient(circle at 25% 35%,rgba(200,120,80,0.4),transparent 50%),
+    radial-gradient(circle at 70% 55%,rgba(80,140,200,0.35),transparent 50%);
+  background-size:30px 30px,30px 30px,100% 100%,100% 100%;
+  font-family:InterVariable,Inter,system-ui,sans-serif}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden}
+
+.pnl{position:fixed;top:0;left:0;width:440px;height:100vh;z-index:50;overflow-y:auto;
+  background:rgba(18,18,22,0.94);color:#ccc;padding:14px;
+  border-right:1px solid rgba(255,255,255,0.08)}
+.pnl h3{font-size:0.85rem;color:#c8a87c;margin-bottom:2px}
+.pnl .sub{font-size:0.58rem;color:#888;margin-bottom:8px}
+.pnl canvas{display:block;margin:0 auto 4px;border-radius:4px;background:#111}
+.pnl .lbl{font-size:0.55rem;color:#777;text-align:center;margin-bottom:6px}
+.pnl .row{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.pnl label{font-size:0.6rem;color:#999;flex:0 0 80px;text-align:right}
+.pnl input[type=range]{flex:1;height:3px;accent-color:#c8a87c}
+.pnl select{width:100%;font-size:0.6rem;background:#222;color:#ccc;border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;margin-bottom:6px}
+.pnl .val{font-size:0.55rem;color:#888;flex:0 0 30px;text-align:left}
+
+.glass{position:fixed;inset:0;margin:auto auto auto 440px;width:340px;height:340px;border-radius:50%;z-index:20;
+  border:2px solid rgba(255,255,255,0.3);
+  box-shadow:0 20px 60px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;text-align:center;cursor:grab;user-select:none;
+  text-shadow:0 1px 3px rgba(0,0,0,0.4)}
+.glass:active{cursor:grabbing}
+.glass h2{font-size:1.2rem;font-weight:600}
+.glass p{font-size:0.65rem;opacity:0.5;margin-top:4px}
+</style></head><body>
+
+<div class="pnl">
+  <h3>Playground</h3>
+  <p class="sub">Surface & Displacement — kube.io article</p>
+  <select id="surf"><option value="circle">Convex Circle</option><option value="squircle" selected>Convex Squircle</option><option value="concave">Concave</option><option value="lip">Lip</option></select>
+  <div class="lbl">Surface Height — f(distanceFromSide)</div>
+  <canvas id="sCv" width="400" height="110"></canvas>
+  <div class="lbl">Displacement vs Distance to border</div>
+  <canvas id="dCv" width="400" height="130"></canvas>
+  <div class="lbl">Displacement Map (R=X, G=Y)</div>
+  <canvas id="mCv" width="260" height="260"></canvas>
+  <div class="row"><label>Bezel</label><input type="range" min="5" max="80" value="28" id="bw"><span class="val" id="bwV">28</span></div>
+  <div class="row"><label>Thickness</label><input type="range" min="2" max="40" value="14" id="th"><span class="val" id="thV">14</span></div>
+  <div class="row"><label>Scale (×maxDisp)</label><input type="range" min="0" max="15" step="0.1" value="4" id="mt"><span class="val" id="mtV">4.0</span></div>
+  <div class="row"><label>Spec Angle</label><input type="range" min="-180" max="180" value="-60" id="sa"><span class="val" id="saV">-60</span></div>
+  <div class="row"><label>Spec α</label><input type="range" min="0" max="1" step="0.05" value="0.3" id="sα"><span class="val" id="sαV">0.3</span></div>
+  <div class="lbl" id="info" style="color:#a78bfa">Ready</div>
+</div>
+
+<div class="glass" id="g"><h2>Liquid Glass</h2><p>Optics Study</p></div>
+<svg class="hidden-svg" id="svg"></svg>
+
+<script>
+const IOR=1.5,M=340,R=170;
+function st(x){x=Math.max(0,Math.min(1,x));return x*x*x*(x*(x*6-15)+10)}
+const F={
+  circle(x){const d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.sqrt(1-d*d)},
+  squircle(x){const d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.pow(1-Math.pow(d,4),0.25)},
+  concave(x){return 1-F.squircle(x)},
+  lip(x){const t=st(x);return F.squircle(x)*(1-t)+(1-F.squircle(x))*t}
+};
+
+function snell(fn,bw,th,N){
+  N=N||128;var o=[],d=0.0005;
+  for(var i=0;i<N;i++){
+    var x=i/(N-1),h=fn(x)*th;
+    var xm=Math.max(0,x-d),xp=Math.min(1,x+d);
+    var der=(fn(xp)-fn(xm))/(xp-xm);
+    var nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    var cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT));
+    var s2=Math.sin(t1)/IOR,ds;
+    if(s2>=1)ds=h*Math.tan(t1);else ds=h*Math.tan(Math.asin(s2));
+    o.push({t:x,der:der,ab:ds,mg:ds*(der>=0?-1:1)});
+  }
+  return o;
+}
+
+// Build displacement map. If 'ref' is provided, use it as fixed reference (for display).
+// Otherwise normalize by maxDisp (for actual filter, per article).
+function buildMap(sz,radius,bw,samples,md,ref){
+  var c=document.createElement('canvas');c.width=c.height=sz;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(sz,sz),d=img.data;
+  var cx=sz/2,cy=sz/2,denom=ref||md||1;
+  for(var y=0;y<sz;y++)for(var x=0;x<sz;x++){
+    var i=(y*sz+x)*4,px=x-cx,py=y-cy;
+    var a=Math.atan2(py,px),dist=Math.sqrt(px*px+py*py),bd=radius-dist;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.002||t>=0.998||bd<-2){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    var nm=Math.min(1,s.ab/denom),sg=s.mg<0?-1:1;
+    d[i]=Math.max(0,Math.min(255,Math.round(128-Math.cos(a)*nm*sg*127)));
+    d[i+1]=Math.max(0,Math.min(255,Math.round(128-Math.sin(a)*nm*sg*127)));
+    d[i+2]=0;d[i+3]=255;
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+// Build specular map per article: rim light from surface normal vs light direction
+// "intensity varies based on the angle of the surface normal relative to a fixed light direction"
+function buildSpecMap(sz,radius,bw,samples,angleDeg){
+  var c=document.createElement('canvas');c.width=c.height=sz;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(sz,sz),d=img.data;
+  var cx=sz/2,cy=sz/2,lightA=angleDeg*Math.PI/180;
+  var lx=Math.cos(lightA),ly=Math.sin(lightA);
+  for(var y=0;y<sz;y++)for(var x=0;x<sz;x++){
+    var i=(y*sz+x)*4,px=x-cx,py=y-cy;
+    var dist=Math.sqrt(px*px+py*py),bd=radius-dist;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.01||t>=0.99||bd<-2){d[i]=0;d[i+1]=0;d[i+2]=0;d[i+3]=0;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    // Article: normal = {x: -derivative, y: 1} — the surface normal in cross-section
+    // The derivative s.der is df/dx. Normal points up+sideways.
+    var Nx=-s.der,Ny=1,nL=Math.sqrt(Nx*Nx+Ny*Ny);
+    Nx/=nL;Ny/=nL;
+    // In physical space on the circle, the normal's xy components align with radial direction
+    // On the RIGHT side (angle 0): Nx<0 for convex → normal tilts left (inward)
+    // The normal in screen space: the 'sideways' tilt is along the radial direction
+    // Screen-space normal = (radial_dir * Nx, Ny) where radial_dir = (cos(a), sin(a))
+    // Dot with light: Nx*cos(a)*lx + Nx*sin(a)*ly + Ny*0 (light has no z component)
+    // Simplified: Nx * (cos(a)*lx + sin(a)*ly)
+    var radialDot=Math.cos(Math.atan2(py,px))*lx+Math.sin(Math.atan2(py,px))*ly;
+    var dot=Nx*radialDot;
+    dot=Math.max(0,dot); // only positive = facing light
+    var rim=Math.pow(dot,6);
+    var v=Math.round(rim*255);
+    d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=v;
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+function drawSurf(cvid,fn,th){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=0.5;
+  for(var i=0;i<=10;i++){var x=50+(W-70)*i/10;ctx.beginPath();ctx.moveTo(x,12);ctx.lineTo(x,H-18);ctx.stroke();}
+  for(var i=0;i<=5;i++){var y=12+(H-30)*i/5;ctx.beginPath();ctx.moveTo(50,y);ctx.lineTo(W-20,y);ctx.stroke();}
+  var pw=W-70,ph=H-30;
+  ctx.strokeStyle='#e5a040';ctx.lineWidth=2.5;ctx.beginPath();
+  for(var i=0;i<=100;i++){var t=i/100,x=50+t*pw,y=12+(1-fn(t))*ph;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0',48,H-6);ctx.fillText('1',48+pw-10,H-6);
+}
+
+function drawDisp(cvid,samples,md,sc){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  var mx=50,my=H-25,pw=W-70,ph=H-30;
+  // Zero line
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx+pw,my);ctx.stroke();
+  // Curve: show ACTUAL pixel displacement = mg * scale / maxDisp
+  ctx.strokeStyle='#a78bfa';ctx.lineWidth=2.5;ctx.beginPath();
+  var peak=0;
+  for(var i=0;i<samples.length;i++){
+    var pxDisp=samples[i].mg*(sc||1)/(md||1);
+    var x=mx+samples[i].t*pw;
+    var y=my-pxDisp;
+    if(i===0)ctx.moveTo(x,Math.max(10,Math.min(H-10,y)));
+    else ctx.lineTo(x,Math.max(10,Math.min(H-10,y)));
+    if(Math.abs(pxDisp)>Math.abs(peak))peak=pxDisp;
+  }
+  ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0 (edge)',mx,my+12);
+  ctx.fillText('bezel→flat',mx+pw-55,my+12);
+  ctx.fillText(peak>0?'peak +'+peak.toFixed(0)+'px':'peak '+peak.toFixed(0)+'px',mx+pw-80,my-Math.abs(peak)-4);
+}
+
+var g=document.getElementById('g'),blobURL=null,specURL=null;
+
+function update(){
+  var sn=document.getElementById('surf').value;
+  var bw=parseInt(document.getElementById('bw').value);
+  var th=parseInt(document.getElementById('th').value);
+  var mt=parseFloat(document.getElementById('mt').value);
+  var sa=parseInt(document.getElementById('sa').value);
+  var sα=parseFloat(document.getElementById('sα').value);
+  document.getElementById('bwV').textContent=bw;
+  document.getElementById('thV').textContent=th;
+  document.getElementById('mtV').textContent=mt.toFixed(1);
+  document.getElementById('saV').textContent=sa;
+  document.getElementById('sαV').textContent=sα.toFixed(2);
+
+  var fn=F[sn],samples=snell(fn,bw,th,128);
+  var md=Math.max.apply(null,samples.map(function(s){return s.ab}));
+  if(md<0.01)md=0.01;
+  var sc=Math.round(md*mt);
+  document.getElementById('info').textContent='maxDisp:'+md.toFixed(1)+'px scale:'+sc+'px surf:'+sn;
+
+  drawSurf('sCv',fn,th);
+  drawDisp('dCv',samples,md,sc);
+
+  // Display map: fixed 20px reference → visibly changes with all params
+  var dispMap=buildMap(M,R,bw,samples,md,20);
+  // Filter map: normalized by maxDisp → correct per article
+  var filtMap=buildMap(M,R,bw,samples,md,0);
+
+  var mCv=document.getElementById('mCv'),mW=mCv.width,mH=mCv.height;
+  var mCtx=mCv.getContext('2d');
+  var ss=Math.round(Math.min(M,R*2.2));
+  var sx=(M-ss)/2,sy=(M-ss)/2;
+  mCtx.fillStyle='#111';mCtx.fillRect(0,0,mW,mH);
+  mCtx.drawImage(dispMap,sx,sy,ss,ss,0,0,mW,mH);
+
+  var specMap=buildSpecMap(M,R,bw,samples,sa);
+
+  filtMap.toBlob(function(blob){
+    if(blobURL)URL.revokeObjectURL(blobURL);
+    blobURL=URL.createObjectURL(blob);
+    specMap.toBlob(function(sblob){
+      if(specURL)URL.revokeObjectURL(specURL);
+      specURL=URL.createObjectURL(sblob);
+      document.getElementById('svg').innerHTML='<defs><filter id="gf" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">'+
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+        '<feImage x="0" y="0" width="'+M+'" height="'+M+'" href="'+blobURL+'" result="dm"/>'+
+        '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G" result="dp"/>'+
+        '<feImage x="0" y="0" width="'+M+'" height="'+M+'" href="'+specURL+'" result="sp"/>'+
+        '<feComposite in="dp" in2="sp" operator="in" result="ss"/>'+
+        '<feComponentTransfer in="sp" result="sf"><feFuncA type="linear" slope="'+sα.toFixed(2)+'"/></feComponentTransfer>'+
+        '<feBlend in="ss" in2="dp" mode="normal" result="ws"/>'+
+        '<feBlend in="sf" in2="ws" mode="normal"/>'+
+        '</filter></defs>';
+      g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+    });
+  });
+}
+
+update();
+document.getElementById('surf').addEventListener('change',update);
+document.getElementById('bw').addEventListener('input',update);
+document.getElementById('th').addEventListener('input',update);
+document.getElementById('mt').addEventListener('input',update);
+document.getElementById('sa').addEventListener('input',update);
+document.getElementById('sα').addEventListener('input',update);
+
+// Drag
+var dr=false,lx=0,ly=0,ox=0,oy=0;
+g.addEventListener('pointerdown',function(e){dr=true;lx=e.clientX;ly=e.clientY;e.target.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',function(e){if(!dr)return;ox+=e.clientX-lx;oy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;g.style.transform='translate('+ox+'px,'+oy+'px)';});
+window.addEventListener('pointerup',function(){dr=false;});
+</script></body></html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass v5</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%}
+body{overflow:hidden;
+  background:
+    linear-gradient(135deg,#f5e6d3 0%,#e8d5c4 25%,#d4e5f0 50%,#e0d8ec 75%,#f0e0d0 100%);}
+/* Decorative elements behind glass to show refraction */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 25% 35%,rgba(180,120,80,0.5) 0,transparent 40%),
+    radial-gradient(circle at 70% 55%,rgba(80,140,200,0.5) 0,transparent 40%),
+    radial-gradient(circle at 45% 75%,rgba(200,170,100,0.45) 0,transparent 35%);
+}
+body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    linear-gradient(to right,rgba(0,0,0,0.06) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,0.06) 1px,transparent 1px);
+  background-size:32px 32px;
+}
+/* Colorful dots that will visibly distort at glass edges */
+.dots{position:fixed;inset:0;z-index:2;pointer-events:none}
+.dot{position:absolute;width:12px;height:12px;border-radius:50%;opacity:0.7}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden}
+.glass{position:fixed;inset:0;margin:auto;width:340px;height:340px;border-radius:50%;z-index:20;
+  border:2px solid rgba(255,255,255,0.35);
+  box-shadow:0 20px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;text-align:center;cursor:grab;user-select:none;
+  text-shadow:0 1px 3px rgba(0,0,0,0.6);}
+.glass:active{cursor:grabbing}
+.glass h2{font-size:1.3rem;font-weight:600}
+.glass p{font-size:0.7rem;opacity:0.6;margin-top:4px}
+
+.ctrl{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:100;
+  display:flex;gap:10px;align-items:center;
+  background:rgba(0,0,0,0.75);padding:8px 16px;border-radius:999px;border:1px solid rgba(255,255,255,0.1)}
+.ctrl label{font-size:0.65rem;color:#aaa;display:flex;align-items:center;gap:4px}
+.ctrl input[type=range]{width:100px;height:4px;accent-color:#a78bfa}
+.ctrl button{font-size:0.6rem;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#ccc;cursor:pointer}
+.ctrl button.on{background:rgba(139,92,246,0.3);border-color:#a78bfa;color:#a78bfa}
+.dbg{position:fixed;top:8px;left:8px;z-index:100;font:10px monospace;color:#0f0}
+/* Lip curve panel - top left */
+.curve-panel{position:fixed;top:10px;left:10px;z-index:50;
+  background:rgba(0,0,0,0.85);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.12);width:340px}
+.curve-panel h4{font-size:0.7rem;color:#c8a87c;margin-bottom:6px}
+.curve-panel canvas{display:block;border-radius:3px;margin-bottom:6px}
+.curve-panel .row{display:flex;gap:8px;align-items:center;margin-bottom:3px}
+.curve-panel label{font-size:0.6rem;color:#999;flex:0 0 65px;text-align:right}
+.curve-panel input[type=range]{flex:1;height:3px;accent-color:#c8a87c}
+.curve-panel .maps{display:flex;gap:8px;margin-top:4px}
+.curve-panel .maps .map-box{flex:1;text-align:center}
+.curve-panel .maps .map-box span{font-size:0.5rem;color:#777;display:block;margin-bottom:2px}
+</style></head><body>
+<div class="curve-panel" id="curvePanel">
+  <h4>Lip Surface — f(distanceFromSide) + Displacement Map</h4>
+  <div class="maps">
+    <div class="map-box"><span>Surface & Displacement Curve</span>
+      <canvas id="curveCanvas" width="200" height="130"></canvas>
+    </div>
+    <div class="map-box"><span>Displacement Map (R=X,G=Y)</span>
+      <canvas id="miniMap" width="110" height="110"></canvas>
+    </div>
+  </div>
+  <div class="row"><label>Bezel</label><input type="range" min="5" max="80" value="30" id="cvBezel"></div>
+  <div class="row"><label>Thickness</label><input type="range" min="2" max="40" value="16" id="cvThick"></div>
+  <div class="row"><label>Scale</label><input type="range" min="0" max="200" value="60" id="cvScale"></div>
+</div>
+<div class="dots" id="dots"></div>
+<div class="glass" id="g"><h2>Liquid Glass</h2><p>Optics Study</p></div>
+<svg class="hidden-svg" id="svg"></svg><div class="dbg" id="dbg"></div>
+<script>
+// ══════════════ LIP CURVE (Canvas, live) ══════════════
+const IOR=1.5,MAP=340,R=170;
+function st(t){const x=Math.max(0,Math.min(1,t));return x*x*x*(x*(x*6-15)+10)}
+function squircle(x){const d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.pow(1-Math.pow(d,4),0.25)}
+function lipFn(x){const t=st(Math.max(0,Math.min(1,x)));return squircle(x)*(1-t)+(1-squircle(x))*t}
+
+function drawCurve(bezel,thick){
+  const c=document.getElementById('curveCanvas'),W=c.width,H=c.height;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(0,0,W,H);
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=0.5;
+  for(let i=0;i<=10;i++){const x=30+(W-50)*i/10;ctx.beginPath();ctx.moveTo(x,10);ctx.lineTo(x,H-15);ctx.stroke();}
+  // Bezier curve
+  ctx.strokeStyle='#c8a87c';ctx.lineWidth=2;ctx.beginPath();
+  const pw=W-50,ph=H-25;
+  for(let i=0;i<=100;i++){
+    const t=i/100;
+    const x=30+t*pw;
+    const y=10+(1-lipFn(t))*ph;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  // Zero line
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(30,10+ph);ctx.lineTo(30+pw,10+ph);ctx.stroke();
+  // Labels
+  ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0 (outer edge)',30,H-4);
+  ctx.fillText('1 (inner flat)',30+pw-60,H-4);
+  ctx.fillText('Height',5,10+ph/2);
+
+  // Compute Snell & draw displacement curve
+  const samples=[],dlt=0.0005;
+  for(let i=0;i<128;i++){
+    const x=i/127; const h=lipFn(x)*thick;
+    const xm=Math.max(0,x-dlt),xp=Math.min(1,x+dlt);
+    const der=(lipFn(xp)-lipFn(xm))/(xp-xm);
+    const nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    const cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT));
+    const s2=Math.sin(t1)/IOR;
+    let ds;if(s2>=1)ds=h*Math.tan(t1);else ds=h*Math.tan(Math.asin(s2));
+    samples.push({t:x,der,ab:ds,mg:ds*(der>=0?-1:1)});
+  }
+  const md=Math.max(...samples.map(s=>s.ab),1);
+
+  // Draw displacement curve (scaled)
+  ctx.strokeStyle='#a78bfa';ctx.lineWidth=1.5;ctx.beginPath();
+  const zy=10+ph*0.55;
+  for(let i=0;i<samples.length;i++){
+    const x=30+samples[i].t*pw;
+    const y=zy-samples[i].mg/Math.max(md,1)*ph*0.4;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle='#a78bfa';ctx.font='7px system-ui';
+  ctx.fillText('displacement',30+pw-80,zy-20);
+  ctx.fillText('maxDisp:'+md.toFixed(1)+'px',30+pw-80,zy-8);
+
+  // Draw mini displacement map
+  const mapCanvas=buildCircleMap(110,R,bezel,samples,md);
+  const mm=document.getElementById('miniMap');
+  mm.getContext('2d').clearRect(0,0,110,110);
+  mm.getContext('2d').drawImage(mapCanvas,0,0,110,110);
+
+  return {samples,md};
+}
+
+// ══════════════ DISPLACEMENT MAP GENERATION ══════════════
+function buildCircleMap(size,R,bezel,samples,maxDisp){
+  const c=document.createElement('canvas');c.width=c.height=size;
+  const ctx=c.getContext('2d'),img=ctx.createImageData(size,size),d=img.data;
+  const cx=size/2,cy=size/2,mdp=maxDisp||1;
+  for(let y=0;y<size;y++){for(let x=0;x<size;x++){
+    const i=(y*size+x)*4,px=x-cx,py=y-cy;
+    const a=Math.atan2(py,px),dist=Math.sqrt(px*px+py*py),bd=R-dist;
+    const t=Math.max(0,Math.min(1,bd/bezel));
+    if(t<=0.002||t>=0.998||bd<-2){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+    const si=Math.round(t*(samples.length-1));
+    const s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    const nm=s.ab/mdp,sg=s.mg<0?-1:1;
+    const dx=-Math.cos(a)*nm*sg,dy=-Math.sin(a)*nm*sg;
+    d[i]=Math.max(0,Math.min(255,Math.round(128+dx*127)));
+    d[i+1]=Math.max(0,Math.min(255,Math.round(128+dy*127)));
+    d[i+2]=0;d[i+3]=255;
+  }}
+  ctx.putImageData(img,0,0);return c;
+}
+
+// ══════════════ GLASS PANEL ══════════════
+const g=document.getElementById('g');
+let curBlobURL=null;
+
+function updateGlass(bezel,thick,scale){
+  const {samples,md}=drawCurve(bezel,thick);
+  const mapCanvas=buildCircleMap(MAP,R,bezel,samples,md);
+
+  // Try Blob URL instead of data URL for feImage
+  mapCanvas.toBlob(blob=>{
+    if(curBlobURL)URL.revokeObjectURL(curBlobURL);
+    curBlobURL=URL.createObjectURL(blob);
+
+    const h='<defs><filter id="gf" x="-70%" y="-70%" width="240%" height="240%" color-interpolation-filters="sRGB">'+
+      '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+      '<feImage x="0" y="0" width="'+MAP+'" height="'+MAP+'" href="'+curBlobURL+'" result="dm"/>'+
+      '<feDisplacementMap in="bl" in2="dm" scale="'+scale+'" xChannelSelector="R" yChannelSelector="G"/>'+
+      '</filter></defs>';
+    document.getElementById('svg').innerHTML=h;
+    g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+  });
+}
+
+// Init
+let curBezel=30,curThick=16,curScale=60;
+document.getElementById('cvBezel').value=curBezel;
+document.getElementById('cvThick').value=curThick;
+document.getElementById('cvScale').value=curScale;
+updateGlass(curBezel,curThick,curScale);
+
+// Curve sliders
+document.getElementById('cvBezel').addEventListener('input',function(){
+  curBezel=parseInt(this.value);updateGlass(curBezel,curThick,curScale);
+});
+document.getElementById('cvThick').addEventListener('input',function(){
+  curThick=parseInt(this.value);updateGlass(curBezel,curThick,curScale);
+});
+document.getElementById('cvScale').addEventListener('input',function(){
+  curScale=parseInt(this.value);updateGlass(curBezel,curThick,curScale);
+});
+
+// Dots
+const dotsEl=document.getElementById('dots');
+for(let i=0;i<60;i++){
+  const d=document.createElement('div');d.className='dot';
+  d.style.left=(5+Math.random()*90)+'%';d.style.top=(5+Math.random()*90)+'%';
+  d.style.background='hsl('+Math.floor(Math.random()*360)+',70%,55%)';
+  dotsEl.appendChild(d);
+}
+
+// Drag
+let dr=false,lx=0,ly=0,ox=0,oy=0;
+g.addEventListener('pointerdown',e=>{dr=true;lx=e.clientX;ly=e.clientY;e.target.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',e=>{if(!dr)return;ox+=e.clientX-lx;oy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;g.style.transform='translate('+ox+'px,'+oy+'px)';});
+window.addEventListener('pointerup',()=>{dr=false;});
+</script></body></html>

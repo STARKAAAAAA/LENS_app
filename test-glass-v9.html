@@ -1,0 +1,727 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass v9 — Full Suite</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%}
+body{overflow-y:auto;background:#1a1a20;
+  background-image:linear-gradient(to right,rgba(255,255,255,0.12) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(255,255,255,0.12) 1px,transparent 1px),
+    radial-gradient(circle at 25% 35%,rgba(120,80,200,0.3),transparent 50%),
+    radial-gradient(circle at 70% 55%,rgba(80,160,200,0.25),transparent 50%);
+  background-size:30px 30px,30px 30px,100% 100%,100% 100%;
+  background-attachment:fixed;
+  font-family:InterVariable,Inter,system-ui,sans-serif;color:#ccc}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden}
+
+.pnl{position:fixed;top:0;left:0;width:440px;height:100vh;z-index:50;overflow-y:auto;
+  background:rgba(18,18,22,0.94);color:#ccc;padding:14px;
+  border-right:1px solid rgba(255,255,255,0.08)}
+.pnl h3{font-size:0.85rem;color:#c8a87c;margin:10px 0 2px}
+.pnl h3:first-child{margin-top:0}
+.pnl .sub{font-size:0.58rem;color:#888;margin-bottom:6px}
+.pnl canvas{display:block;margin:0 auto 4px;border-radius:4px;background:#111}
+.pnl .lbl{font-size:0.55rem;color:#777;text-align:center;margin-bottom:4px}
+.pnl .row{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.pnl label{font-size:0.6rem;color:#999;flex:0 0 80px;text-align:right}
+.pnl input[type=range]{flex:1;height:3px;accent-color:#c8a87c}
+.pnl select{width:100%;font-size:0.6rem;background:#222;color:#ccc;border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;margin-bottom:6px}
+.pnl .val{font-size:0.55rem;color:#888;flex:0 0 36px;text-align:left}
+.pnl .sep{height:1px;background:rgba(255,255,255,0.06);margin:8px 0}
+.pnl .grp{border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;margin-bottom:8px}
+.pnl .grp h4{font-size:0.7rem;color:#c8a87c;margin-bottom:4px}
+.pnl .info{font-size:0.55rem;color:#a78bfa;text-align:center;margin-top:4px}
+
+.content{margin-left:440px;padding:20px;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:30px}
+
+/* ── Glass Panel ── */
+.glass-panel{position:relative;width:340px;height:340px;border-radius:50%;z-index:20;
+  border:2px solid rgba(255,255,255,0.3);
+  box-shadow:0 20px 60px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;text-align:center;cursor:grab;user-select:none;
+  text-shadow:0 1px 3px rgba(0,0,0,0.4)}
+.glass-panel:active{cursor:grabbing}
+.glass-panel h2{font-size:1.2rem;font-weight:600}
+.glass-panel p{font-size:0.65rem;opacity:0.5;margin-top:4px}
+
+/* ── Components Row ── */
+.components{display:flex;align-items:center;justify-content:center;gap:80px;flex-wrap:wrap;margin-top:20px}
+.comp-name{font-size:0.7rem;color:rgba(255,255,255,0.45);font-weight:500;text-align:center;margin-bottom:8px}
+
+/* ── Switch ── */
+.sw-track{display:inline-block;width:160px;height:67px;border-radius:33.5px;
+  position:relative;cursor:pointer;
+  background:rgb(174,174,178);
+  transition:background 0.3s}
+.sw-track.on{background:rgba(59,191,78,0.933)}
+.sw-thumb{position:absolute;height:92px;width:146px;border-radius:46px;
+  top:33.5px;left:0;margin-left:-21.95px;
+  background:rgba(255,255,255,1);
+  box-shadow:0 4px 22px rgba(0,0,0,0.1);
+  transform:translateX(0px) translateY(-50%) scale(0.65);
+  transition:transform 0.35s cubic-bezier(0.34,1.3,0.64,1.0),background 0.2s}
+.sw-track.on .sw-thumb{transform:translateX(57.9px) translateY(-50%) scale(0.65)}
+.sw-thumb.glass{background:transparent;transform:translateX(0px) translateY(-50%) scale(0.96);box-shadow:0 8px 32px rgba(0,0,0,0.18)}
+.sw-track.on .sw-thumb.glass{transform:translateX(57.9px) translateY(-50%) scale(0.96)}
+
+/* ── Slider ── */
+.sl-outer{position:relative;width:330px;height:60px}
+.sl-track-el{display:inline-block;width:330px;height:14px;left:0;top:23px;
+  background:rgb(174,174,178);border-radius:7px;position:absolute;cursor:pointer}
+.sl-fill-wrap{width:100%;height:100%;overflow:hidden;border-radius:7px}
+.sl-fill{position:absolute;top:0;left:0;height:14px;border-radius:6px;background:#0377F7}
+.sl-thumb{position:absolute;height:60px;width:90px;border-radius:30px;top:0;left:0;
+  background:rgba(255,255,255,1);
+  box-shadow:0 3px 14px rgba(0,0,0,0.1);
+  transform:translateX(-50%) scale(0.6);
+  cursor:pointer;touch-action:pan-y;user-select:none;
+  transition:transform 0.25s cubic-bezier(0.34,1.3,0.64,1.0),background 0.2s}
+.sl-thumb.glass{background:transparent;transform:translateX(-50%) scale(0.85);box-shadow:0 8px 28px rgba(0,0,0,0.22)}
+  .spec-only-glass{width:200px;height:200px;border-radius:50%;
+    background:transparent;border:none;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:20px}
+  .force-btn{font-size:0.58rem;padding:2px 10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:#2a2a30;color:#888;cursor:pointer;transition:all 0.2s;min-width:44px}
+  .force-btn.on{background:rgba(59,191,78,0.25);border-color:rgba(59,191,78,0.6);color:#4ade80}
+
+/* ── Light Mode ── */
+
+/* ── White Glass Mode ── */
+body.light-glass .sw-thumb.glass{background:rgba(255,255,255,0.85)!important}
+body.light-glass .sl-thumb.glass{background:rgba(255,255,255,0.85)!important}
+
+/* ── Light Background Mode ── */
+body.light-bg .comp-name,body.light-bg .pnl label,body.light-bg .pnl .sub,body.light-bg .pnl .lbl,body.light-bg .pnl .val,body.light-bg .pnl .info{color:#555!important}
+body.light-bg{background:#e8e8ec!important;background-image:linear-gradient(to right,rgba(0,0,0,0.06)1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,0.06)1px,transparent 1px)!important;background-size:30px 30px,30px 30px!important;background-attachment:scroll!important;color:#333!important}
+</style></head><body>
+
+<div class="pnl">
+  <button onclick="document.body.classList.toggle(&apos;light-glass&apos;);this.textContent=document.body.classList.contains(&apos;light-glass&apos;)?&apos;☀️ 白玻璃&apos;:&apos;🌙 暗玻璃&apos;;this.classList.toggle(&apos;on&apos;,document.body.classList.contains(&apos;light-glass&apos;))" style="display:block;width:100%;margin-bottom:6px;font-size:0.62rem;padding:5px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:#2a2a30;color:#888;cursor:pointer">🌙 暗玻璃</button>
+  <button onclick="document.body.classList.toggle(&apos;light-bg&apos;);this.textContent=document.body.classList.contains(&apos;light-bg&apos;)?&apos;☀️ 白背景&apos;:&apos;🌙 暗背景&apos;;this.classList.toggle(&apos;on&apos;,document.body.classList.contains(&apos;light-bg&apos;));updateAll()" style="display:block;width:100%;margin-bottom:10px;font-size:0.62rem;padding:5px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:#2a2a30;color:#888;cursor:pointer">🌙 暗背景</button>
+  <h3>Playground</h3>
+  <p class="sub">Multi-Shape Liquid Glass — kube.io Snell Refraction</p>
+  <select id="shape"><option value="circle" selected>Circle</option><option value="rounded-rect">Rounded Rectangle</option><option value="capsule">Capsule</option></select>
+  <div id="crGroup" style="display:none">
+    <div class="row"><label>圆角 CR</label><input type="range" min="10" max="120" value="50" id="cr"><span class="val" id="crV">50</span></div>
+  </div>
+
+  <div class="sep"></div>
+  <select id="surf"><option value="circle">Convex Circle</option><option value="squircle">Convex Squircle</option><option value="concave" selected>Concave</option><option value="lip">Lip</option></select>
+  <div class="lbl">曲面高度 Surface Height</div><canvas id="sCv" width="400" height="110"></canvas>
+  <div class="lbl">位移曲线 Displacement vs Distance</div><canvas id="dCv" width="400" height="130"></canvas>
+  <div class="lbl">面板位移图 Panel Displacement Map</div><canvas id="mCv" width="260" height="260"></canvas>
+  <div class="lbl">面板高光图 Panel Specular Map</div><canvas id="smCv" width="260" height="260"></canvas>
+  <div class="row"><label>边宽 Bezel</label><input type="range" min="5" max="80" value="28" id="bw"><span class="val" id="bwV">28</span></div>
+  <div class="row"><label>厚度 Thick</label><input type="range" min="2" max="40" value="14" id="th"><span class="val" id="thV">14</span></div>
+  <div class="row"><label>缩放 Scale</label><input type="range" min="0" max="15" step="0.1" value="4" id="mt"><span class="val" id="mtV">4.0</span></div>
+  <div class="row"><label>高光角度 Angle</label><input type="range" min="-180" max="180" value="-45" id="sa"><span class="val" id="saV">-45</span></div>
+  <div class="row"><label>高光透明 Spec α</label><input type="range" min="0" max="1" step="0.05" value="0.4" id="sα"><span class="val" id="sαV">0.40</span></div>
+  <div class="sep"></div>
+  <div class="row"><label>贴图质量 DPR</label><select id="mapDpr"><option value="1">1× (CSS px)</option><option value="2" selected>2× (Retina)</option></select></div>
+  <p class="sub" style="margin-top:4px">Higher = sharper refraction on HiDPI screens. SDF stays in CSS pixel space; map canvas resolution scales.</p>
+
+  <h3>Switch & Slider</h3>
+  <p class="sub">Apple Liquid Glass — press to activate</p>
+  <div class="grp"><h4>🔘 Switch (146×92 capsule)</h4>
+  <select id="swSurf"><option value="circle">Convex Circle</option><option value="squircle">Convex Squircle</option><option value="concave" selected>Concave</option><option value="lip">Lip</option></select>
+  <div class="row"><label>边宽 Bezel</label><input type="range" min="10" max="60" value="60" id="swBw"><span class="val" id="swBwV">60</span></div>
+  <div class="row"><label>厚度 Thick</label><input type="range" min="5" max="80" value="60" id="swTh"><span class="val" id="swThV">60</span></div>
+  <div class="row"><label>缩放 Scale</label><input type="range" min="0.2" max="3" step="0.05" value="0.90" id="swMt"><span class="val" id="swMtV">0.90</span></div>
+  <div class="row"><label>模糊 Blur</label><input type="range" min="0" max="2" step="0.1" value="0.2" id="swBlur"><span class="val" id="swBlurV">0.2</span></div>
+  <div class="row"><label>饱和 Sat</label><input type="range" min="0" max="10" step="0.5" value="0" id="swSat"><span class="val" id="swSatV">0</span></div>
+  <div class="row"><label>高光角度 Angle</label><input type="range" min="-180" max="180" value="-45" id="swSa"><span class="val" id="swSaV">-45</span></div>
+  <div class="row"><label>高光透明 Spec α</label><input type="range" min="0" max="1" step="0.05" value="0.4" id="swSα"><span class="val" id="swSαV">0.40</span></div>
+  <div class="row"><label>强制玻璃 Force</label><button id="swForce" class="force-btn">OFF</button></div>
+  <div class="lbl">Displacement Map (146×92)</div><canvas id="swMap" width="200" height="126"></canvas>
+  <div class="lbl">Specular Map (146×92)</div><canvas id="swSpecMap" width="200" height="126"></canvas>
+  </div>
+  <div class="grp"><h4>🎚️ Slider (90×60 capsule)</h4>
+  <select id="slSurf"><option value="circle">Convex Circle</option><option value="squircle">Convex Squircle</option><option value="concave" selected>Concave</option><option value="lip">Lip</option></select>
+  <div class="row"><label>边宽 Bezel</label><input type="range" min="8" max="40" value="40" id="slBw"><span class="val" id="slBwV">40</span></div>
+  <div class="row"><label>厚度 Thick</label><input type="range" min="5" max="50" value="50" id="slTh"><span class="val" id="slThV">50</span></div>
+  <div class="row"><label>缩放 Scale</label><input type="range" min="0.2" max="3" step="0.05" value="2.50" id="slMt"><span class="val" id="slMtV">2.50</span></div>
+  <div class="row"><label>模糊 Blur</label><input type="range" min="0" max="2" step="0.1" value="0" id="slBlur"><span class="val" id="slBlurV">0</span></div>
+  <div class="row"><label>饱和 Sat</label><input type="range" min="0" max="10" step="0.5" value="0" id="slSat"><span class="val" id="slSatV">0</span></div>
+  <div class="row"><label>高光角度 Angle</label><input type="range" min="-180" max="180" value="-45" id="slSa"><span class="val" id="slSaV">-45</span></div>
+  <div class="row"><label>高光透明 Spec α</label><input type="range" min="0" max="1" step="0.05" value="0.4" id="slSα"><span class="val" id="slSαV">0.40</span></div>
+  <div class="row"><label>强制玻璃 Force</label><button id="slForce" class="force-btn">OFF</button></div>
+  <div class="lbl">Displacement Map (90×60)</div><canvas id="slMap" width="200" height="134"></canvas>
+  <div class="lbl">Specular Map (90×60)</div><canvas id="slSpecMap" width="200" height="134"></canvas>
+  </div>
+  <div class="grp"><h4>🔬 高光测试 Spec-Only Test</h4>
+  <div class="row"><label>尺寸 Size</label><input type="range" min="60" max="400" value="200" id="soSize"><span class="val" id="soSizeV">200</span></div>
+  <div class="row"><label>形状 Shape</label><select id="soShape"><option value="circle" selected>Circle</option><option value="capsule">Capsule</option><option value="rounded-rect">Rounded Rect</option></select></div>
+  <div class="row"><label>高光角度 Angle</label><input type="range" min="-180" max="180" value="-45" id="soSa"><span class="val" id="soSaV">-45</span></div>
+  <div class="row"><label>高光透明 Spec α</label><input type="range" min="0" max="1" step="0.05" value="0.4" id="soSα"><span class="val" id="soSαV">0.40</span></div>
+	  <div class="row"><label>线宽 Width</label><input type="range" min="1" max="10" value="1" id="soLw"><span class="val" id="soLwV">1</span></div>
+	  <div class="row"><label>亮度 Bright</label><input type="range" min="0.5" max="3" step="0.1" value="1.1" id="soBr"><span class="val" id="soBrV">1.1</span></div>
+	  <div class="row"><label>线位 Pos</label><input type="range" min="0.01" max="0.20" step="0.01" value="0.05" id="soLp"><span class="val" id="soLpV">0.05</span></div>
+  </div>
+  <div class="info" id="info">Ready</div>
+</div>
+
+<div class="content">
+  <div class="glass-panel" id="g"><h2>Liquid Glass</h2><p>Optics Study</p></div>
+  <div class="components">
+    <div>
+      <div class="comp-name">Switch</div>
+      <div class="sw-track" id="swTrack"><div class="sw-thumb" id="swThumb"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="comp-name">Slider</div>
+      <div class="sl-outer">
+        <div class="sl-track-el" id="slTrack"><div class="sl-fill-wrap"><div class="sl-fill" id="slFill" style="width:0%"></div></div></div>
+        <div class="sl-thumb" id="slThumb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="spec-only-glass" id="specOnly"></div>
+</div>
+</div>
+
+<svg class="hidden-svg" id="svg"></svg>
+
+<script>
+const IOR=1.5;
+// DPR-aware displacement maps: higher resolution on Retina/HiDPI screens.
+// Key insight from kube.io: map resolution = element CSS size × DPR,
+// SDF stays in CSS pixel space, feImage uses CSS dimensions (browser handles mapping).
+// This gives smoother refraction on 2x/3x screens without changing the filter coordinate system.
+var MAP_DPR=Math.min(window.devicePixelRatio||1,2);
+
+// ═══════════════════════════════════════════════════════
+// SHARED: SDF, Surface, Snell, Map Builders
+// ═══════════════════════════════════════════════════════
+function makeCircleSDF(R){return function(px,py){return Math.sqrt(px*px+py*py)-R};}
+function makeCapsuleSDF(W,H){
+  var hw=W/2,hh=H/2,r=Math.min(hw,hh),hl=Math.max(0,hw-r);
+  return function(px,py){var cx=Math.max(-hl,Math.min(hl,px));return Math.sqrt((px-cx)*(px-cx)+py*py)-r;};
+}
+function makeRoundedRectSDF(W,H,cr){
+  var hw=W/2,hh=H/2;
+  return function(px,py){
+    var dx=Math.abs(px)-hw+cr, dy=Math.abs(py)-hh+cr;
+    return Math.sqrt(Math.max(dx,0)*Math.max(dx,0)+Math.max(dy,0)*Math.max(dy,0))+Math.min(Math.max(dx,dy),0)-cr;
+  };
+}
+function sdfGrad(sdf,px,py,eps){
+  eps=eps||0.5;var gx=sdf(px+eps,py)-sdf(px-eps,py),gy=sdf(px,py+eps)-sdf(px,py-eps);
+  var gl=Math.sqrt(gx*gx+gy*gy);return gl<0.0001?{x:0,y:1}:{x:gx/gl,y:gy/gl};
+}
+function st(x){x=Math.max(0,Math.min(1,x));return x*x*x*(x*(x*6-15)+10)}
+var F={
+  circle:function(x){var d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.sqrt(1-d*d)},
+  squircle:function(x){var d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.pow(1-Math.pow(d,4),0.25)},
+  concave:function(x){return 1-F.squircle(x)},
+  lip:function(x){var t=st(x);return F.squircle(x)*(1-t)+(1-F.squircle(x))*t}
+};
+function snell(fn,bw,th,N){
+  N=N||128;var o=[],d=0.0005;
+  for(var i=0;i<N;i++){
+    var x=i/(N-1),h=fn(x)*th,xm=Math.max(0,x-d),xp=Math.min(1,x+d);
+    var der=(fn(xp)-fn(xm))/(xp-xm),nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    var cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT)),s2=Math.sin(t1)/IOR,ds;
+    if(s2>=1)ds=h*Math.tan(t1);else ds=h*Math.tan(Math.asin(s2));
+    o.push({t:x,der:der,ab:ds,mg:ds*(der>=0?-1:1)});
+  }return o;
+}
+// Smoothstep for anti-aliased edge transitions
+function sm(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
+function buildMap(mW,mH,sdf,bw,samples,md,ref,dpr){
+  dpr=dpr||MAP_DPR||1;
+  var cW=Math.round(mW*dpr),cH=Math.round(mH*dpr);
+  var c=document.createElement('canvas');c.width=cW;c.height=cH;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(cW,cH),d=img.data,denom=ref||md||1;
+  var N=samples.length-1;
+  for(var y=0;y<cH;y++)for(var x=0;x<cW;x++){
+    var i=(y*cW+x)*4,px=x/dpr-mW/2,py=y/dpr-mH/2,sd=sdf(px,py),bd=-sd;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    // Soft edge fade: smoothstep prevents hard displacement cutoff → no jaggies
+    var edgeFade=sm(t/0.04)*sm((1-t)/0.04);
+    if(bd<-2||edgeFade<0.001){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+    // Linear interpolation of snell samples (was nearest-neighbor → stepped)
+    var tf=t*N,si=Math.floor(tf),si2=Math.min(si+1,N),frac=tf-si;
+    var s0=samples[Math.max(0,Math.min(N,si))],s1=samples[Math.max(0,Math.min(N,si2))];
+    var ab=s0.ab+(s1.ab-s0.ab)*frac,mg=s0.mg+(s1.mg-s0.mg)*frac;
+    var nm=Math.min(1,ab/denom),sg=mg<0?-1:1,grad=sdfGrad(sdf,px,py);
+    // Dither: ±0.35 LSB triangular noise breaks 8-bit quantization banding
+    var dither=(Math.random()+Math.random()-1)*0.35;
+    d[i]=Math.max(0,Math.min(255,Math.round(128-grad.x*nm*sg*127+dither)));
+    d[i+1]=Math.max(0,Math.min(255,Math.round(128-grad.y*nm*sg*127+dither)));
+    d[i+2]=0;d[i+3]=255;
+  }ctx.putImageData(img,0,0);return c;
+}
+// Specular map — kube.io exact: surface normal · radial light.
+// dot = Nx × (grad·light). NO clamp → even pow → diagonal pair of hard rim strokes.
+function buildSpecMap(mW,mH,sdf,bw,samples,angleDeg,dpr,opt){opt=opt||{};var linePx=opt.linePx||1,boost=opt.boost||1.1,tPeak=opt.tPeak||0.05,alpha=opt.alpha!=null?opt.alpha:1;
+  if(opt.angle!=null)angleDeg=opt.angle;
+  dpr=dpr||MAP_DPR||1;
+  var cW=Math.round(mW*dpr),cH=Math.round(mH*dpr);
+  var c=document.createElement('canvas');c.width=cW;c.height=cH;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(cW,cH),d=img.data;
+  var lightA=angleDeg*Math.PI/180;
+  for(var y=0;y<cH;y++)for(var x=0;x<cW;x++){
+    var i=(y*cW+x)*4,px=x/dpr-mW/2,py=y/dpr-mH/2,sd=sdf(px,py),bd=-sd;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.001||t>=0.5||bd<-2){d[i]=0;d[i+1]=0;d[i+2]=0;d[i+3]=0;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    var Nx=-s.der,Ny=1,nL=Math.sqrt(Nx*Nx+Ny*Ny);Nx/=nL;Ny/=nL;
+    // Thin-line bezel peak: Gaussian-like at t≈0.13, fades toward edge (t→0)
+    var tWidth=linePx/Math.max(1,bw),tDist=Math.abs(t-tPeak)/tWidth;
+    var tFactor=tDist<1?(1-tDist):0;
+    var angle=Math.atan2(py,px),dot=Math.cos(angle-lightA);
+    var v=Math.round(Math.pow(Math.abs(dot*boost),6)*tFactor*255);
+    d[i]=255;d[i+1]=255;d[i+2]=255;d[i+3]=Math.max(0,Math.min(255,Math.round(v*alpha)));
+  }ctx.putImageData(img,0,0);return c;
+}
+
+// Shared specular params — synced from Spec-Only controls to all glass
+function getSpecOpt(){var g=document.getElementById.bind(document);var lw=g("soLw"),br=g("soBr"),lp=g("soLp"),sa=g("soSa");return{linePx:lw?+lw.value:1,boost:br?+br.value:1.2,tPeak:lp?+lp.value:0.05,angle:sa?+sa.value:-45}}
+// ═══════════════════════════════════════════════════════
+// FILTER BUILDING
+// ═══════════════════════════════════════════════════════
+function buildFilter(id,dispBlob,specBlob,mW,mH,sc,blur,sat,sα){
+  return '<filter id="'+id+'" color-interpolation-filters="sRGB" x="-60%" y="-60%" width="220%" height="220%">'+
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="'+blur+'" result="bl"/>'+
+    '<feImage href="'+dispBlob+'" x="0" y="0" width="'+mW+'" height="'+mH+'" result="dm"/>'+
+    '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G" result="dp"/>'+
+    '<feColorMatrix in="dp" type="saturate" values="'+sat+'" result="ds"/>'+
+    '<feImage href="'+specBlob+'" x="0" y="0" width="'+mW+'" height="'+mH+'" result="sp"/>'+
+    '<feComposite in="ds" in2="sp" operator="in" result="ss"/>'+
+    '<feComponentTransfer in="sp" result="sf"><feFuncA type="linear" slope="'+sα.toFixed(2)+'"/></feComponentTransfer>'+
+    '<feBlend in="ss" in2="dp" mode="normal" result="ws"/>'+
+    '<feBlend in="sf" in2="ws" mode="normal"/>'+
+    '</filter>';
+}
+// Specular-only filter: no displacement, just specular composited on backdrop.
+var blobCache={};
+function prepFilter(id,el,mW,mH,sdf,bw,th,mt,surf,sa,sα,sat,blur,isPress){
+  var fn=F[surf],samples=snell(fn,bw,th,128);
+  var md=Math.max.apply(null,samples.map(function(s){return s.ab}));
+  if(md<0.01)md=0.01;var sc=Math.round(md*mt);
+  var dispMap=buildMap(mW,mH,sdf,bw,samples,md,0,MAP_DPR);
+  var specMap=buildSpecMap(mW,mH,sdf,bw,samples,sa,MAP_DPR,getSpecOpt());
+  dispMap.toBlob(function(dblob){specMap.toBlob(function(sblob){
+    if(blobCache[id+'D'])URL.revokeObjectURL(blobCache[id+'D']);
+    if(blobCache[id+'S'])URL.revokeObjectURL(blobCache[id+'S']);
+    blobCache[id+'D']=URL.createObjectURL(dblob);
+    blobCache[id+'S']=URL.createObjectURL(sblob);
+    var fHTML=buildFilter(id,blobCache[id+'D'],blobCache[id+'S'],mW,mH,sc,blur,sat,sα);
+    blobCache[id+'H']=fHTML;
+    var all='<defs>';
+    for(var k in blobCache){if(k.slice(-1)==='H')all+=blobCache[k];}
+    all+='</defs>';
+    document.getElementById('svg').innerHTML=all;
+    el.style.backdropFilter='url(#'+id+')';
+    el.style.webkitBackdropFilter='url(#'+id+')';
+    // For press-to-glass: start with scale=0, store full scale
+    if(isPress){
+      var dispEl=document.getElementById('svg').querySelector('#'+id+' feDisplacementMap');
+      if(dispEl)dispEl.setAttribute('scale','0');
+      blobCache[id+'SC']=sc;
+    }
+  });});
+  return {md:md,sc:sc};
+}
+
+// ═══════════════════════════════════════════════════════
+// PANEL UPDATE (Playground glass panel)
+// ═══════════════════════════════════════════════════════
+function drawSurf(cvid,fn,th){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=0.5;
+  for(var i=0;i<=10;i++){var x=50+(W-70)*i/10;ctx.beginPath();ctx.moveTo(x,12);ctx.lineTo(x,H-18);ctx.stroke();}
+  for(var i=0;i<=5;i++){var y=12+(H-30)*i/5;ctx.beginPath();ctx.moveTo(50,y);ctx.lineTo(W-20,y);ctx.stroke();}
+  var pw=W-70,ph=H-30;
+  ctx.strokeStyle='#e5a040';ctx.lineWidth=2.5;ctx.beginPath();
+  for(var i=0;i<=100;i++){var t=i/100,x=50+t*pw,y=12+(1-fn(t))*ph;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.stroke();ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0',48,H-6);ctx.fillText('1',48+pw-10,H-6);
+}
+function drawDisp(cvid,samples,md,sc){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  var mx=50,my=H-25,pw=W-70;
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx+pw,my);ctx.stroke();
+  ctx.strokeStyle='#a78bfa';ctx.lineWidth=2.5;ctx.beginPath();
+  var peak=0;
+  for(var i=0;i<samples.length;i++){
+    var pxDisp=samples[i].mg*(sc||1)/(md||1),x=mx+samples[i].t*pw,y=my-pxDisp;
+    if(i===0)ctx.moveTo(x,Math.max(10,Math.min(H-10,y)));
+    else ctx.lineTo(x,Math.max(10,Math.min(H-10,y)));
+    if(Math.abs(pxDisp)>Math.abs(peak))peak=pxDisp;
+  }ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0',mx,my+12);ctx.fillText('bezel→flat',mx+pw-55,my+12);
+  ctx.fillText(peak>0?'peak +'+peak.toFixed(0)+'px':'peak '+peak.toFixed(0)+'px',mx+pw-80,my-Math.abs(peak)-4);
+}
+function drawMapPreview(cvid,dispMap,cssW,cssH){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  var scale=Math.min(W/cssW,H/cssH),dw=cssW*scale,dh=cssH*scale;
+  ctx.drawImage(dispMap,0,0,dispMap.width,dispMap.height,(W-dw)/2,(H-dh)/2,dw,dh);
+}
+
+function updatePanel(){
+  var sn=document.getElementById('surf').value,shape=document.getElementById('shape').value;
+  var bw=+document.getElementById('bw').value,th=+document.getElementById('th').value;
+  var mt=+document.getElementById('mt').value,sa=+document.getElementById('sa').value;
+  var sα=+document.getElementById('sα').value,cr=+document.getElementById('cr').value||50;
+  document.getElementById('bwV').textContent=bw;document.getElementById('thV').textContent=th;
+  document.getElementById('mtV').textContent=mt.toFixed(1);document.getElementById('saV').textContent=sa;
+  document.getElementById('sαV').textContent=sα.toFixed(2);document.getElementById('crV').textContent=cr;
+  document.getElementById('crGroup').style.display=shape==='rounded-rect'?'block':'none';
+
+  var pW,pH,borderRadius;
+  switch(shape){
+    case'circle':pW=340;pH=340;borderRadius='50%';break;
+    case'rounded-rect':pW=400;pH=280;borderRadius=cr+'px';break;
+    case'capsule':pW=400;pH=200;borderRadius='999px';break;
+  }
+  var g=document.getElementById('g');
+  g.style.width=pW+'px';g.style.height=pH+'px';g.style.borderRadius=borderRadius;
+
+  var sdf;
+  if(shape==='circle')sdf=makeCircleSDF(Math.min(pW,pH)/2);
+  else if(shape==='rounded-rect')sdf=makeRoundedRectSDF(pW,pH,cr);
+  else sdf=makeCapsuleSDF(pW,pH);
+
+  var fn=F[sn],samples=snell(fn,bw,th,128);
+  var md=Math.max.apply(null,samples.map(function(s){return s.ab}));
+  if(md<0.01)md=0.01;
+  drawSurf('sCv',fn,th);drawDisp('dCv',samples,md,Math.round(md*mt));
+
+  var dispMap=buildMap(pW,pH,sdf,bw,samples,md,20,MAP_DPR);
+  var filtMap=buildMap(pW,pH,sdf,bw,samples,md,0,MAP_DPR);
+  var specMap=buildSpecMap(pW,pH,sdf,bw,samples,sa,MAP_DPR,getSpecOpt());
+  drawMapPreview('mCv',dispMap,pW,pH);
+  drawMapPreview('smCv',specMap,pW,pH);
+
+  filtMap.toBlob(function(fblob){specMap.toBlob(function(sblob){
+    if(blobCache['panelD'])URL.revokeObjectURL(blobCache['panelD']);
+    if(blobCache['panelS'])URL.revokeObjectURL(blobCache['panelS']);
+    blobCache['panelD']=URL.createObjectURL(fblob);
+    blobCache['panelS']=URL.createObjectURL(sblob);
+    var sc=Math.round(md*mt);
+    var fHTML=buildFilter('gf',blobCache['panelD'],blobCache['panelS'],pW,pH,sc,2,6,sα);
+    blobCache['panelH']=fHTML;
+    var all='<defs>';
+    for(var k in blobCache){if(k.slice(-1)==='H')all+=blobCache[k];}
+    all+='</defs>';
+    document.getElementById('svg').innerHTML=all;
+    g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+    var mapRes=Math.round(pW*MAP_DPR)+'×'+Math.round(pH*MAP_DPR);
+    document.getElementById('info').textContent='Panel: '+shape+' sc='+sc+' | maxDisp='+md.toFixed(1)+' | map '+mapRes+' ('+MAP_DPR+'×)';
+  });});
+}
+
+// ═══════════════════════════════════════════════════════
+// SWITCH & SLIDER UPDATE
+// ═══════════════════════════════════════════════════════
+function drawMapOnCanvas(cvid,cssW,cssH,mapCanvas){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  var s=Math.min(W/cssW,H/cssH),dw=cssW*s,dh=cssH*s;
+  ctx.drawImage(mapCanvas,0,0,mapCanvas.width,mapCanvas.height,(W-dw)/2,(H-dh)/2,dw,dh);
+}
+
+function updateComponents(){
+  // Switch Thumb: 146×92 capsule — independent specular
+  var swSurf=document.getElementById('swSurf').value,swBw=+document.getElementById('swBw').value,swTh=+document.getElementById('swTh').value,swMt=+document.getElementById('swMt').value,swBlur=+document.getElementById('swBlur').value,swSat=+document.getElementById('swSat').value,swSa=+document.getElementById('swSa').value,swSα=+document.getElementById('swSα').value;
+  document.getElementById('swBwV').textContent=swBw;document.getElementById('swThV').textContent=swTh;document.getElementById('swMtV').textContent=swMt.toFixed(2);document.getElementById('swBlurV').textContent=swBlur.toFixed(1);document.getElementById('swSatV').textContent=swSat;document.getElementById('swSaV').textContent=swSa;document.getElementById('swSαV').textContent=swSα.toFixed(2);
+  var swSDF=makeCapsuleSDF(146,92);
+  prepFilter('fSw',document.getElementById('swThumb'),146,92,swSDF,swBw,swTh,swMt,swSurf,swSa,swSα,swSat,swBlur,true);
+  // Display map (sync)
+  var swSamples=snell(F[swSurf],swBw,swTh);
+  var swMd=Math.max.apply(null,swSamples.map(function(s){return s.ab}));
+  if(swMd<0.01)swMd=0.01;
+  var swDispMap=buildMap(146,92,swSDF,swBw,swSamples,swMd,20,MAP_DPR);
+  drawMapOnCanvas('swMap',146,92,swDispMap);
+  var swSpecMap=buildSpecMap(146,92,swSDF,swBw,swSamples,swSa,MAP_DPR,getSpecOpt());
+  drawMapOnCanvas('swSpecMap',146,92,swSpecMap);
+
+  // Slider Thumb: 90×60 capsule — independent specular
+  var slSurf=document.getElementById('slSurf').value,slBw=+document.getElementById('slBw').value,slTh=+document.getElementById('slTh').value,slMt=+document.getElementById('slMt').value,slBlur=+document.getElementById('slBlur').value,slSat=+document.getElementById('slSat').value,slSa=+document.getElementById('slSa').value,slSα=+document.getElementById('slSα').value;
+  document.getElementById('slBwV').textContent=slBw;document.getElementById('slThV').textContent=slTh;document.getElementById('slMtV').textContent=slMt.toFixed(2);document.getElementById('slBlurV').textContent=slBlur.toFixed(1);document.getElementById('slSatV').textContent=slSat;document.getElementById('slSaV').textContent=slSa;document.getElementById('slSαV').textContent=slSα.toFixed(2);
+  var slSDF=makeCapsuleSDF(90,60);
+  prepFilter('fSl',document.getElementById('slThumb'),90,60,slSDF,slBw,slTh,slMt,slSurf,slSa,slSα,slSat,slBlur,true);
+  // Display map (sync)
+  var slSamples=snell(F[slSurf],slBw,slTh);
+  var slMd=Math.max.apply(null,slSamples.map(function(s){return s.ab}));
+  if(slMd<0.01)slMd=0.01;
+  var slDispMap=buildMap(90,60,slSDF,slBw,slSamples,slMd,20,MAP_DPR);
+  drawMapOnCanvas('slMap',90,60,slDispMap);
+  var slSpecMap=buildSpecMap(90,60,slSDF,slBw,slSamples,slSa,MAP_DPR,getSpecOpt());
+  drawMapOnCanvas('slSpecMap',90,60,slSpecMap);
+}
+
+function updateAll(){updatePanel();updateComponents();updateSpecOnly();}
+
+// Spec-only test: specular map regenerated at actual angle — correct for all shapes.
+var soSpecCache=null,soCacheParams='';
+function updateSpecOnly(){
+  var soSize=+document.getElementById("soSize").value;
+  var soShape=document.getElementById("soShape").value;
+  var soSa=+document.getElementById("soSa").value;
+  var soSα=+document.getElementById("soSα").value;
+  var soLw=+document.getElementById("soLw").value;
+  var soBr=+document.getElementById("soBr").value;
+  var soLp=+document.getElementById("soLp").value;
+  document.getElementById("soSizeV").textContent=soSize;
+  document.getElementById("soSaV").textContent=soSa;
+  document.getElementById("soSαV").textContent=soSα.toFixed(2);
+  document.getElementById("soLwV").textContent=soLw;
+  document.getElementById("soBrV").textContent=soBr.toFixed(1);
+  document.getElementById("soLpV").textContent=soLp.toFixed(2);
+  var soW,soH,soBR;
+  switch(soShape){
+    case"circle":soW=soSize;soH=soSize;soBR="50%";break;
+    case"capsule":soW=soSize;soH=Math.round(soSize*0.5);soBR="999px";break;
+    case"rounded-rect":soW=soSize;soH=Math.round(soSize*0.7);soBR=Math.round(soSize*0.15)+"px";break;
+  }
+  var so=document.getElementById("specOnly");
+  so.style.width=soW+"px";so.style.height=soH+"px";so.style.borderRadius=soBR;
+  // No CSS rotation — generate spec map at actual angle for non-circular shapes
+  so.style.transform="none";
+  // Rebuild when any param (including angle) changes
+  var ck=soSize+"|"+soShape+"|"+soSα.toFixed(2)+"|"+soSa+"|"+soLw+"|"+soBr.toFixed(1)+"|"+soLp.toFixed(2)+"|"+document.getElementById("surf").value+"|"+document.getElementById("bw").value+"|"+document.getElementById("th").value;
+  if(soSpecCache&&ck===soCacheParams){return;}
+  soCacheParams=ck;
+  var soSDF;
+  if(soShape==="circle")soSDF=makeCircleSDF(Math.min(soW,soH)/2);
+  else if(soShape==="rounded-rect")soSDF=makeRoundedRectSDF(soW,soH,soSize*0.15);
+  else soSDF=makeCapsuleSDF(soW,soH);
+  var fn=F[document.getElementById("surf").value];
+  var bw=+document.getElementById("bw").value,th=+document.getElementById("th").value;
+  var samples=snell(fn,bw,th);
+  // Generate at actual angle — no CSS rotation needed
+  var soSpecMap=buildSpecMap(soW,soH,soSDF,bw,samples,soSa,MAP_DPR,{linePx:soLw,boost:soBr,tPeak:soLp,alpha:soSα});
+  // Update preview canvas
+  drawMapPreview("smCv",soSpecMap,soW,soH);
+  soSpecMap.toBlob(function(sblob){
+    if(blobCache["soSpec"])URL.revokeObjectURL(blobCache["soSpec"]);
+    blobCache["soSpec"]=URL.createObjectURL(sblob);
+    soSpecCache=blobCache["soSpec"];
+    // Direct background-image — no SVG filter compositing, no backdrop-filter
+    // Shows the RAW specular map (white strokes on transparent) exactly as generated
+    so.style.backgroundImage="url("+blobCache["soSpec"]+")";
+    so.style.backgroundSize="100% 100%";
+    so.style.backgroundRepeat="no-repeat";
+    so.style.backdropFilter="none";
+    so.style.webkitBackdropFilter="none";
+  });
+}
+
+// Debounce for smooth slider updates
+var updateTimer=null;
+function debouncedUpdate(fn,delay){
+  clearTimeout(updateTimer);
+  // Immediate map updates (sync canvas)
+  if(fn===updateComponents)fn();
+  else if(fn===updateAll){updateComponents();}
+  // Debounce async filter rebuild
+  updateTimer=setTimeout(function(){
+    if(fn===updateAll)updatePanel();
+    else updateComponents();
+  },delay||80);
+}
+
+// Event listeners with debounce
+var panelIds=['shape','surf','bw','th','mt','cr'];
+panelIds.forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){debouncedUpdate(updateAll,100);});
+  document.getElementById(id).addEventListener('change',updateAll);
+});
+['sa','sα'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){debouncedUpdate(updateAll,100);});
+  document.getElementById(id).addEventListener('change',updateAll);
+});
+['soSize','soShape','soSa','soSα','soLw','soBr','soLp'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){debouncedUpdate(updateAll,100);});
+  document.getElementById(id).addEventListener('change',updateSpecOnly);
+});
+['swSurf','swBw','swTh','swMt','swBlur','swSat','swSa','swSα','slSurf','slBw','slTh','slMt','slBlur','slSat','slSa','slSα'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){debouncedUpdate(updateComponents,100);});
+  document.getElementById(id).addEventListener('change',updateComponents);
+});
+
+// DPR quality selector — change rebuilds all maps at new resolution
+document.getElementById('mapDpr').value=MAP_DPR;
+document.getElementById('mapDpr').addEventListener('change',function(){
+  MAP_DPR=parseInt(this.value);
+  updateAll();
+});
+
+// ═══════════════════════════════════════════════════════
+function swDragRAF(){
+  if(!swActive){swRAF=0;return;}
+  var tx=swTargetTX;
+  if(tx<0){var d=-tx;tx=-d/(1+d*0.10);}
+  else if(tx>57.9){var d=tx-57.9;tx=57.9+d/(1+d*0.10);}
+  swCurrentTX=swCurrentTX+(tx-swCurrentTX)*0.45;
+  if(Math.abs(tx-swCurrentTX)<0.15)swCurrentTX=tx;
+  swThumb.style.transform="translateX("+swCurrentTX+"px) translateY(-50%) scale(0.96)";
+  swTrack.classList.toggle("on",swCurrentTX>28.95);
+  swRAF=requestAnimationFrame(swDragRAF);
+}
+
+// SMOOTH SCALE: animate feDisplacementMap scale
+// ═══════════════════════════════════════════════════════
+var scaleAnim={};
+function setDispScale(filterId,target,duration){
+  target=Number(target);if(isNaN(target))target=22;
+  duration=duration||120;
+  if(!scaleAnim[filterId])scaleAnim[filterId]={current:0,target:0,raf:0,start:0,from:0,dur:0};
+  var a=scaleAnim[filterId];
+  a.target=target;a.from=a.current;a.start=performance.now();a.dur=duration;
+  if(!a.raf){
+    a.raf=requestAnimationFrame(function tick(t){
+      var s=scaleAnim[filterId];
+      if(!s)return;
+      var p=Math.min(1,(t-s.start)/s.dur);
+      p=1-Math.pow(1-p,3);
+      s.current=s.from+(s.target-s.from)*p;
+      if(isNaN(s.current))s.current=0;
+      var el=document.getElementById("svg").querySelector("#"+filterId+" feDisplacementMap");
+      if(el)el.setAttribute("scale",Math.round(s.current));
+      if(p<1){s.raf=requestAnimationFrame(tick);}
+      else{s.raf=0;s.current=s.target;}
+    });
+  }
+}
+
+// ── Switch (click + drag, glass on/off) ──
+var swTrack=document.getElementById('swTrack'),swThumb=document.getElementById('swThumb'),isOn=false;
+var swActive=false,swStartX=0,swStartTX=0,swTX=0,swMoved=0,swTimeout=null,swForceOn=false;
+var swTargetTX=0,swCurrentTX=0,swRAF=0;
+
+function getSwTX(){
+  if(swThumb.style.transform){
+    var m=swThumb.style.transform.match(/translateX\(([-\d.]+)px\)/);
+    if(m)return parseFloat(m[1]);
+  }
+  return isOn?57.9:0;
+}
+function swGlassOn(){
+  swThumb.classList.add('glass');clearTimeout(swTimeout);
+  setDispScale('fSw',blobCache['fSwSC']||22,150);
+  swThumb.style.transition='transform 0.25s ease-out';
+  var tx=isOn?57.9:0;
+  swThumb.style.transform='translateX('+tx+'px) translateY(-50%) scale(0.96)';
+}
+function swGlassOff(){
+  if(swForceOn)return;
+  setDispScale('fSw','0',200);
+  swThumb.classList.remove('glass');
+  swThumb.style.transition='transform 0.45s cubic-bezier(0.25,0.8,0.35,1.0)';
+  var tx=isOn?57.9:0;
+  swThumb.style.transform='translateX('+tx+'px) translateY(-50%) scale(0.65)';
+}
+function swSnap(target){
+  if(target!==isOn){isOn=target;swTrack.classList.toggle('on',isOn);}
+}
+
+function swDown(e,tx){
+  swActive=true;swMoved=0;swStartX=e.clientX;swStartTX=tx;swTargetTX=tx;swCurrentTX=tx;
+  swGlassOn();
+}
+swThumb.addEventListener("pointerdown",function(e){
+  swDown(e,getSwTX());swThumb.setPointerCapture(e.pointerId);
+  e.preventDefault();e.stopPropagation();
+});
+swTrack.addEventListener("pointerdown",function(e){
+  swDown(e,getSwTX());e.preventDefault();
+});
+window.addEventListener("pointermove",function(e){
+  if(!swActive)return;
+  var dx=e.clientX-swStartX;swMoved=Math.abs(dx);
+  swTargetTX=swStartTX+dx;
+  swThumb.style.transition="none";
+  if(!swRAF)swRAF=requestAnimationFrame(swDragRAF);
+});
+window.addEventListener("pointerup",function(){
+  if(!swActive)return;swActive=false;swRAF=0;
+  if(swMoved<3)swSnap(!isOn);else swSnap(swCurrentTX>28.95);
+  swGlassOff();
+});
+
+swTrack.addEventListener('pointerleave',function(){if(swActive){swActive=false;swGlassOff();}});
+swThumb.addEventListener('pointerleave',function(){if(swActive){swActive=false;swGlassOff();}});
+
+// Force glass toggle for switch
+document.getElementById('swForce').addEventListener('click',function(){
+  swForceOn=!swForceOn;
+  this.textContent=swForceOn?'ON':'OFF';
+  this.classList.toggle('on',swForceOn);
+  if(swForceOn)swGlassOn();else swGlassOff();
+});
+
+// ── Slider (RAF smooth drag + glass) ──
+var slThumb=document.getElementById('slThumb'),slTrack=document.getElementById('slTrack');
+var slFill=document.getElementById('slFill'),slDragging=false,valNum=0,slTargetX=0,slGrabOffset=0;
+function slGlassOn(){slThumb.classList.add('glass');setDispScale('fSl',blobCache['fSlSC']||34,100);slThumb.style.transition='transform 0.10s linear';}
+var slForceOn=false;
+function slGlassOff(){if(slForceOn)return;setDispScale('fSl','0',100);slThumb.classList.remove('glass');}
+
+var slRAF=0;
+function slDragRAF(){
+  if(!slDragging){slRAF=0;return;}
+  var r=slTrack.getBoundingClientRect();
+  var raw=slTargetX,w=r.width;
+  // Rubber band on pixel position — not clamped
+  var tx;
+  if(raw<0){var d=-raw;tx=-d/(1+d*0.25);}
+  else if(raw>w){var d=raw-w;tx=w+d/(1+d*0.25);}
+  else{tx=raw;}
+  // Clamp valNum for fill display only
+  valNum=Math.max(0,Math.min(1,raw/w));
+  var cur=parseFloat(slThumb.style.left)||0;
+  var nx=cur+(tx-cur)*0.55;
+  if(Math.abs(tx-cur)<0.3)nx=tx;
+  slThumb.style.left=Math.round(nx)+'px';slFill.style.width=(valNum*100)+'%';
+  slRAF=requestAnimationFrame(slDragRAF);
+}
+function slStart(e,clientX){
+  slDragging=true;slGlassOn();
+  var r=slTrack.getBoundingClientRect();
+  var thumbCenter=parseFloat(slThumb.style.left)||(valNum*r.width);
+  slGrabOffset=thumbCenter-(clientX-r.left);
+  if(!slRAF)slRAF=requestAnimationFrame(slDragRAF);
+}
+slThumb.addEventListener('pointerdown',function(e){slStart(e,e.clientX);slThumb.setPointerCapture(e.pointerId);e.preventDefault();});
+window.addEventListener('pointermove',function(e){
+  if(!slDragging)return;
+  var r=slTrack.getBoundingClientRect();
+  slTargetX=e.clientX-r.left+slGrabOffset;
+});
+window.addEventListener('pointerup',function(){
+  if(!slDragging)return;slDragging=false;slGlassOff();
+  var w=slTrack.getBoundingClientRect().width;
+  slThumb.style.transition='left 0.45s cubic-bezier(0.25,0.8,0.35,1.0), transform 0.3s cubic-bezier(0.22,0.9,0.36,1.0), background 0.25s';
+  slThumb.style.left=Math.round(valNum*w)+'px';
+});
+
+// Force glass toggle for slider
+document.getElementById('slForce').addEventListener('click',function(){
+  slForceOn=!slForceOn;
+  this.textContent=slForceOn?'ON':'OFF';
+  this.classList.toggle('on',slForceOn);
+  if(slForceOn)slGlassOn();else slGlassOff();
+});
+
+// Init slider position (sync — prevents first-drag jump)
+(function initSlider(){
+  var r=slTrack.getBoundingClientRect();
+  if(r.width>0)slThumb.style.left='0px';
+  else setTimeout(initSlider,50);
+})();
+
+// ── Panel drag ──
+var gEl=document.getElementById('g'),dr=false,lx=0,ly=0,ox=0,oy=0;
+gEl.addEventListener('pointerdown',function(e){dr=true;lx=e.clientX;ly=e.clientY;e.target.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',function(e){if(!dr)return;ox+=e.clientX-lx;oy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;gEl.style.transform='translate('+ox+'px,'+oy+'px)';});
+window.addEventListener('pointerup',function(){dr=false;});
+
+// ── Init ──
+updateAll();
+</script></body></html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Glass v7 — Multi-Shape</title><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%}
+body{overflow:hidden;background:#d5cfc0;
+  background-image:linear-gradient(to right,rgba(0,0,0,0.25) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,0.25) 1px,transparent 1px),
+    radial-gradient(circle at 25% 35%,rgba(200,120,80,0.4),transparent 50%),
+    radial-gradient(circle at 70% 55%,rgba(80,140,200,0.35),transparent 50%);
+  background-size:30px 30px,30px 30px,100% 100%,100% 100%;
+  font-family:InterVariable,Inter,system-ui,sans-serif}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden}
+
+.pnl{position:fixed;top:0;left:0;width:440px;height:100vh;z-index:50;overflow-y:auto;
+  background:rgba(18,18,22,0.94);color:#ccc;padding:14px;
+  border-right:1px solid rgba(255,255,255,0.08)}
+.pnl h3{font-size:0.85rem;color:#c8a87c;margin-bottom:2px}
+.pnl .sub{font-size:0.58rem;color:#888;margin-bottom:8px}
+.pnl canvas{display:block;margin:0 auto 4px;border-radius:4px;background:#111}
+.pnl .lbl{font-size:0.55rem;color:#777;text-align:center;margin-bottom:6px}
+.pnl .row{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.pnl label{font-size:0.6rem;color:#999;flex:0 0 80px;text-align:right}
+.pnl input[type=range]{flex:1;height:3px;accent-color:#c8a87c}
+.pnl select{width:100%;font-size:0.6rem;background:#222;color:#ccc;border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;margin-bottom:6px}
+.pnl .val{font-size:0.55rem;color:#888;flex:0 0 36px;text-align:left}
+.pnl .sep{height:1px;background:rgba(255,255,255,0.06);margin:8px 0}
+
+.glass{position:fixed;inset:0;margin:auto auto auto 440px;z-index:20;
+  border:2px solid rgba(255,255,255,0.3);
+  box-shadow:0 20px 60px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;text-align:center;cursor:grab;user-select:none;
+  text-shadow:0 1px 3px rgba(0,0,0,0.4)}
+.glass:active{cursor:grabbing}
+.glass h2{font-size:1.2rem;font-weight:600}
+.glass p{font-size:0.65rem;opacity:0.5;margin-top:4px}
+</style></head><body>
+
+<div class="pnl">
+  <h3>Playground</h3>
+  <p class="sub">Multi-Shape Liquid Glass — kube.io Snell Refraction</p>
+
+  <div class="lbl">Shape</div>
+  <select id="shape"><option value="circle" selected>Circle</option><option value="rounded-rect">Rounded Rectangle</option><option value="capsule">Capsule</option></select>
+
+  <div id="crGroup" style="display:none">
+    <div class="row"><label>Corner Radius</label><input type="range" min="10" max="120" value="50" id="cr"><span class="val" id="crV">50</span></div>
+  </div>
+
+  <div class="sep"></div>
+
+  <select id="surf"><option value="circle">Convex Circle</option><option value="squircle" selected>Convex Squircle</option><option value="concave">Concave</option><option value="lip">Lip</option></select>
+
+  <div class="lbl">Surface Height — f(distanceFromSide)</div>
+  <canvas id="sCv" width="400" height="110"></canvas>
+  <div class="lbl">Displacement vs Distance to border</div>
+  <canvas id="dCv" width="400" height="130"></canvas>
+  <div class="lbl">Displacement Map (R=X, G=Y)</div>
+  <canvas id="mCv" width="260" height="260"></canvas>
+
+  <div class="row"><label>Bezel</label><input type="range" min="5" max="80" value="28" id="bw"><span class="val" id="bwV">28</span></div>
+  <div class="row"><label>Thickness</label><input type="range" min="2" max="40" value="14" id="th"><span class="val" id="thV">14</span></div>
+  <div class="row"><label>Scale (×maxDisp)</label><input type="range" min="0" max="15" step="0.1" value="4" id="mt"><span class="val" id="mtV">4.0</span></div>
+  <div class="row"><label>Spec Angle</label><input type="range" min="-180" max="180" value="-60" id="sa"><span class="val" id="saV">-60</span></div>
+  <div class="row"><label>Spec α</label><input type="range" min="0" max="1" step="0.05" value="0.3" id="sα"><span class="val" id="sαV">0.30</span></div>
+  <div class="lbl" id="info" style="color:#a78bfa">Ready</div>
+</div>
+
+<div class="glass" id="g"><h2>Liquid Glass</h2><p>Multi-Shape Optics</p></div>
+<svg class="hidden-svg" id="svg"></svg>
+
+<script>
+const IOR=1.5;
+
+// ── Shape definitions ──────────────────────────────────
+// Returns { w, h, sdf(px,py), label }
+// sdf: negative inside, 0 at edge, positive outside
+function makeSDF(shape, W, H, cr) {
+  var hw=W/2, hh=H/2;
+  if (shape==='circle') {
+    var R=Math.min(W,H)/2;
+    return {
+      w:W, h:H, label:'Circle',
+      sdf: function(px,py){ return Math.sqrt(px*px+py*py)-R; }
+    };
+  }
+  if (shape==='rounded-rect') {
+    cr=cr||50;
+    return {
+      w:W, h:H, label:'Rounded Rect',
+      sdf: function(px,py){
+        var dx=Math.abs(px)-hw+cr, dy=Math.abs(py)-hh+cr;
+        return Math.sqrt(Math.max(dx,0)*Math.max(dx,0)+Math.max(dy,0)*Math.max(dy,0))
+          +Math.min(Math.max(dx,dy),0)-cr;
+      }
+    };
+  }
+  if (shape==='capsule') {
+    // Horizontal capsule: line segment [-halfLen, halfLen] with radius r
+    var r=Math.min(hw,hh);
+    var halfLen=Math.max(0,hw-r);
+    return {
+      w:W, h:H, label:'Capsule',
+      sdf: function(px,py){
+        // Closest point on the line segment
+        var cx=Math.max(-halfLen,Math.min(halfLen,px));
+        return Math.sqrt((px-cx)*(px-cx)+py*py)-r;
+      }
+    };
+  }
+}
+
+// Numerical gradient of SDF (outward-pointing normal)
+function sdfGrad(sdfFn, px, py, eps) {
+  eps=eps||0.5;
+  var gx=sdfFn(px+eps,py)-sdfFn(px-eps,py);
+  var gy=sdfFn(px,py+eps)-sdfFn(px,py-eps);
+  var gl=Math.sqrt(gx*gx+gy*gy);
+  if(gl<0.0001)return{x:0,y:1};
+  return{x:gx/gl,y:gy/gl};
+}
+
+// ── Surface functions ──────────────────────────────────
+function st(x){x=Math.max(0,Math.min(1,x));return x*x*x*(x*(x*6-15)+10)}
+var F={
+  circle(x){var d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.sqrt(1-d*d)},
+  squircle(x){var d=1-Math.max(0,Math.min(1,x));return d<=0?1:Math.pow(1-Math.pow(d,4),0.25)},
+  concave(x){return 1-F.squircle(x)},
+  lip(x){var t=st(x);return F.squircle(x)*(1-t)+(1-F.squircle(x))*t}
+};
+
+// ── Snell refraction along 1D surface profile ──────────
+function snell(fn,bw,th,N){
+  N=N||128;var o=[],d=0.0005;
+  for(var i=0;i<N;i++){
+    var x=i/(N-1),h=fn(x)*th;
+    var xm=Math.max(0,x-d),xp=Math.min(1,x+d);
+    var der=(fn(xp)-fn(xm))/(xp-xm);
+    var nx=-der,ny=1,nL=Math.sqrt(nx*nx+ny*ny);
+    var cosT=Math.abs(ny)/nL,t1=Math.acos(Math.min(1,cosT));
+    var s2=Math.sin(t1)/IOR,ds;
+    if(s2>=1)ds=h*Math.tan(t1);else ds=h*Math.tan(Math.asin(s2));
+    o.push({t:x,der:der,ab:ds,mg:ds*(der>=0?-1:1)});
+  }
+  return o;
+}
+
+// ── Build displacement map (SDF-based, works for all shapes) ──
+function buildMap(mW,mH,sdfFn,bw,samples,md,ref){
+  var c=document.createElement('canvas');c.width=mW;c.height=mH;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(mW,mH),d=img.data;
+  var denom=ref||md||1;
+  for(var y=0;y<mH;y++)for(var x=0;x<mW;x++){
+    var i=(y*mW+x)*4,px=x-mW/2,py=y-mH/2;
+    var sdf=sdfFn(px,py);
+    // bd = distance from border (positive inside, negative outside)
+    var bd=-sdf;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.002||t>=0.998||bd<-2){d[i]=128;d[i+1]=128;d[i+2]=0;d[i+3]=255;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    var nm=Math.min(1,s.ab/denom),sg=s.mg<0?-1:1;
+    // Gradient direction (outward normal)
+    var grad=sdfGrad(sdfFn,px,py);
+    d[i]=Math.max(0,Math.min(255,Math.round(128-grad.x*nm*sg*127)));
+    d[i+1]=Math.max(0,Math.min(255,Math.round(128-grad.y*nm*sg*127)));
+    d[i+2]=0;d[i+3]=255;
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+// ── Build specular map (SDF-based) ──
+function buildSpecMap(mW,mH,sdfFn,bw,samples,angleDeg){
+  var c=document.createElement('canvas');c.width=mW;c.height=mH;
+  var ctx=c.getContext('2d'),img=ctx.createImageData(mW,mH),d=img.data;
+  var cx=mW/2,cy=mH/2,lightA=angleDeg*Math.PI/180;
+  var lx=Math.cos(lightA),ly=Math.sin(lightA);
+  for(var y=0;y<mH;y++)for(var x=0;x<mW;x++){
+    var i=(y*mW+x)*4,px=x-cx,py=y-cy;
+    var sdf=sdfFn(px,py),bd=-sdf;
+    var t=Math.max(0,Math.min(1,bd/bw));
+    if(t<=0.01||t>=0.99||bd<-2){d[i]=0;d[i+1]=0;d[i+2]=0;d[i+3]=0;continue;}
+    var si=Math.round(t*(samples.length-1)),s=samples[Math.max(0,Math.min(samples.length-1,si))];
+    var Nx=-s.der,Ny=1,nL=Math.sqrt(Nx*Nx+Ny*Ny);
+    Nx/=nL;Ny/=nL;
+    // Surface normal combined with SDF gradient direction
+    var grad=sdfGrad(sdfFn,px,py);
+    var radialDot=grad.x*lx+grad.y*ly;
+    var dot=Nx*radialDot;
+    dot=Math.max(0,dot);
+    var rim=Math.pow(dot,6);
+    var v=Math.round(rim*255);
+    d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=v;
+  }
+  ctx.putImageData(img,0,0);return c;
+}
+
+// ── Draw surface curve ─────────────────────────────────
+function drawSurf(cvid,fn,th){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=0.5;
+  for(var i=0;i<=10;i++){var x=50+(W-70)*i/10;ctx.beginPath();ctx.moveTo(x,12);ctx.lineTo(x,H-18);ctx.stroke();}
+  for(var i=0;i<=5;i++){var y=12+(H-30)*i/5;ctx.beginPath();ctx.moveTo(50,y);ctx.lineTo(W-20,y);ctx.stroke();}
+  var pw=W-70,ph=H-30;
+  ctx.strokeStyle='#e5a040';ctx.lineWidth=2.5;ctx.beginPath();
+  for(var i=0;i<=100;i++){var t=i/100,x=50+t*pw,y=12+(1-fn(t))*ph;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0',48,H-6);ctx.fillText('1',48+pw-10,H-6);
+}
+
+// ── Draw displacement curve ────────────────────────────
+function drawDisp(cvid,samples,md,sc){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  var mx=50,my=H-25,pw=W-70,ph=H-30;
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx+pw,my);ctx.stroke();
+  ctx.strokeStyle='#a78bfa';ctx.lineWidth=2.5;ctx.beginPath();
+  var peak=0;
+  for(var i=0;i<samples.length;i++){
+    var pxDisp=samples[i].mg*(sc||1)/(md||1);
+    var x=mx+samples[i].t*pw;
+    var y=my-pxDisp;
+    if(i===0)ctx.moveTo(x,Math.max(10,Math.min(H-10,y)));
+    else ctx.lineTo(x,Math.max(10,Math.min(H-10,y)));
+    if(Math.abs(pxDisp)>Math.abs(peak))peak=pxDisp;
+  }
+  ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='8px system-ui';
+  ctx.fillText('0 (edge)',mx,my+12);
+  ctx.fillText('bezel→flat',mx+pw-55,my+12);
+  ctx.fillText(peak>0?'peak +'+peak.toFixed(0)+'px':'peak '+peak.toFixed(0)+'px',mx+pw-80,my-Math.abs(peak)-4);
+}
+
+// ── Draw displacement map preview ──────────────────────
+function drawMapPreview(cvid,dispMap,mapW,mapH){
+  var c=document.getElementById(cvid),W=c.width,H=c.height,ctx=c.getContext('2d');
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  // Fit map into square canvas, maintaining aspect ratio
+  var scale=Math.min(W/mapW,H/mapH);
+  var dw=mapW*scale,dh=mapH*scale;
+  var ox=(W-dw)/2,oy=(H-dh)/2;
+  ctx.drawImage(dispMap,0,0,mapW,mapH,ox,oy,dw,dh);
+}
+
+// ── Globals ────────────────────────────────────────────
+var g=document.getElementById('g'),blobURL=null,specURL=null;
+
+function update(){
+  var shape=document.getElementById('shape').value;
+  var sn=document.getElementById('surf').value;
+  var bw=parseInt(document.getElementById('bw').value);
+  var th=parseInt(document.getElementById('th').value);
+  var mt=parseFloat(document.getElementById('mt').value);
+  var sa=parseInt(document.getElementById('sa').value);
+  var sα=parseFloat(document.getElementById('sα').value);
+  var cr=parseInt(document.getElementById('cr').value)||50;
+
+  // Show/hide corner radius control
+  document.getElementById('crGroup').style.display=shape==='rounded-rect'?'block':'none';
+
+  document.getElementById('bwV').textContent=bw;
+  document.getElementById('thV').textContent=th;
+  document.getElementById('mtV').textContent=mt.toFixed(1);
+  document.getElementById('saV').textContent=sa;
+  document.getElementById('sαV').textContent=sα.toFixed(2);
+  document.getElementById('crV').textContent=cr;
+
+  // ── Set panel dimensions based on shape ──
+  var pW,pH,borderRadius;
+  switch(shape){
+    case'circle':pW=340;pH=340;borderRadius='50%';break;
+    case'rounded-rect':pW=400;pH=280;borderRadius=cr+'px';break;
+    case'capsule':pW=400;pH=200;borderRadius='999px';break;
+  }
+  g.style.width=pW+'px';g.style.height=pH+'px';g.style.borderRadius=borderRadius;
+
+  // ── Build SDF ──
+  var sdfDef=makeSDF(shape,pW,pH,cr);
+  var sdfFn=sdfDef.sdf;
+
+  // ── 1D surface profile + Snell ──
+  var fn=F[sn],samples=snell(fn,bw,th,128);
+  var md=Math.max.apply(null,samples.map(function(s){return s.ab}));
+  if(md<0.01)md=0.01;
+  var sc=Math.round(md*mt);
+  document.getElementById('info').textContent=
+    'maxDisp:'+md.toFixed(1)+'px scale:'+sc+'px '+sdfDef.label;
+
+  drawSurf('sCv',fn,th);
+  drawDisp('dCv',samples,md,sc);
+
+  // ── Build maps ──
+  var mapW=pW,mapH=pH;
+  // Display map: fixed 20px reference
+  var dispMap=buildMap(mapW,mapH,sdfFn,bw,samples,md,20);
+  // Filter map: normalized by maxDisp
+  var filtMap=buildMap(mapW,mapH,sdfFn,bw,samples,md,0);
+
+  drawMapPreview('mCv',dispMap,mapW,mapH);
+
+  var specMap=buildSpecMap(mapW,mapH,sdfFn,bw,samples,sa);
+
+  // ── SVG filter ──
+  filtMap.toBlob(function(blob){
+    if(blobURL)URL.revokeObjectURL(blobURL);
+    blobURL=URL.createObjectURL(blob);
+    specMap.toBlob(function(sblob){
+      if(specURL)URL.revokeObjectURL(specURL);
+      specURL=URL.createObjectURL(sblob);
+      document.getElementById('svg').innerHTML=
+        '<defs><filter id="gf" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">'+
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="2" result="bl"/>'+
+        '<feImage x="0" y="0" width="'+mapW+'" height="'+mapH+'" href="'+blobURL+'" result="dm"/>'+
+        '<feDisplacementMap in="bl" in2="dm" scale="'+sc+'" xChannelSelector="R" yChannelSelector="G" result="dp"/>'+
+        '<feImage x="0" y="0" width="'+mapW+'" height="'+mapH+'" href="'+specURL+'" result="sp"/>'+
+        '<feComposite in="dp" in2="sp" operator="in" result="ss"/>'+
+        '<feComponentTransfer in="sp" result="sf"><feFuncA type="linear" slope="'+sα.toFixed(2)+'"/></feComponentTransfer>'+
+        '<feBlend in="ss" in2="dp" mode="normal" result="ws"/>'+
+        '<feBlend in="sf" in2="ws" mode="normal"/>'+
+        '</filter></defs>';
+      g.style.backdropFilter='url(#gf)';g.style.webkitBackdropFilter='url(#gf)';
+    });
+  });
+}
+
+// ── Init ──
+update();
+document.getElementById('shape').addEventListener('change',update);
+document.getElementById('surf').addEventListener('change',update);
+document.getElementById('bw').addEventListener('input',update);
+document.getElementById('th').addEventListener('input',update);
+document.getElementById('mt').addEventListener('input',update);
+document.getElementById('sa').addEventListener('input',update);
+document.getElementById('sα').addEventListener('input',update);
+document.getElementById('cr').addEventListener('input',update);
+
+// ── Drag ──
+var dr=false,lx=0,ly=0,ox=0,oy=0;
+g.addEventListener('pointerdown',function(e){dr=true;lx=e.clientX;ly=e.clientY;e.target.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',function(e){if(!dr)return;ox+=e.clientX-lx;oy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;g.style.transform='translate('+ox+'px,'+oy+'px)';});
+window.addEventListener('pointerup',function(){dr=false;});
+</script></body></html>

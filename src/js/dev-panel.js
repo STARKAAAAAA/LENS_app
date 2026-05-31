@@ -1365,51 +1365,44 @@ function renderVisualGroup() {
           <div style="text-align:center"><div style="font-size:0.58rem;color:var(--text-3);margin-bottom:4px">Glass Switch</div><div id="gsw-demo"></div></div>
           <div style="text-align:center"><div style="font-size:0.58rem;color:var(--text-3);margin-bottom:4px">Glass Slider</div><div id="gsl-demo"></div></div>
         </div></div>
-      <div class="dev-row">
-        <span class="dev-row__label">启用液态玻璃</span>
-        <button class="dev-toggle" id="dev-toggle-liquid-glass" data-key="liquid-glass"></button>
-      </div>
-      <div class="dev-row">
-        <span class="dev-row__label">测试背景</span>
-        <button class="dev-toggle" id="dev-toggle-lg-test-bg" data-key="lg-test-bg"></button>
-      </div>
-      ${lgSlider('宽度', 'width', 60, 600, 240, 10, 'px')}
-      ${lgSlider('高度', 'height', 60, 600, 240, 10, 'px')}
-      ${lgSlider('圆角', 'radius', 0, 100, 36, 2, 'px')}
-      ${lgSlider('模糊', 'blur', 0, 40, 6, 1, 'px')}
-      ${lgSlider('折射', 'refraction', 0, 200, 150, 2, '')}
-      <div class="dev-row">
-        <span class="dev-row__label">球型玻璃</span>
-        <button class="dev-toggle" id="dev-toggle-lg-sphere" data-key="lg-sphere"></button>
-      </div>
-      ${lgSlider('饱和度', 'saturate', 0.5, 3, 1.3, 0.1, '')}
-      ${lgSlider('底色', 'bgOpacity', 0, 0.5, 0.06, 0.01, '')}
-      ${lgSlider('边框', 'borderOpacity', 0, 0.5, 0.15, 0.01, '')}
-      ${lgSlider('投影', 'shadowBlur', 0, 80, 40, 2, 'px')}
-      ${lgSlider('投影深', 'shadowOpacity', 0, 0.5, 0.15, 0.01, '')}
-      ${lgSlider('弹性', 'tension', 50, 400, 170, 10, '')}
-      ${lgSlider('阻尼', 'friction', 5, 60, 26, 1, '')}
+      ${makeGlassToggleRow('启用液态玻璃', 'liquid-glass')}
+      ${makeGlassToggleRow('测试背景', 'lg-test-bg')}
+      ${makeGlassSliderRow('宽度', 'width', 60, 600, 240, 10, 'px')}
+      ${makeGlassSliderRow('高度', 'height', 60, 600, 240, 10, 'px')}
+      ${makeGlassSliderRow('圆角', 'radius', 0, 100, 36, 2, 'px')}
+      ${makeGlassSliderRow('模糊', 'blur', 0, 40, 6, 1, 'px')}
+      ${makeGlassSliderRow('折射', 'refraction', 0, 200, 150, 2, '')}
+      ${makeGlassToggleRow('球型玻璃', 'lg-sphere')}
+      ${makeGlassSliderRow('饱和度', 'saturate', 0.5, 3, 1.3, 0.1, '')}
+      ${makeGlassSliderRow('底色', 'bgOpacity', 0, 0.5, 0.06, 0.01, '')}
+      ${makeGlassSliderRow('边框', 'borderOpacity', 0, 0.5, 0.15, 0.01, '')}
+      ${makeGlassSliderRow('投影', 'shadowBlur', 0, 80, 40, 2, 'px')}
+      ${makeGlassSliderRow('投影深', 'shadowOpacity', 0, 0.5, 0.15, 0.01, '')}
+      ${makeGlassSliderRow('弹性', 'tension', 50, 400, 170, 10, '')}
+      ${makeGlassSliderRow('阻尼', 'friction', 5, 60, 26, 1, '')}
     </details>
     </div>
       </div>
     </div>
   `;
+  // Clean up old glass components before replacing innerHTML
+  _disposeGlassIn(el);
   el.innerHTML = html;
   bindVisualControls(el);
   buildDevPreview();
-  // Init glass component demos + preview section
+  // Init glass component demos + control replacements
   setTimeout(() => {
     try {
       // Insert demo preview HTML
-      const lgSection = el.querySelector('[data-subtab=\"lg\"]');
+      const lgSection = el.querySelector('[data-subtab="lg"]');
       if (lgSection && !lgSection.querySelector('#gsw-demo')) {
         const preview = document.createElement('div');
         preview.className = 'dev-zone';
         preview.style.cssText = 'margin-bottom:8px';
-        preview.innerHTML = '<div style=\"font-size:0.7rem;color:var(--accent);margin-bottom:6px\">🔮 液态玻璃交互预览</div>'+
-          '<div style=\"display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0\">'+
-          '<div style=\"text-align:center\"><div style=\"font-size:0.58rem;color:var(--text-3);margin-bottom:4px\">Glass Switch</div><div id=\"gsw-demo\"></div></div>'+
-          '<div style=\"text-align:center\"><div style=\"font-size:0.58rem;color:var(--text-3);margin-bottom:4px\">Glass Slider</div><div id=\"gsl-demo\"></div></div></div>';
+        preview.innerHTML = '<div style="font-size:0.7rem;color:var(--accent);margin-bottom:6px">🔮 液态玻璃交互预览</div>'+
+          '<div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0">'+
+          '<div style="text-align:center"><div style="font-size:0.58rem;color:var(--text-3);margin-bottom:4px">Glass Switch</div><div id="gsw-demo"></div></div>'+
+          '<div style="text-align:center"><div style="font-size:0.58rem;color:var(--text-3);margin-bottom:4px">Glass Slider</div><div id="gsl-demo"></div></div></div>';
         const desc = lgSection.querySelector('.dev-section__desc');
         if (desc) desc.parentNode.insertBefore(preview, desc.nextSibling);
       }
@@ -1417,62 +1410,94 @@ function renderVisualGroup() {
       if(d1&&!d1._gs){d1._gs=new GlassSwitch({});d1._gs.mount(d1);}
       const d2=document.getElementById('gsl-demo');
       if(d2&&!d2._gs){d2._gs=new GlassSlider({initialValue:50});d2._gs.mount(d2);}
+
+      // ── Replace toggles with GlassSwitch ──
+      _createGlassSwitch('liquid-glass', { initialState: !!(D.liquidGlassOn || window.__lensLiquidGlass), onChange: (on) => {
+        D.liquidGlassOn = on;
+        if (on) { mountLiquidGlass(); setTimeout(applyLG, 50); setTimeout(applyLG, 300); }
+        else { unmountLiquidGlass(); }
+      }});
+
+      _createGlassSwitch('lg-test-bg', { initialState: false, onChange: (on) => {
+        const old = document.getElementById('__lg_test_bg');
+        if (old) { old.remove(); D.liquidGlassTestBg = false; }
+        if (on) {
+          const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
+          bg.id = '__lg_test_bg';
+          document.body.appendChild(bg);
+          D.liquidGlassTestBg = true;
+        }
+      }});
+
+      _createGlassSwitch('lg-sphere', { initialState: false, onChange: (on) => {
+        const g = document.getElementById('liquid-glass');
+        if (g) {
+          if (on) {
+            g.dataset.sphere = '1';
+            const s = Math.max(g.offsetWidth, g.offsetHeight);
+            g.style.width = s + 'px'; g.style.height = s + 'px';
+            g.style.borderRadius = '50%';
+          } else {
+            g.dataset.sphere = '0';
+            applyLG();
+          }
+        }
+      }});
+
+      // ── Init all GlassSliders ──
+      const _sliderDefs = [
+        ['width', 60, 600, 240, 10, 'px'], ['height', 60, 600, 240, 10, 'px'],
+        ['radius', 0, 100, 36, 2, 'px'], ['blur', 0, 40, 6, 1, 'px'],
+        ['refraction', 0, 200, 150, 2, ''], ['saturate', 0.5, 3, 1.3, 0.1, ''],
+        ['bgOpacity', 0, 0.5, 0.06, 0.01, ''], ['borderOpacity', 0, 0.5, 0.15, 0.01, ''],
+        ['shadowBlur', 0, 80, 40, 2, 'px'], ['shadowOpacity', 0, 0.5, 0.15, 0.01, ''],
+        ['tension', 50, 400, 170, 10, ''], ['friction', 5, 60, 26, 1, ''],
+      ];
+      _sliderDefs.forEach(([name, min, max, val, step, unit]) => {
+        _createGlassSlider(name, { min, max, step, initialValue: val, onChange: (v) => {
+          const d = document.getElementById('gslv-' + name);
+          if (d) d.textContent = v + (unit || '');
+          applyLG();
+        }});
+      });
+
     }catch(e){console.warn('Glass demo:',e);}
   },300);
 
-  // 液态玻璃：读取滑块值更新 glass div
+  // ── applyLG: update liquid glass div from GlassSlider values ──
   const BASE_W = 240, BASE_H = 240;
   const applyLG = () => {
     const g = document.getElementById('liquid-glass');
     if (!g) return;
-    const rv = (n, fb) => { const e2 = el.querySelector('[data-lg="' + n + '"]'); if (!e2) return fb; const v = parseFloat(e2.value); return isNaN(v) ? fb : v; };
-	    const bp = rv('blur', 6), sat = rv('saturate', 1.3), rf = rv('refraction', 150);
-	    const depth = rv('depth', 10);
-	    const w = rv('width', BASE_W), h = rv('height', BASE_H);
-	    g.style.width = w + 'px';
-	    g.style.height = h + 'px';
-	    g.style.borderRadius = rv('radius', 36) + 'px';
-	    g.style.background = 'rgba(255,255,255,' + rv('bgOpacity', 0.06) + ')';
-	    g.style.border = '1px solid rgba(255,255,255,' + rv('borderOpacity', 0.15) + ')';
-	    g.style.boxShadow = '0 8px ' + rv('shadowBlur', 40) + 'px rgba(0,0,0,' + rv('shadowOpacity', 0.15) + '), inset 0 1px 0 rgba(255,255,255,0.2)';
-	    const bf = 'blur(' + bp.toFixed(1) + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
-	    g.style.backdropFilter = bf;
-	    g.style.WebkitBackdropFilter = bf;
-	    const st = getStudio();
-	    if (st) { st.setShape(w, h, rv('radius', 36)); st.setRefraction(rf); st.setDepth(depth); st.updateControls({ tension: rv('tension', 170), friction: rv('friction', 26) }); }
+    const bp = _getLGVal('blur', 6), sat = _getLGVal('saturate', 1.3), rf = _getLGVal('refraction', 150);
+    const depth = _getLGVal('depth', 10);
+    const w = _getLGVal('width', BASE_W), h = _getLGVal('height', BASE_H);
+    g.style.width = w + 'px';
+    g.style.height = h + 'px';
+    g.style.borderRadius = _getLGVal('radius', 36) + 'px';
+    g.style.background = 'rgba(255,255,255,' + _getLGVal('bgOpacity', 0.06) + ')';
+    g.style.border = '1px solid rgba(255,255,255,' + _getLGVal('borderOpacity', 0.15) + ')';
+    g.style.boxShadow = '0 8px ' + _getLGVal('shadowBlur', 40) + 'px rgba(0,0,0,' + _getLGVal('shadowOpacity', 0.15) + '), inset 0 1px 0 rgba(255,255,255,0.2)';
+    const bf = 'blur(' + bp.toFixed(1) + 'px) saturate(' + sat + ')' + (rf > 0 ? ' url(#lg-refract)' : '');
+    g.style.backdropFilter = bf;
+    g.style.WebkitBackdropFilter = bf;
+    const st = getStudio();
+    if (st) { st.setShape(w, h, _getLGVal('radius', 36)); st.setRefraction(rf); st.setDepth(depth); st.updateControls({ tension: _getLGVal('tension', 170), friction: _getLGVal('friction', 26) }); }
   };
 
-  // 开关
-  const lgToggle = el.querySelector('#dev-toggle-liquid-glass');
-  if (lgToggle) {
-    lgToggle.addEventListener('click', () => {
-      const on = lgToggle.classList.toggle('dev-toggle--on');
-      D.liquidGlassOn = on;
-      if (on) { mountLiquidGlass(); setTimeout(applyLG, 50); setTimeout(applyLG, 300); }
-      else { unmountLiquidGlass(); }
-    });
-  }
-
-  // 面板位移图调试开关
-  const lgPanelDebugBtn = document.createElement('button');
-  lgPanelDebugBtn.className = 'dev-toggle';
-  lgPanelDebugBtn.id = 'dev-toggle-lg-panel-debug';
-  lgPanelDebugBtn.title = '面板位移图调试';
+  // 面板位移图调试 — GlassSwitch (dynamically inserted)
   const lgPanelDebugRow = document.createElement('div');
   lgPanelDebugRow.className = 'dev-row';
-  lgPanelDebugRow.innerHTML = '<span class="dev-row__label">面板位移图调试</span>';
-  lgPanelDebugRow.appendChild(lgPanelDebugBtn);
-  const lgTestBgRow2 = el.querySelector('#dev-toggle-lg-test-bg');
+  lgPanelDebugRow.innerHTML = '<span class="dev-row__label">面板位移图调试</span><div id="gsw-lg-panel-debug" class="gsw-mount"></div>';
+  const lgTestBgRow2 = el.querySelector('#gsw-lg-test-bg');
   if (lgTestBgRow2 && lgTestBgRow2.parentElement) {
     lgTestBgRow2.parentElement.after(lgPanelDebugRow);
   }
-  lgPanelDebugBtn.addEventListener('click', () => {
-    const on = lgPanelDebugBtn.classList.toggle('dev-toggle--on');
-    togglePanelDebug();
-    if (!on) lgPanelDebugBtn.classList.remove('dev-toggle--on');
-  });
+  setTimeout(() => {
+    _createGlassSwitch('lg-panel-debug', { initialState: false, onChange: () => { togglePanelDebug(); }});
+  }, 400);
 
-  // 测试背景 — 单击轮播（liquid-glass-studio 案例图片）
+  // 测试背景右键切换
   let _lgBgIdx = 0;
   const _lgBgLabel = ['网格', '条纹', '半色', '太浩湖', '建筑', '文字', 'TimCook', 'UI界面'];
   const _lgBgUrls = ['assets/bg-grid.png', 'assets/bg-bars.png', 'assets/bg-half.png', 'assets/bg-tahoe-light.webp', 'assets/bg-buildings.png', 'assets/bg-text.jpg', 'assets/bg-timcook.png', 'assets/bg-ui.svg'];
@@ -1482,26 +1507,9 @@ function renderVisualGroup() {
       'background: url(' + url + ') center/cover no-repeat;';
     return bg;
   };
-
-  const lgTestBg = el.querySelector('#dev-toggle-lg-test-bg');
-  if (lgTestBg) {
-    lgTestBg.addEventListener('click', () => {
-      const old = document.getElementById('__lg_test_bg');
-      if (old) {
-        old.remove();
-        lgTestBg.classList.remove('dev-toggle--on');
-        D.liquidGlassTestBg = false;
-        lgTestBg.title = '测试背景';
-      } else {
-        const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
-        bg.id = '__lg_test_bg';
-        document.body.appendChild(bg);
-        lgTestBg.classList.add('dev-toggle--on');
-        D.liquidGlassTestBg = true;
-        lgTestBg.title = '测试背景: ' + _lgBgLabel[_lgBgIdx] + ' (再点关闭 / 右键切换)';
-      }
-    });
-    lgTestBg.addEventListener('contextmenu', (e) => {
+  const testBgMount = el.querySelector('#gsw-lg-test-bg');
+  if (testBgMount) {
+    testBgMount.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const old = document.getElementById('__lg_test_bg');
       if (!old) return;
@@ -1510,39 +1518,8 @@ function renderVisualGroup() {
       const bg = _makeBg(_lgBgUrls[_lgBgIdx]);
       bg.id = '__lg_test_bg';
       document.body.appendChild(bg);
-      lgTestBg.title = '测试背景: ' + _lgBgLabel[_lgBgIdx] + ' (再点关闭 / 右键切换)';
     });
   }
-
-  // 球型玻璃
-  const lgSphere = el.querySelector('#dev-toggle-lg-sphere');
-  if (lgSphere) {
-    lgSphere.addEventListener('click', () => {
-      const on = lgSphere.classList.toggle('dev-toggle--on');
-      const g = document.getElementById('liquid-glass');
-      if (g) {
-        if (on) {
-          g.dataset.sphere = '1';
-          const s = Math.max(g.offsetWidth, g.offsetHeight);
-          g.style.width = s + 'px'; g.style.height = s + 'px';
-          g.style.borderRadius = '50%';
-        } else {
-          g.dataset.sphere = '0';
-          applyLG();
-        }
-      }
-    });
-  }
-
-  // 滑块
-  el.querySelectorAll('[data-lg]').forEach(sl => {
-    sl.addEventListener('input', () => {
-      const val = parseFloat(sl.value);
-      const display = sl.parentElement.querySelector('.dev-row__value');
-      if (display) display.textContent = val;
-      applyLG();
-    });
-  });
 
   // 卡片真实渲染（初始渲染后执行一次）
   requestAnimationFrame(() => initCardPreviews(el));
@@ -1567,6 +1544,75 @@ function lgSlider(label, name, min, max, val, step, unit) {
     <input type="range" class="dev-slider" data-lg="${name}" min="${min}" max="${max}" step="${step}" value="${val}">
     <span class="dev-row__value">${val}${unit}</span>
   </div>`;
+}
+
+// ── Glass component row generators ──
+const _LG_SWITCH_DIM = { trackW: 110, trackH: 46, thumbW: 100, thumbH: 64 };
+const _LG_SLIDER_DIM = { trackW: 190, trackH: 10, thumbW: 58, thumbH: 38 };
+
+function makeGlassToggleRow(label, id) {
+  return `<div class="dev-row">
+    <span class="dev-row__label">${label}</span>
+    <div id="gsw-${id}" class="gsw-mount"></div>
+  </div>`;
+}
+
+function makeGlassSliderRow(label, name, min, max, val, step, unit) {
+  return `<div class="dev-row">
+    <span class="dev-row__label">${label}</span>
+    <div id="gsl-${name}" class="gsl-mount" style="flex:1;min-width:0"></div>
+    <span class="dev-row__value" id="gslv-${name}">${val}${unit}</span>
+  </div>`;
+}
+
+// Shared GlassSlider instances (keyed by data-lg name)
+const _gsl = {};
+function _getLGVal(name, fb) {
+  const s = _gsl[name];
+  return s ? s.value : fb;
+}
+
+// Create a GlassSwitch instance for dev panel use
+function _createGlassSwitch(id, opts) {
+  const el = document.getElementById('gsw-' + id);
+  if (!el || el._gs) return null;
+  const sw = new GlassSwitch(Object.assign({
+    trackW: _LG_SWITCH_DIM.trackW, trackH: _LG_SWITCH_DIM.trackH,
+    thumbW: _LG_SWITCH_DIM.thumbW, thumbH: _LG_SWITCH_DIM.thumbH,
+    bezel: 40, thick: 40, scale: 0.65, blur: 0.1, saturate: 0,
+    specAngle: -45, specAlpha: 0.4,
+  }, opts || {}));
+  sw.mount(el);
+  el._gs = sw;
+  return sw;
+}
+
+// Create a GlassSlider instance for dev panel use
+function _createGlassSlider(name, opts) {
+  const el = document.getElementById('gsl-' + name);
+  if (!el || el._gsl) return null;
+  const sl = new GlassSlider(Object.assign({
+    trackW: _LG_SLIDER_DIM.trackW, trackH: _LG_SLIDER_DIM.trackH,
+    thumbW: _LG_SLIDER_DIM.thumbW, thumbH: _LG_SLIDER_DIM.thumbH,
+    bezel: 28, thick: 35, scale: 1.80, blur: 0, saturate: 0,
+    specAngle: -45, specAlpha: 0.4,
+  }, opts || {}));
+  sl.mount(el);
+  el._gsl = sl;
+  _gsl[name] = sl;
+  return sl;
+}
+
+// Dispose all glass components in a container
+function _disposeGlassIn(el) {
+  if (!el) return;
+  el.querySelectorAll('.gsw-mount').forEach(m => {
+    if (m._gs) { m._gs.destroy(); m._gs = null; }
+  });
+  el.querySelectorAll('.gsl-mount').forEach(m => {
+    if (m._gsl) { m._gsl.destroy(); m._gsl = null; }
+  });
+  for (const k in _gsl) delete _gsl[k];
 }
 
 function makeSliderRow(key, label, style, min, max, unit, step, decimals, tip) {
@@ -3239,9 +3285,11 @@ function loadPreset(preset) {
   syncVisualControls();
   renderPresetsGroup();
   autoSaveSession();
-  // 同步 toggle UI
-  const lgToggle = document.getElementById('dev-toggle-liquid-glass');
-  if (lgToggle) { lgToggle.classList.toggle('dev-toggle--on', window.__lensLiquidGlass); }
+  // 同步液态玻璃 GlassSwitch 状态
+  const lgSwMount = document.getElementById('gsw-liquid-glass');
+  if (lgSwMount && lgSwMount._gs && lgSwMount._gs.state !== !!window.__lensLiquidGlass) {
+    lgSwMount._gs._snap(!!window.__lensLiquidGlass);
+  }
 
   // 重建卡片真实渲染器（强调色已变更）
   const visualEl = document.getElementById('dev-group-visual');
@@ -3415,13 +3463,13 @@ function renderPresetsGroup() {
     html += `
     <div class="dev-section" id="lg-preset-config">
       <div class="dev-section__title">液态玻璃配置</div>
-      ${lgSlider('面板模糊', 'panelBlur', 2, 40, 6, 1, 'px')}
-      ${lgSlider('面板折射', 'panelRefraction', 0, 250, 150, 2, '')}
-      ${lgSlider('面板饱和度', 'panelSaturate', 0.5, 3, 1.3, 0.1, '')}
-      ${lgSlider('玻璃雾度', 'panelBgAlpha', 0, 0.08, 0, 0.002, '')}
-      ${lgSlider('边框透明度', 'panelBorderAlpha', 0, 0.4, 0.12, 0.01, '')}
-      ${lgSlider('高光强度', 'panelHighlight', 0, 0.2, 0.08, 0.005, '')}
-      ${lgSlider('阴影深度', 'panelShadowAlpha', 0, 0.6, 0.3, 0.01, '')}
+      ${makeGlassSliderRow('面板模糊', 'panelBlur', 2, 40, 6, 1, 'px')}
+      ${makeGlassSliderRow('面板折射', 'panelRefraction', 0, 250, 150, 2, '')}
+      ${makeGlassSliderRow('面板饱和度', 'panelSaturate', 0.5, 3, 1.3, 0.1, '')}
+      ${makeGlassSliderRow('玻璃雾度', 'panelBgAlpha', 0, 0.08, 0, 0.002, '')}
+      ${makeGlassSliderRow('边框透明度', 'panelBorderAlpha', 0, 0.4, 0.12, 0.01, '')}
+      ${makeGlassSliderRow('高光强度', 'panelHighlight', 0, 0.2, 0.08, 0.005, '')}
+      ${makeGlassSliderRow('阴影深度', 'panelShadowAlpha', 0, 0.6, 0.3, 0.01, '')}
     </div>
     `;
   }
@@ -3456,32 +3504,40 @@ function renderPresetsGroup() {
     </div>
   `;
 
-  // 仅更新动态内容，保留 section 结构
+  // 清理旧玻璃组件后更新动态内容
+  _disposeGlassIn(el);
   el.innerHTML = html;
 
-  // 液态玻璃预设配置滑块事件（委托）
-  el.querySelectorAll('#lg-preset-config [data-lg]').forEach(sl => {
-    sl.addEventListener('input', () => {
-      const val = parseFloat(sl.value);
-      const d = sl.parentElement.querySelector('.dev-row__value');
-      if (d) d.textContent = val;
-      const name = sl.dataset.lg;
-      if (name === 'panelBlur') updatePanelBlur(val);
-      else if (name === 'panelSaturate') updatePanelSaturate(val);
-      else if (name === 'panelRefraction') updatePanelRefraction(val);
-      else if (name === 'panelBorderAlpha') document.documentElement.style.setProperty('--lg-panel-border-alpha', val);
-      else if (name === 'panelShadowAlpha') document.documentElement.style.setProperty('--lg-panel-shadow-alpha', val);
-      else if (name === 'panelBgAlpha') document.documentElement.style.setProperty('--lg-panel-bg-alpha', val);
-      else if (name === 'panelHighlight') document.documentElement.style.setProperty('--lg-panel-highlight', val);
-    });
-  });
-  // 同步面板 slider 值为当前 CSS 变量
+  // 液态玻璃预设配置 — GlassSlider 替换
+  const _presetSliderDefs = [
+    ['panelBlur', 2, 40, 6, 1, 'px', (v) => updatePanelBlur(v)],
+    ['panelRefraction', 0, 250, 150, 2, '', (v) => updatePanelRefraction(v)],
+    ['panelSaturate', 0.5, 3, 1.3, 0.1, '', (v) => updatePanelSaturate(v)],
+    ['panelBgAlpha', 0, 0.08, 0, 0.002, '', (v) => document.documentElement.style.setProperty('--lg-panel-bg-alpha', v)],
+    ['panelBorderAlpha', 0, 0.4, 0.12, 0.01, '', (v) => document.documentElement.style.setProperty('--lg-panel-border-alpha', v)],
+    ['panelHighlight', 0, 0.2, 0.08, 0.005, '', (v) => document.documentElement.style.setProperty('--lg-panel-highlight', v)],
+    ['panelShadowAlpha', 0, 0.6, 0.3, 0.01, '', (v) => document.documentElement.style.setProperty('--lg-panel-shadow-alpha', v)],
+  ];
   const root = document.documentElement.style;
-  const _sync = (sel, prop) => { const sl = el.querySelector('[data-lg="' + sel + '"]'); if (sl) { const v = parseFloat(root.getPropertyValue(prop)); if (!isNaN(v)) sl.value = v; } };
-  _sync('panelBlur', '--lg-panel-blur'); _sync('panelRefraction', '--lg-panel-refraction');
-  _sync('panelSaturate', '--lg-panel-saturate'); _sync('panelBgAlpha', '--lg-panel-bg-alpha');
-  _sync('panelBorderAlpha', '--lg-panel-border-alpha'); _sync('panelHighlight', '--lg-panel-highlight');
-  _sync('panelShadowAlpha', '--lg-panel-shadow-alpha');
+  const _cssVal = (prop, fb) => { const v = parseFloat(root.getPropertyValue(prop)); return isNaN(v) ? fb : v; };
+  const _syncVals = {
+    panelBlur: _cssVal('--lg-panel-blur', 6),
+    panelRefraction: _cssVal('--lg-panel-refraction', 150),
+    panelSaturate: _cssVal('--lg-panel-saturate', 1.3),
+    panelBgAlpha: _cssVal('--lg-panel-bg-alpha', 0),
+    panelBorderAlpha: _cssVal('--lg-panel-border-alpha', 0.12),
+    panelHighlight: _cssVal('--lg-panel-highlight', 0.08),
+    panelShadowAlpha: _cssVal('--lg-panel-shadow-alpha', 0.3),
+  };
+  setTimeout(() => {
+    _presetSliderDefs.forEach(([name, min, max, val, step, unit, fn]) => {
+      _createGlassSlider(name, { min, max, step, initialValue: _syncVals[name] || val, onChange: (v) => {
+        const d = document.getElementById('gslv-' + name);
+        if (d) d.textContent = v + (unit || '');
+        if (fn) fn(v);
+      }});
+    });
+  }, 350);
 
   // 绑定事件
   const saveBtn = document.getElementById('dev-preset-save');
