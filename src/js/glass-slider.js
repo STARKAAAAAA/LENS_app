@@ -135,8 +135,9 @@ export class GlassSlider {
   }
 
   _onPointerDown(e) {
-    this._dragging = true; this._glassOn();
     const r = this._track.getBoundingClientRect();
+    if (r.width <= 0) return;
+    this._dragging = true; this._glassOn();
     const curLeft = parseFloat(this._thumb.style.left);
     const thumbCenter = !isNaN(curLeft) ? curLeft : (this._frac * r.width);
     this._grabOffset = thumbCenter - (e.clientX - r.left);
@@ -163,6 +164,7 @@ export class GlassSlider {
   _tick() {
     if (!this._dragging) { this._raf = 0; return; }
     const r = this._track.getBoundingClientRect();
+    if (r.width <= 0) { this._raf = requestAnimationFrame(this._tick); return; }
     const raw = this._targetX, w = r.width;
     let tx;
     if (raw < 0) { const d = -raw; tx = -d / (1 + d * 0.25); }
@@ -173,7 +175,8 @@ export class GlassSlider {
     this._val = Math.round(this._val / this._opts.step) * this._opts.step;
     if (this._onChange) this._onChange(this._val);
 
-    const cur = parseFloat(this._thumb.style.left) || 0;
+    const cur = parseFloat(this._thumb.style.left);
+    if (isNaN(cur)) { this._raf = requestAnimationFrame(this._tick); return; }
     let nx = cur + (tx - cur) * 0.55;
     if (Math.abs(tx - cur) < 0.3) nx = tx;
     this._thumb.style.left = Math.round(nx) + 'px';
