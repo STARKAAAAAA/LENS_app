@@ -1407,9 +1407,9 @@ function renderVisualGroup() {
         if (desc) desc.parentNode.insertBefore(preview, desc.nextSibling);
       }
       const d1=document.getElementById('gsw-demo');
-      if(d1&&!d1._gs){d1._gs=new GlassSwitch({});d1._gs.mount(d1);}
+      if(d1&&!d1._gs){d1._gs=new GlassSwitch(Object.assign({}, _LG_SWITCH_DIM, {bezel:20,thick:20,scale:0.35,blur:0.05,saturate:0}));d1._gs.mount(d1);}
       const d2=document.getElementById('gsl-demo');
-      if(d2&&!d2._gs){d2._gs=new GlassSlider({initialValue:50});d2._gs.mount(d2);}
+      if(d2&&!d2._gs){d2._gs=new GlassSlider(Object.assign({initialValue:50}, _LG_SLIDER_DIM, {bezel:14,thick:14,scale:0.70,blur:0,saturate:0}));d2._gs.mount(d2);}
 
       // ── Replace toggles with GlassSwitch ──
       _createGlassSwitch('liquid-glass', { initialState: !!(D.liquidGlassOn || window.__lensLiquidGlass), onChange: (on) => {
@@ -1456,9 +1456,13 @@ function renderVisualGroup() {
       _sliderDefs.forEach(([name, min, max, val, step, unit]) => {
         _createGlassSlider(name, { min, max, step, initialValue: val, onChange: (v) => {
           const d = document.getElementById('gslv-' + name);
-          if (d) d.textContent = v + (unit || '');
+          if (d) d.textContent = (step < 1 ? v.toFixed(3) : v) + (unit || '');
           applyLG();
         }});
+        // Sync initial display
+        const sl = _gsl[name];
+        const d = document.getElementById('gslv-' + name);
+        if (sl && d) d.textContent = (step < 1 ? sl.value.toFixed(3) : sl.value) + (unit || '');
       });
 
     }catch(e){console.warn('Glass demo:',e);}
@@ -1547,8 +1551,9 @@ function lgSlider(label, name, min, max, val, step, unit) {
 }
 
 // ── Glass component row generators ──
-const _LG_SWITCH_DIM = { trackW: 110, trackH: 46, thumbW: 100, thumbH: 64 };
-const _LG_SLIDER_DIM = { trackW: 190, trackH: 10, thumbW: 58, thumbH: 38 };
+// Match original dev-toggle (36×20) and dev-slider (~160×4) closely
+const _LG_SWITCH_DIM = { trackW: 48, trackH: 24, thumbW: 40, thumbH: 28 };
+const _LG_SLIDER_DIM = { trackW: 160, trackH: 6, thumbW: 26, thumbH: 18 };
 
 function makeGlassToggleRow(label, id) {
   return `<div class="dev-row">
@@ -1579,7 +1584,7 @@ function _createGlassSwitch(id, opts) {
   const sw = new GlassSwitch(Object.assign({
     trackW: _LG_SWITCH_DIM.trackW, trackH: _LG_SWITCH_DIM.trackH,
     thumbW: _LG_SWITCH_DIM.thumbW, thumbH: _LG_SWITCH_DIM.thumbH,
-    bezel: 40, thick: 40, scale: 0.65, blur: 0.1, saturate: 0,
+    bezel: 20, thick: 20, scale: 0.35, blur: 0.05, saturate: 0,
     specAngle: -45, specAlpha: 0.4,
   }, opts || {}));
   sw.mount(el);
@@ -1594,7 +1599,7 @@ function _createGlassSlider(name, opts) {
   const sl = new GlassSlider(Object.assign({
     trackW: _LG_SLIDER_DIM.trackW, trackH: _LG_SLIDER_DIM.trackH,
     thumbW: _LG_SLIDER_DIM.thumbW, thumbH: _LG_SLIDER_DIM.thumbH,
-    bezel: 28, thick: 35, scale: 1.80, blur: 0, saturate: 0,
+    bezel: 14, thick: 14, scale: 0.70, blur: 0, saturate: 0,
     specAngle: -45, specAlpha: 0.4,
   }, opts || {}));
   sl.mount(el);
@@ -3533,9 +3538,13 @@ function renderPresetsGroup() {
     _presetSliderDefs.forEach(([name, min, max, val, step, unit, fn]) => {
       _createGlassSlider(name, { min, max, step, initialValue: _syncVals[name] || val, onChange: (v) => {
         const d = document.getElementById('gslv-' + name);
-        if (d) d.textContent = v + (unit || '');
+        if (d) d.textContent = (step < 1 ? v.toFixed(3) : v) + (unit || '');
         if (fn) fn(v);
       }});
+      // Sync display immediately with correct initial value
+      const sl = _gsl[name];
+      const d = document.getElementById('gslv-' + name);
+      if (sl && d) d.textContent = (step < 1 ? sl.value.toFixed(3) : sl.value) + (unit || '');
     });
   }, 350);
 

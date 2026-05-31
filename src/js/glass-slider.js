@@ -108,6 +108,11 @@ export class GlassSlider {
     this._outer.appendChild(this._thumb);
     parentEl.appendChild(this._outer);
 
+    // Set initial thumb position from initialValue
+    const initFrac = this._frac;
+    this._thumb.style.left = Math.round(initFrac * this._opts.trackW) + 'px';
+    this._fill.style.width = (initFrac * 100) + '%';
+
     // Generate filter
     const sdf = makeCapsuleSDF(this._opts.thumbW, this._opts.thumbH);
     const { sc } = prepComponentFilter(
